@@ -121,6 +121,19 @@ public class OpenAiService {
      * @throws AdversarialPromptException 적대적 프롬프트 감지 시
      */
     public String chat(String interactionId, Long userId, String username, Long guildId, String userMessage) throws RateLimitException, AdversarialPromptException {
+        return chatResult(interactionId, userId, username, guildId, userMessage).content();
+    }
+
+    /**
+     * Platform adapters use this result-preserving entry point so run identity,
+     * tool usage, and duration are not lost at the Core boundary.
+     */
+    public AgentResult chatResult(
+            String interactionId,
+            Long userId,
+            String username,
+            Long guildId,
+            String userMessage) throws RateLimitException, AdversarialPromptException {
         // 사용자별 Lock 획득 (동일 사용자의 동시 요청 방지)
         Lock userLock = userLocks.computeIfAbsent(userId, k -> new ReentrantLock());
         userLock.lock();
@@ -135,7 +148,7 @@ public class OpenAiService {
      * 내부 chat 메서드 (Lock으로 보호됨)
      */
     @Transactional
-    private String chatInternal(String interactionId, Long userId, String username, Long guildId, String userMessage) throws RateLimitException, AdversarialPromptException {
+    private AgentResult chatInternal(String interactionId, Long userId, String username, Long guildId, String userMessage) throws RateLimitException, AdversarialPromptException {
         if (!isEnabled) {
             throw new RateLimitException("OpenAI 서비스가 비활성화되어 있습니다.");
         }
@@ -232,7 +245,7 @@ public class OpenAiService {
             // 10. 사용량 DB 로깅
             logUsage(interactionId, userId, username, guildId, userMessage, response, true, null);
 
-            return response;
+            return result;
 
         } catch (AgentApprovalRequiredException approvalRequired) {
             log.info("에이전트 승인 대기 - run={}, tool={}",

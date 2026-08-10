@@ -1,0 +1,93 @@
+# Gahyeon Core migration
+
+This document records the incremental migration from a Discord bot to a
+platform-independent Gahyeon agent. Existing Discord behavior remains supported
+while each platform boundary is made explicit.
+
+## Target dependency direction
+
+```text
+Discord / Headless / Desktop adapters
+                 │
+                 ▼
+       ConversationUseCase
+                 │
+                 ▼
+       ConversationAgentPort
+                 │
+                 ▼
+LLM/runtime/provider infrastructure
+```
+
+Types under `com.gahyeonbot.core` must not import JDA, Spring Web, Piper,
+OpenAI, or other provider-specific classes. STT and TTS will follow the same
+port-and-adapter rule: Core owns capability contracts; infrastructure owns
+provider implementations.
+
+## Milestone 1: headless conversation seam
+
+Implemented:
+
+- internal `ActorId` rather than a Discord type in the Core contract;
+- `ConversationSessionId`, `ClientSource`, and `ConversationModality`;
+- immutable `ConversationSession` client context;
+- platform-neutral request/response and `ConversationUseCase`;
+- outbound `ConversationAgentPort`;
+- Discord text listener translated into the new Core request;
+- an opt-in headless HTTP adapter;
+- compatibility adapter that preserves the existing rate-limit, moderation,
+  memory, and `AgentRuntime` behavior;
+- tests proving Desktop/Headless requests do not require Discord context.
+
+The headless HTTP adapter is disabled by default because authentication has not
+yet been introduced. For local development only:
+
+```bash
+GAHYEON_HEADLESS_ENABLED=true ./gradlew bootRun
+```
+
+With the application's `/api` context path, the endpoint is:
+
+```text
+POST /api/gahyeon/conversations/{sessionId}/messages
+```
+
+Example body:
+
+```json
+{
+  "requestId": "local-test-1",
+  "actorId": 1,
+  "displayName": "local-user",
+  "message": "안녕하세요"
+}
+```
+
+## Known compatibility debt
+
+- `DiscordIdentityMapper` currently projects a Discord user ID directly into
+  the numeric internal `ActorId`. A persisted principal/external-identity table
+  must replace this before Desktop account linking is enabled.
+- `LegacyOpenAiConversationAdapter` still projects `discord.guildId` into the
+  legacy admission service. Discord compatibility is confined to the adapter,
+  but the legacy runtime ledger still stores `guild_id` and `user_id`.
+- `AgentGateway` currently describes response modality (`TEXT`, `VOICE`,
+  `SYSTEM`) rather than client source. It should eventually be renamed or split
+  without rewriting the runtime loop.
+- The headless endpoint is request/response only. Authentication and a versioned
+  event stream are required before it becomes the Desktop transport.
+
+## Next migration slices
+
+1. Persist `Principal` and `ExternalIdentity`, then migrate Discord identity
+   lookup away from direct ID reuse.
+2. Extract the admission policy from `OpenAiService` so the compatibility
+   adapter and provider name can be removed.
+3. Split `VoiceAssistantService` into platform-neutral utterance processing and
+   Discord capture/playback adapters.
+4. Define versioned command/query and event-stream envelopes with request,
+   correlation, session, and sequence identifiers.
+5. Connect a minimal Desktop text client before adding avatar rendering.
+
+Discord-only moderation, guild music, and DM delivery remain Discord adapter
+capabilities unless explicitly exposed to Gahyeon as tools.
