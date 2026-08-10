@@ -5,6 +5,7 @@ import StageView from './components/StageView.vue'
 import { SpeechPlayer } from './audio/speech-player'
 import { WavRecorder } from './audio/wav-recorder'
 import { initialStageState, reduceStageEvent } from './stage/stage-state'
+import { locale, setLocale, t, type Locale } from './i18n'
 
 interface ChatEntry {
   id: string
@@ -14,7 +15,7 @@ interface ChatEntry {
 
 const installationId = persistentId('gahyeon.installationId', 'installation')
 const sessionId = persistentId('gahyeon.sessionId', 'desktop')
-const displayName = ref(localStorage.getItem('gahyeon.displayName') ?? '사용자')
+const displayName = ref(localStorage.getItem('gahyeon.displayName') ?? t('identity.defaultName'))
 const input = ref('')
 const sending = ref(false)
 const recording = ref(false)
@@ -24,7 +25,7 @@ const synthesisReady = ref(false)
 const voiceOutput = ref(localStorage.getItem('gahyeon.voiceOutput') !== 'false')
 const streamState = ref<'connecting' | 'connected' | 'error'>('connecting')
 const messages = ref<ChatEntry[]>([
-  { id: 'welcome', role: 'gahyeon', text: '여기 있어. 무슨 이야기를 해볼까?' },
+  { id: 'welcome', role: 'gahyeon', text: t('conversation.welcome') },
 ])
 const stageState = ref(initialStageState)
 const messageList = ref<HTMLElement>()
@@ -40,10 +41,12 @@ const speechPlayer = new SpeechPlayer()
 let recordingTimeout: number | undefined
 
 const statusLabel = computed(() => ({
-  connecting: 'Core 연결 중',
-  connected: 'Core 연결됨',
-  error: 'Core 연결 끊김',
+  connecting: t('status.connecting'), connected: t('status.connected'), error: t('status.error'),
 })[streamState.value])
+
+function changeLocale(event: Event) {
+  setLocale((event.target as HTMLSelectElement).value as Locale)
+}
 
 onMounted(async () => {
   try {
@@ -126,7 +129,7 @@ async function toggleRecording() {
   if (transcribing.value || sending.value) return
   if (!recording.value) {
     if (!transcriptionReady.value) {
-      addSystemMessage('STT가 준비되지 않았습니다.')
+      addSystemMessage(t('voice.sttUnavailable'))
       return
     }
     try {
@@ -148,7 +151,7 @@ async function toggleRecording() {
   try {
     const wav = await recorder.stop()
     const transcript = (await gahyeon.transcribeWav(wav)).trim()
-    if (!transcript) throw new Error('음성을 인식하지 못했습니다.')
+    if (!transcript) throw new Error(t('voice.noTranscript'))
     input.value = transcript
     await send()
   }
@@ -199,7 +202,7 @@ function persistentId(key: string, prefix: string) {
         <span class="brand-mark">G</span>
         <div>
           <h1>Gahyeon</h1>
-          <p>A living presence, close by.</p>
+          <p>{{ t('app.tagline') }}</p>
         </div>
       </header>
 
@@ -224,8 +227,8 @@ function persistentId(key: string, prefix: string) {
     <section class="conversation">
       <header class="conversation-header">
         <div>
-          <span class="eyebrow">CONVERSATION</span>
-          <h2>가현과의 공간</h2>
+          <span class="eyebrow">{{ t('conversation.eyebrow').toUpperCase() }}</span>
+          <h2>{{ t('conversation.title') }}</h2>
         </div>
         <div class="conversation-actions">
           <button
@@ -233,20 +236,23 @@ function persistentId(key: string, prefix: string) {
             type="button"
             :class="{ enabled: voiceOutput && synthesisReady }"
             :disabled="!synthesisReady"
-            :aria-label="voiceOutput ? '음성 출력 끄기' : '음성 출력 켜기'"
+            :aria-label="voiceOutput ? t('voice.disable') : t('voice.enable')"
             @click="toggleVoiceOutput"
           >{{ voiceOutput && synthesisReady ? 'VOICE ON' : 'VOICE OFF' }}</button>
-          <input v-model="displayName" class="name-input" aria-label="표시 이름" maxlength="40">
+          <select class="locale-select" :value="locale" :aria-label="t('locale.label')" @change="changeLocale">
+            <option value="ko">한국어</option><option value="en">English</option>
+          </select>
+          <input v-model="displayName" class="name-input" :aria-label="t('identity.displayName')" maxlength="40">
         </div>
       </header>
 
       <div ref="messageList" class="messages" aria-live="polite">
         <article v-for="message in messages" :key="message.id" class="message" :class="message.role">
-          <span>{{ message.role === 'user' ? displayName : message.role === 'gahyeon' ? '가현' : '시스템' }}</span>
+          <span>{{ message.role === 'user' ? displayName : message.role === 'gahyeon' ? t('role.gahyeon') : t('role.system') }}</span>
           <p>{{ message.text }}</p>
         </article>
         <article v-if="sending" class="message gahyeon typing">
-          <span>가현</span>
+          <span>{{ t('role.gahyeon') }}</span>
           <p><i /><i /><i /></p>
         </article>
       </div>
@@ -257,17 +263,17 @@ function persistentId(key: string, prefix: string) {
           class="mic-button"
           :class="{ recording }"
           :disabled="!transcriptionReady || sending || transcribing"
-          :aria-label="recording ? '녹음 종료' : '마이크 입력'"
+          :aria-label="recording ? t('voice.recordStop') : t('voice.recordStart')"
           @click="toggleRecording"
         >{{ transcribing ? '…' : recording ? '■' : '●' }}</button>
         <textarea
           v-model="input"
           rows="1"
-          placeholder="가현에게 말하기…"
-          aria-label="메시지"
+          :placeholder="t('conversation.placeholder')"
+          :aria-label="t('conversation.message')"
           @keydown.enter.exact.prevent="send"
         />
-        <button class="send-button" type="submit" :disabled="sending || !input.trim()" aria-label="보내기">↑</button>
+        <button class="send-button" type="submit" :disabled="sending || !input.trim()" :aria-label="t('conversation.send')">↑</button>
       </form>
     </section>
   </main>

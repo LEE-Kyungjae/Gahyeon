@@ -3,6 +3,10 @@
 Desktop is a presentation client for Gahyeon Core. It does not own LLM,
 memory, STT, TTS, behavior, or world-state decisions.
 
+The interface detects Korean or English from the operating-system locale on
+first launch. Users can switch languages from the conversation header; the
+choice is persisted locally as `gahyeon.locale`.
+
 ## Run locally
 
 Start Core with the local-only transport enabled:

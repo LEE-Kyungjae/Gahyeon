@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { StageState } from '../stage/stage-state'
 import { ThreeStage } from '../stage/three-stage'
+import { t } from '../i18n'
 
 const props = defineProps<{
   state: StageState
@@ -29,7 +30,7 @@ onMounted(async () => {
     )
     stage.setCharacter(character)
     if (character.animationWarnings.length > 0) {
-      modelError.value = `일부 VRMA 대신 기본 동작을 사용합니다: ${character.animationWarnings.join('; ')}`
+      modelError.value = t('stage.partialAnimation', { details: character.animationWarnings.join('; ') })
     }
   }
   catch (error) {
@@ -49,7 +50,7 @@ async function enableLookingGlass() {
     lookingGlassReady.value = true
   }
   catch (error) {
-    modelError.value = `Looking Glass 초기화 실패: ${error instanceof Error ? error.message : String(error)}`
+    modelError.value = t('stage.lookingGlassFailure', { details: error instanceof Error ? error.message : String(error) })
   }
   finally {
     lookingGlassLoading.value = false
@@ -66,7 +67,7 @@ async function enableLookingGlass() {
       class="looking-glass-enable"
       :disabled="lookingGlassLoading"
       @click="enableLookingGlass"
-    >{{ lookingGlassLoading ? 'LOADING…' : 'ENABLE LOOKING GLASS' }}</button>
+    >{{ lookingGlassLoading ? t('stage.loading') : t('stage.enableLookingGlass') }}</button>
   </div>
   <p v-if="modelError" class="model-error">{{ modelError }}</p>
 </template>

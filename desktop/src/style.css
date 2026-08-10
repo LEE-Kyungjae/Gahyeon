@@ -43,6 +43,7 @@ button, input, textarea { font: inherit; }
 .conversation-header h2 { margin-top: 6px; font-size: 20px; font-weight: 500; }
 .name-input { width: 108px; padding: 8px 10px; color: #babcc7; background: transparent; border: 1px solid transparent; border-radius: 8px; text-align: right; outline: none; }
 .name-input:focus { border-color: #ffffff1f; background: #ffffff08; }
+.locale-select { padding: 7px 9px; color: #babcc7; background: #1b1e27; border: 1px solid #ffffff12; border-radius: 8px; outline: none; }
 .messages { overflow-y: auto; padding: 28px 4px; scrollbar-width: thin; scrollbar-color: #ffffff1d transparent; }
 .message { max-width: 86%; margin-bottom: 24px; }
 .message.user { margin-left: auto; text-align: right; }
