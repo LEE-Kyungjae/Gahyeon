@@ -4,11 +4,13 @@ import { VRM, VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm'
 import type { CharacterRenderer } from './character-renderer'
 import type { StageState } from './stage-state'
 import { VrmAnimationController } from './vrm-animation-controller'
+import { blinkWeight } from './blink'
 
 export class VrmCharacterRenderer implements CharacterRenderer {
   readonly object = new Group()
   readonly animationWarnings: string[] = []
   private readonly animations: VrmAnimationController
+  private elapsed = 1.1
   private constructor(private readonly vrm: VRM) {
     VRMUtils.rotateVRM0(vrm)
     this.animations = new VrmAnimationController(vrm)
@@ -33,12 +35,14 @@ export class VrmCharacterRenderer implements CharacterRenderer {
   }
 
   update(state: StageState, deltaSeconds: number) {
+    this.elapsed += deltaSeconds
     this.animations.update(state.activity, deltaSeconds)
     const expression = this.vrm.expressionManager
     if (expression) {
       expression.setValue('happy', state.expression === 'happy' ? state.expressionIntensity : 0)
       expression.setValue('relaxed', state.expression === 'relaxed' ? state.expressionIntensity : 0)
       expression.setValue('aa', state.speaking ? Math.max(0.08, state.speechAmplitude) : 0)
+      expression.setValue('blink', blinkWeight(this.elapsed))
       expression.update()
     }
     this.vrm.update(deltaSeconds)

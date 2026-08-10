@@ -44,7 +44,8 @@ presentation ideas without migrating Gahyeon's identity or AI system.
 ## Upstream ideas worth revisiting
 
 - renderer lifecycle observability and asset caching;
-- automatic blink, gaze, and idle eye movement beyond current activity poses;
+- gaze and idle eye movement beyond the implemented automatic blink and
+  activity poses;
 - a presentation plugin contract once at least two real plugins exist;
 - mobile/PWA presentation only after Desktop transport and account linking are
   stable.
