@@ -1,6 +1,7 @@
 package com.gahyeonbot.commands.general;
 
-import com.gahyeonbot.services.ai.OpenAiService;
+import com.gahyeonbot.adapters.discord.DiscordIdentityMapper;
+import com.gahyeonbot.core.conversation.ConversationUseCase;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,26 +21,16 @@ import static org.assertj.core.api.Assertions.*;
 class GahyeonaTest {
 
     @Mock
-    private OpenAiService openAiService;
+    private ConversationUseCase conversation;
+
+    @Mock
+    private DiscordIdentityMapper identityMapper;
 
     private Gahyeona command;
 
     @BeforeEach
     void setUp() {
-        command = new Gahyeona(openAiService);
-    }
-
-    @Test
-    @DisplayName("OpenAI 서비스 활성화 상태 확인")
-    void testOpenAiServiceEnabled() {
-        // Given
-        when(openAiService.isEnabled()).thenReturn(true);
-
-        // When
-        boolean enabled = openAiService.isEnabled();
-
-        // Then
-        assertThat(enabled).isTrue();
+        command = new Gahyeona(conversation, identityMapper);
     }
 
     @Test

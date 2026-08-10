@@ -1,7 +1,14 @@
 package com.gahyeonbot.commands.general;
 
+import com.gahyeonbot.adapters.discord.DiscordIdentityMapper;
 import com.gahyeonbot.commands.util.*;
-import com.gahyeonbot.services.ai.OpenAiService;
+import com.gahyeonbot.core.conversation.ConversationRejectedException;
+import com.gahyeonbot.core.conversation.ConversationRequest;
+import com.gahyeonbot.core.conversation.ConversationUseCase;
+import com.gahyeonbot.core.session.ClientSource;
+import com.gahyeonbot.core.session.ConversationModality;
+import com.gahyeonbot.core.session.ConversationSession;
+import com.gahyeonbot.core.session.ConversationSessionId;
 import com.gahyeonbot.services.ai.agent.AgentApprovalRequiredException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,7 +33,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class Gahyeona extends AbstractCommand {
 
-    private final OpenAiService openAiService;
+    private final ConversationUseCase conversation;
+    private final DiscordIdentityMapper identityMapper;
 
     @Override
     public String getName() {
@@ -68,12 +76,6 @@ public class Gahyeona extends AbstractCommand {
         }
 
         try {
-            // OpenAI 서비스 활성화 확인
-            if (!openAiService.isEnabled()) {
-                event.getHook().editOriginal("❌ OpenAI 서비스가 비활성화되어 있습니다. 관리자에게 문의하세요.").complete();
-                return;
-            }
-
             // 질문 옵션 가져오기
             String question = event.getOption("question").getAsString();
 
@@ -89,13 +91,23 @@ public class Gahyeona extends AbstractCommand {
             }
             log.info("OpenAI 요청 - 사용자: {}, 질문: {}", event.getUser().getName(), question);
 
-            String interactionId = event.getId();  // Discord Interaction ID (중복 방지용)
-            Long userId = event.getUser().getIdLong();
+            String interactionId = event.getId();
+            long userId = event.getUser().getIdLong();
             String username = event.getUser().getName();
-            Long guildId = event.getGuild() != null ? event.getGuild().getIdLong() : null;
-
-            // OpenAI API 호출
-            String response = openAiService.chat(interactionId, userId, username, guildId, question);
+            Map<String, String> context = event.getGuild() == null
+                    ? Map.of()
+                    : Map.of("discord.guildId", event.getGuild().getId());
+            var session = new ConversationSession(
+                    new ConversationSessionId("discord:slash:" + userId),
+                    identityMapper.toActorId(userId, username),
+                    ClientSource.DISCORD,
+                    ConversationModality.TEXT,
+                    context);
+            String response = conversation.converse(new ConversationRequest(
+                    "interaction:" + interactionId,
+                    session,
+                    username,
+                    question)).content();
 
             if (response == null || response.trim().isEmpty()) {
                 event.getHook().editOriginal("AI 응답을 받지 못했습니다. 잠시 후 다시 시도해주세요.").complete();
@@ -122,27 +134,14 @@ public class Gahyeona extends AbstractCommand {
             log.warn("중복 Interaction 감지 - 다른 인스턴스가 이미 처리 중: {}", event.getUser().getName());
             // 다른 인스턴스가 처리 중이므로 조용히 종료 (사용자는 이미 응답을 받을 것)
             safeEditOriginal(event, "요청을 처리 중입니다...");
-        } catch (OpenAiService.RateLimitException e) {
-            log.warn("Rate Limit 초과 - 사용자: {}, 메시지: {}", event.getUser().getName(), e.getMessage());
+        } catch (ConversationRejectedException e) {
+            log.warn("대화 요청 거절 - 사용자: {}, 이유: {}", event.getUser().getName(), e.reason());
             safeEditOriginal(event, "⚠️ " + e.getMessage());
-        } catch (OpenAiService.AdversarialPromptException e) {
-            log.warn("적대적 프롬프트 감지 - 사용자: {}", event.getUser().getName());
-            safeEditOriginal(event, "🚫 " + e.getMessage());
         } catch (IllegalArgumentException e) {
             log.warn("잘못된 요청 - 사용자: {}, 메시지: {}", event.getUser().getName(), e.getMessage());
             safeEditOriginal(event, e.getMessage());
-        } catch (OpenAiService.ChatProcessingException e) {
-            OpenAiService.ChatProcessingException.ErrorType errorType = e.getErrorType();
-            log.error("OpenAI 처리 오류 - 사용자: {}, 유형: {}", event.getUser().getName(), errorType, e);
-            String userMessage;
-            if (errorType == OpenAiService.ChatProcessingException.ErrorType.OPENAI_API_FAILURE) {
-                userMessage = "AI 서버와 통신 중 문제가 발생했어요. 잠시 후 다시 시도해 주세요.";
-            } else {
-                userMessage = "시스템 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.";
-            }
-            safeEditOriginal(event, userMessage);
         } catch (Exception e) {
-            log.error("OpenAI 명령어 실행 중 오류 발생", e);
+            log.error("Gahyeon 대화 명령 실행 중 오류 발생", e);
             safeEditOriginal(event, "오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
         }
     }

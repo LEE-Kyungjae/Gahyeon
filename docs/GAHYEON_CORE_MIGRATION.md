@@ -39,6 +39,8 @@ Implemented:
 - platform-neutral request/response and `ConversationUseCase`;
 - outbound `ConversationAgentPort`;
 - Discord text listener translated into the new Core request;
+- the `/가현아` slash command now translates into the same Core request instead
+  of invoking `OpenAiService` directly;
 - an opt-in headless HTTP adapter;
 - compatibility adapter that preserves the existing rate-limit, moderation,
   memory, and `AgentRuntime` behavior;
