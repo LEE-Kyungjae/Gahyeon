@@ -52,6 +52,9 @@ Implemented:
 - Conversation lifecycle emits schema-versioned persistent events with global
   sequence cursors. Headless/Desktop transports can resume reads through
   `GET /api/gahyeon/events?afterSequence=...` without owning Core state.
+- Desktop requests resolve a stable installation ID through the platform
+  identity map and enter Core with `ClientSource.DESKTOP`; clients never submit
+  a database principal ID.
 
 The headless HTTP adapter is disabled by default because authentication has not
 yet been introduced. For local development only:
@@ -64,6 +67,7 @@ With the application's `/api` context path, the endpoint is:
 
 ```text
 POST /api/gahyeon/conversations/{sessionId}/messages
+POST /api/gahyeon/desktop/conversations/{sessionId}/messages
 ```
 
 Example body:
@@ -95,14 +99,13 @@ Example body:
 
 ## Next migration slices
 
-1. Add internal-ID allocation and an authenticated identity-linking flow for
-   Desktop clients.
+1. Replace the local Desktop installation identity with authenticated account
+   linking before exposing the transport outside localhost.
 2. Extract the admission policy from `OpenAiService` so the compatibility
    adapter and provider name can be removed.
 3. Move utterance/VAD coordination out of `VoiceAssistantService`; Discord
    capture/playback is now the remaining JDA-specific portion.
-4. Define versioned command/query and event-stream envelopes with request,
-   correlation, session, and sequence identifiers.
+4. Add streaming delivery (SSE/WebSocket) over the persistent event cursor.
 5. Connect a minimal Desktop text client before adding avatar rendering.
 
 Discord-only moderation, guild music, and DM delivery remain Discord adapter

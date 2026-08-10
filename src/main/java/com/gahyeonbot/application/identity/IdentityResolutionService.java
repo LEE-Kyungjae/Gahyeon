@@ -12,6 +12,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class IdentityResolutionService {
@@ -37,10 +38,21 @@ public class IdentityResolutionService {
                 displayName);
     }
 
+    public ActorId resolveDesktop(String installationId, String displayName) {
+        if (installationId == null || installationId.isBlank()) {
+            throw new IllegalArgumentException("Desktop installation ID가 비어 있습니다.");
+        }
+        return resolve(
+                IdentityProvider.DESKTOP,
+                installationId.trim(),
+                null,
+                displayName);
+    }
+
     private ActorId resolve(
             IdentityProvider provider,
             String externalId,
-            long compatiblePrincipalId,
+            Long compatiblePrincipalId,
             String displayName) {
         String safeName = displayName == null || displayName.isBlank() ? "unknown" : displayName.trim();
         var existing = externalIdentityRepository.findByProviderAndExternalId(provider, externalId);
@@ -50,11 +62,16 @@ public class IdentityResolutionService {
             ActorId created = transactions.execute(status -> {
                 var raced = externalIdentityRepository.findByProviderAndExternalId(provider, externalId);
                 if (raced.isPresent()) return new ActorId(raced.get().getPrincipal().getId());
-                Principal principal = principalRepository.findById(compatiblePrincipalId)
-                        .orElseGet(() -> principalRepository.save(Principal.builder()
-                                .id(compatiblePrincipalId)
+                Principal principal = compatiblePrincipalId == null
+                        ? principalRepository.save(Principal.builder()
+                                .id(nextInternalPrincipalId())
                                 .displayName(safeName)
-                                .build()));
+                                .build())
+                        : principalRepository.findById(compatiblePrincipalId)
+                                .orElseGet(() -> principalRepository.save(Principal.builder()
+                                        .id(compatiblePrincipalId)
+                                        .displayName(safeName)
+                                        .build()));
                 externalIdentityRepository.saveAndFlush(ExternalIdentity.builder()
                         .id(UUID.randomUUID().toString())
                         .principal(principal)
@@ -70,5 +87,15 @@ public class IdentityResolutionService {
                     .map(identity -> new ActorId(identity.getPrincipal().getId()))
                     .orElseThrow(() -> race);
         }
+    }
+
+    private long nextInternalPrincipalId() {
+        // Discord snowflakes occupy the upper positive range. Keep generated local
+        // identities in a small reserved range until UUID ActorId migration lands.
+        for (int attempt = 0; attempt < 20; attempt++) {
+            long candidate = ThreadLocalRandom.current().nextLong(1, 1_000_000_000L);
+            if (!principalRepository.existsById(candidate)) return candidate;
+        }
+        throw new IllegalStateException("사용 가능한 내부 identity ID를 할당하지 못했습니다.");
     }
 }

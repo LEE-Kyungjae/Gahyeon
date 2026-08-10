@@ -35,4 +35,22 @@ class IdentityResolutionServiceTest {
                 .extracting(identity -> identity.getPrincipal().getId())
                 .isEqualTo(123456789L);
     }
+
+    @Test
+    void allocatesAndReusesAnInternalIdentityForDesktopInstallation() {
+        var service = new IdentityResolutionService(
+                principals, externalIdentities, transactionManager);
+
+        ActorId first = service.resolveDesktop("installation-abc", "Desktop user");
+        ActorId second = service.resolveDesktop("installation-abc", "Renamed user");
+
+        assertThat(first.value()).isPositive();
+        assertThat(second).isEqualTo(first);
+        assertThat(principals.count()).isOne();
+        assertThat(externalIdentities.findByProviderAndExternalId(
+                IdentityProvider.DESKTOP, "installation-abc"))
+                .get()
+                .extracting(identity -> identity.getPrincipal().getId())
+                .isEqualTo(first.value());
+    }
 }
