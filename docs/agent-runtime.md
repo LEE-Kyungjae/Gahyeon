@@ -1,4 +1,4 @@
-# GahyeonBot Agent Runtime
+# Gahyeon Agent Runtime
 
 텍스트 명령과 Discord 음성 비서는 동일한 에이전트 런타임을 사용한다.
 

@@ -1,13 +1,24 @@
-# 가현봇 (GahyeonBot)
+# Gahyeon
 
 [한국어](README.md) | [English](README.en.md)
 
-가현봇은 Discord 서버에서 AI 업무 비서, 음성 대화, 음악 재생, 음성 채널 예약 및 관리 기능을 제공하는 Java 기반 봇입니다. 전용 채팅·음성 채널에서는 슬래시 명령을 반복하지 않고도 텍스트와 음성으로 비서와 대화할 수 있습니다.
+Gahyeon은 지속적인 기억, 음성, 자율 행동과 3D World를 갖도록 확장 중인 독립형 AI Agent입니다. Discord와 Desktop은 동일한 Gahyeon Core에 접근하는 Client/Adapter이며, 대화·기억·음성·행동 결정은 특정 UI나 플랫폼에 종속되지 않습니다.
+
+```text
+Discord Adapter ─┐
+                 ├─ Gahyeon Core ─ Event/API ─ Desktop Client ─ Renderer
+Headless API ────┘
+```
+
+현재 Discord의 서버 관리·음악·예약 기능은 호환 Adapter로 계속 제공됩니다. Desktop은 텍스트·마이크·스피커·VRM Avatar·World를 제공하며, Looking Glass Go는 같은 World를 표시하는 선택적 Renderer입니다.
 
 ## 주요 기능
 
 - **AI 에이전트**: `/가현아` 또는 전용 채팅 채널의 일반 메시지를 AI 에이전트로 전달합니다.
-- **서버별 비서 채널**: `/설정`으로 `가현봇-채팅`과 `가현봇-비서` 채널을 만들고 연결합니다.
+- **독립형 AI Core**: Discord 없이도 Headless/Desktop API를 통해 Conversation, Session, STT, TTS와 World State를 실행합니다.
+- **Desktop Client**: 텍스트·음성 대화, VRM Avatar, 표정·립싱크·활동 애니메이션과 이동 가능한 World를 제공합니다.
+- **지속형 World**: 위치·방·활동·감정·상호작용 대상을 저장하고, 결정론적 Behavior가 대화하지 않는 동안의 행동을 선택합니다.
+- **서버별 비서 채널**: `/설정`으로 기존 `가현봇-채팅`과 `가현봇-비서` 채널을 만들고 연결합니다. 채널명은 기존 서버 호환을 위해 유지합니다.
 - **음성 비서**: 전용 음성 채널 입장을 감지해 봇이 자동 참여하고 STT → AI → TTS 파이프라인으로 응답합니다.
 - **안전한 턴 감지**: TEN VAD와 연속 무음 기준으로 발화 종료를 판단해 짧은 쉼마다 API를 호출하지 않습니다.
 - **대화 문맥 유지**: 사용자와 비서 메시지의 역할 경계를 보존해 후속 질문을 처리합니다.
@@ -25,7 +36,7 @@
 /설정
 ```
 
-가현봇은 전용 채팅 채널과 음성 채널을 생성하거나 기존 설정을 복구합니다.
+Gahyeon Discord Adapter는 전용 채팅 채널과 음성 채널을 생성하거나 기존 설정을 복구합니다.
 
 - 전용 채팅 채널의 일반 메시지는 `/가현아`와 동일하게 처리됩니다.
 - 전용 음성 채널에 입장하면 음성 비서가 자동으로 참여합니다.
@@ -49,7 +60,7 @@ Discord 음성 → TEN VAD → STT → AI 에이전트/OpenRouter → TTS → Di
 - Voicebox, Edge TTS, 범용 커스텀 TTS
 - Docker, GitHub Actions, Blue/Green 배포
 
-자세한 구조는 [아키텍처 문서](docs/ARCHITECTURE.md)와 [에이전트 런타임 문서](docs/agent-runtime.md)를 참고하세요.
+자세한 구조는 [Core 마이그레이션 문서](docs/GAHYEON_CORE_MIGRATION.md), [Desktop 문서](desktop/README.md), [아키텍처 문서](docs/ARCHITECTURE.md)를 참고하세요.
 
 ## 요구 환경
 
@@ -119,7 +130,7 @@ cd gahyeonbot
 ./gradlew bootRun
 ```
 
-Discord 연결 없이 애플리케이션만 확인하려면:
+Discord 연결 없이 Gahyeon Core와 Headless/Desktop API만 실행하려면:
 
 ```bash
 BOT_ENABLED=false ./gradlew bootRun
@@ -158,6 +169,10 @@ GitHub Actions는 PR과 `main` 푸시에서 테스트를 실행하고, 버전 �
 ## 문서
 
 - [API](docs/API.md)
+- [Core 마이그레이션](docs/GAHYEON_CORE_MIGRATION.md)
+- [Desktop Client](desktop/README.md)
+- [VRM 애니메이션](docs/VRM_ANIMATION.md)
+- [Looking Glass](docs/LOOKING_GLASS.md)
 - [아키텍처](docs/ARCHITECTURE.md)
 - [에이전트 런타임](docs/agent-runtime.md)
 - [커스텀 음성 TTS](docs/CUSTOM_VOICE_TTS.md)

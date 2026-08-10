@@ -138,7 +138,7 @@ assistant:
     api-key: ${ASSISTANT_STT_API_KEY:}
     model: ${ASSISTANT_STT_MODEL:gpt-4o-mini-transcribe}
     language: ${ASSISTANT_STT_LANGUAGE:ko}
-    prompt: ${ASSISTANT_STT_PROMPT:GitHub, 깃허브, 레포, 레포지토리, 가현봇, 에이전트, OpenRouter, 큐드란트, Qdrant, Piper, Voicebox, Whisper}
+    prompt: ${ASSISTANT_STT_PROMPT:GitHub, 깃허브, 레포, 레포지토리, Gahyeon, 가현, 가현봇, 에이전트, OpenRouter, 큐드란트, Qdrant, Piper, Voicebox, Whisper}
     timeout-seconds: ${ASSISTANT_STT_TIMEOUT_SECONDS:30}
     api-key-required: ${ASSISTANT_STT_API_KEY_REQUIRED:true}
   openrouter:

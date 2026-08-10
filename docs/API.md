@@ -1,7 +1,7 @@
-# Gahyeonbot API 문서
+# Gahyeon API 문서
 
 ## 개요
-가현봇은 Discord 봇으로 주된 인터페이스는 Discord 슬래시 명령어이지만, 운영 및 모니터링을 위한 HTTP REST API를 제공합니다.
+Gahyeon은 Discord, Desktop과 Headless Client가 공유하는 HTTP API를 제공합니다. 기존 운영·모니터링 API와 함께 Conversation, Speech, Event Stream 및 World State API가 독립적인 Core 진입점으로 동작합니다.
 
 **Base URL**: `/api`
 **프로토콜**: HTTP/HTTPS
@@ -132,9 +132,9 @@ Spring Boot Actuator가 활성화되어 있어 추가 메트릭 엔드포인트�
 
 ---
 
-## Discord 슬래시 명령어
+## Discord Adapter 슬래시 명령어
 
-가현봇의 주요 인터페이스는 Discord 슬래시 명령어입니다.
+아래 명령은 Gahyeon의 여러 Client 중 Discord Adapter가 제공하는 호환 인터페이스입니다. Core Conversation은 Discord 객체를 받지 않으며 Desktop과 Headless Client도 동일한 대화 유스케이스를 사용합니다.
 
 ### 일반 명령어 (General)
 

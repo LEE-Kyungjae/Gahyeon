@@ -1,8 +1,8 @@
-# Gahyeonbot 아키텍처 문서
+# Gahyeon 아키텍처 문서
 
 ## 시스템 개요
 
-가현봇은 Discord 서버에서 예약 관리, 음악 재생, AI 대화 기능을 제공하는 봇입니다. Java 21 기반 Spring Boot 3 애플리케이션으로 구현되어 있으며, JDA(Java Discord API)를 통해 Discord와 통신합니다.
+Gahyeon은 Java 21와 Spring Boot 3 기반의 독립형 AI Agent입니다. Conversation, Session, STT, TTS, Event와 World/Behavior 기능은 Core/Application 경계에 있으며, JDA 기반 Discord 기능과 Electron 기반 Desktop은 Adapter/Client로 연결됩니다. 기존 예약·음악·서버 관리 기능은 Discord Adapter에 남겨 점진적으로 호환합니다.
 
 ## 기술 스택
 
@@ -29,6 +29,24 @@
 
 ## 아키텍처 다이어그램
 
+현재 목표 및 구현 경계는 다음과 같습니다.
+
+```text
+Discord Adapter ──────┐
+Desktop/Headless API ─┼─ Application Use Cases ─ Core Domain
+                      │                         ├─ Conversation / Session
+                      │                         ├─ Speech ports
+                      │                         ├─ Events
+                      │                         └─ World / Behavior
+                      └─ Presentation Events
+                                  │
+                         Desktop Three.js Scene
+                             ├─ Monitor renderer
+                             └─ Looking Glass WebXR renderer
+```
+
+Core 타입은 JDA, Electron, Spring Web 또는 음성 제공자 타입을 참조하지 않습니다. Discord의 음악·관리·예약 기능은 기존 호환 기능으로 Adapter 측에 남아 있습니다. 아래 다이어그램과 레이어 설명은 이 Discord 호환 영역의 상세 구조를 설명합니다.
+
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                      Discord Platform                        │
@@ -36,7 +54,7 @@
                      │ WebSocket (JDA)
                      ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                    Gahyeonbot Application                    │
+│                Gahyeon Discord Compatibility                 │
 │  ┌────────────────────────────────────────────────────────┐ │
 │  │              Listeners & Event Handlers                 │ │
 │  │  - CommandManager (슬래시 명령어)                       │ │

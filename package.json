@@ -1,7 +1,7 @@
 {
   "name": "gahyeonbot",
   "version": "1.0.0",
-  "description": "``` 연인과 취침전에 보이스채널을 나가는 번거로움을 겪어보신적 있으신가요? 다른 보이스채널 유저에게 공지사항이있어 모두 보이스채널로 집결시키고싶진 않으신가요? 가현봇이 해결해줍니다! ```",
+  "description": "Modular embodied AI agent with persistent memory, voice, autonomous behavior, and a living world.",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"

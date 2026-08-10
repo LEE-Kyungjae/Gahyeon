@@ -1,11 +1,16 @@
-# GahyeonBot
+# Gahyeon
 
 [한국어](README.md) | [English](README.en.md)
 
-GahyeonBot is a Java-based Discord bot that combines an AI work assistant, continuous voice conversations, music playback, scheduled voice-channel actions, and server utilities. In dedicated assistant channels, users can talk or type naturally without repeating slash commands.
+Gahyeon is an independent AI agent evolving toward persistent memory, voice, autonomous behavior, and a living 3D world. Discord and Desktop are clients of the same platform-neutral Core; conversation, speech, sessions, behavior, and world-state decisions do not belong to either UI.
+
+The existing Discord music, scheduling, and server utilities remain available through the Discord adapter while the migration proceeds incrementally. Desktop provides text and voice conversation, a VRM avatar, animation, lip sync, and a persistent world. Looking Glass Go is an optional renderer of that same world.
 
 ## Features
 
+- **Platform-neutral Core**: Runs conversation, sessions, STT, TTS, events, and world state without a Discord connection.
+- **Desktop client**: Provides text/voice interaction, a VRM avatar, expressions, lip sync, activity animation, and world navigation.
+- **Persistent world and behavior**: Restores location and activity and selects deterministic idle behavior.
 - **AI agent**: Routes `/gahyeona` (`/가현아` in Korean) and regular messages in the dedicated text channel to the agent runtime.
 - **Per-server assistant channels**: `/setup` (`/설정`) creates and binds dedicated text and voice channels.
 - **Voice assistant**: Automatically joins the configured voice channel and responds through an STT → AI → TTS pipeline.
@@ -47,7 +52,7 @@ A turn is finalized only after the configured minimum speech and continuous-sile
 - Voicebox, Edge TTS, and generic custom TTS
 - Docker, GitHub Actions, and Blue/Green deployment
 
-See the [architecture](docs/ARCHITECTURE.md) and [agent runtime](docs/agent-runtime.md) documents for implementation details.
+See the [Core migration](docs/GAHYEON_CORE_MIGRATION.md), [Desktop client](desktop/README.md), and [architecture](docs/ARCHITECTURE.md) documents for implementation details.
 
 ## Requirements
 
@@ -117,7 +122,7 @@ cd gahyeonbot
 ./gradlew bootRun
 ```
 
-To start the application without connecting to Discord:
+To run the Gahyeon Core and Headless/Desktop APIs without connecting to Discord:
 
 ```bash
 BOT_ENABLED=false ./gradlew bootRun
@@ -156,6 +161,10 @@ GitHub Actions tests pull requests and pushes to `main`, builds versioned images
 ## Documentation
 
 - [API](docs/API.md)
+- [Core migration](docs/GAHYEON_CORE_MIGRATION.md)
+- [Desktop client](desktop/README.md)
+- [VRM animation](docs/VRM_ANIMATION.md)
+- [Looking Glass](docs/LOOKING_GLASS.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Agent runtime](docs/agent-runtime.md)
 - [Custom voice TTS](docs/CUSTOM_VOICE_TTS.md)
