@@ -67,6 +67,11 @@ export function reduceStageEvent(state: StageState, event: GahyeonDesktopEvent):
         position: vector(payload.position, state.position),
         activity: lowerText(payload.activity, state.activity),
         expression: text(payload.expression, text(payload.emotion, state.expression)),
+        expressionIntensity: clamp(
+          number(payload.intensity, number(payload.emotionIntensity, state.expressionIntensity)),
+          0,
+          1,
+        ),
       }
     case 'conversation.started':
       return { ...state, activity: 'attention' }

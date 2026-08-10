@@ -47,6 +47,6 @@ class WorldConversationPresenceTest {
             Instant now) {
         return new WorldStateSnapshot(
                 worldId, revision, "living_room", WorldPosition.origin(), activity, now,
-                "default", now, "neutral", target, now);
+                "default", now, "neutral", 0, target, now);
     }
 }

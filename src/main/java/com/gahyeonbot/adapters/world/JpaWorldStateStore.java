@@ -39,6 +39,7 @@ public class JpaWorldStateStore implements WorldStateStore {
         record.setOutfit(snapshot.outfit());
         record.setWorldTime(snapshot.worldTime());
         record.setEmotion(snapshot.emotion());
+        record.setEmotionIntensity(snapshot.emotionIntensity());
         record.setInteractionTarget(snapshot.interactionTarget());
         record.setUpdatedAt(snapshot.updatedAt());
         return toSnapshot(repository.saveAndFlush(record));
@@ -55,6 +56,7 @@ public class JpaWorldStateStore implements WorldStateStore {
                 record.getOutfit(),
                 record.getWorldTime(),
                 record.getEmotion(),
+                record.getEmotionIntensity(),
                 record.getInteractionTarget(),
                 record.getUpdatedAt());
     }

@@ -1,5 +1,6 @@
 package com.gahyeonbot.core.world;
 
+import com.gahyeonbot.core.emotion.EmotionState;
 import java.time.Instant;
 
 public record WorldStateSnapshot(
@@ -12,6 +13,7 @@ public record WorldStateSnapshot(
         String outfit,
         Instant worldTime,
         String emotion,
+        double emotionIntensity,
         String interactionTarget,
         Instant updatedAt
 ) {
@@ -25,6 +27,7 @@ public record WorldStateSnapshot(
         if (outfit == null || outfit.isBlank()) throw new IllegalArgumentException("outfit이 필요합니다.");
         if (worldTime == null) throw new IllegalArgumentException("worldTime이 필요합니다.");
         if (emotion == null || emotion.isBlank()) throw new IllegalArgumentException("emotion이 필요합니다.");
+        new EmotionState(emotion, emotionIntensity);
         if (updatedAt == null) throw new IllegalArgumentException("updatedAt이 필요합니다.");
     }
 
@@ -39,7 +42,12 @@ public record WorldStateSnapshot(
                 "default",
                 now,
                 "neutral",
+                0,
                 null,
                 now);
+    }
+
+    public EmotionState emotionState() {
+        return new EmotionState(emotion, emotionIntensity);
     }
 }

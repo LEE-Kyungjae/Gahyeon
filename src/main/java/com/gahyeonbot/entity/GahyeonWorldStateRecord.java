@@ -53,6 +53,9 @@ public class GahyeonWorldStateRecord {
     @Column(nullable = false, length = 80)
     private String emotion;
 
+    @Column(name = "emotion_intensity", nullable = false)
+    private double emotionIntensity;
+
     @Column(name = "interaction_target", length = 120)
     private String interactionTarget;
 

@@ -52,6 +52,6 @@ class DeterministicBehaviorPolicyTest {
         return new WorldStateSnapshot(
                 state.worldId(), state.revision(), state.currentRoom(), state.position(),
                 activity, startedAt, state.outfit(), state.worldTime(), state.emotion(),
-                state.interactionTarget(), state.updatedAt());
+                state.emotionIntensity(), state.interactionTarget(), state.updatedAt());
     }
 }

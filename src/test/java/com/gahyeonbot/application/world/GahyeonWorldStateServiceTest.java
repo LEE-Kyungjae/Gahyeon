@@ -91,6 +91,31 @@ class GahyeonWorldStateServiceTest {
                 .containsExactly("character.moved", "behavior.activity.changed");
     }
 
+    @Test
+    void persistsEmotionIntensityAndPublishesThePersistedValue() {
+        var store = new InMemoryWorldStore();
+        List<GahyeonEventDraft> events = new ArrayList<>();
+        var service = new GahyeonWorldStateService(
+                store,
+                draft -> {
+                    events.add(draft);
+                    return null;
+                },
+                Clock.fixed(NOW, ZoneOffset.UTC));
+        var worldId = new WorldId("gahyeon-home");
+        service.current(worldId);
+
+        var changed = service.changeEmotion(worldId, 0, "happy", 0.7);
+
+        assertThat(changed.emotionState().name()).isEqualTo("happy");
+        assertThat(changed.emotionIntensity()).isEqualTo(0.7);
+        assertThat(store.find(worldId).orElseThrow().emotionIntensity()).isEqualTo(0.7);
+        assertThat(events).singleElement().satisfies(event -> {
+            assertThat(event.type()).isEqualTo("avatar.expression");
+            assertThat(event.payload()).containsEntry("intensity", 0.7);
+        });
+    }
+
     private static final class InMemoryWorldStore implements WorldStateStore {
         private final Map<WorldId, WorldStateSnapshot> states = new HashMap<>();
 

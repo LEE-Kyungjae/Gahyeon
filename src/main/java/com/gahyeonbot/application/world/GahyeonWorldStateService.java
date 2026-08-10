@@ -48,7 +48,7 @@ public class GahyeonWorldStateService implements WorldStateUseCase {
         WorldStateSnapshot changed = new WorldStateSnapshot(
                 before.worldId(), before.revision() + 1, room.trim(), position,
                 before.activity(), before.activityStartedAt(), before.outfit(), now,
-                before.emotion(), before.interactionTarget(), now);
+                before.emotion(), before.emotionIntensity(), before.interactionTarget(), now);
         WorldStateSnapshot saved = store.save(changed);
         publish(saved, "character.moved", Map.of(
                 "revision", saved.revision(),
@@ -69,7 +69,7 @@ public class GahyeonWorldStateService implements WorldStateUseCase {
         Instant now = clock.instant();
         WorldStateSnapshot changed = new WorldStateSnapshot(
                 before.worldId(), before.revision() + 1, before.currentRoom(), before.position(),
-                activity, now, before.outfit(), now, before.emotion(), interactionTarget, now);
+                activity, now, before.outfit(), now, before.emotion(), before.emotionIntensity(), interactionTarget, now);
         WorldStateSnapshot saved = store.save(changed);
         publish(saved, "behavior.activity.changed", nullableMap(
                 "revision", saved.revision(),
@@ -94,7 +94,7 @@ public class GahyeonWorldStateService implements WorldStateUseCase {
         Instant now = clock.instant();
         WorldStateSnapshot changed = new WorldStateSnapshot(
                 before.worldId(), before.revision() + 1, room.trim(), position,
-                activity, now, before.outfit(), now, before.emotion(), interactionTarget, now);
+                activity, now, before.outfit(), now, before.emotion(), before.emotionIntensity(), interactionTarget, now);
         WorldStateSnapshot saved = store.save(changed);
         publish(saved, "character.moved", Map.of(
                 "revision", saved.revision(),
@@ -123,12 +123,12 @@ public class GahyeonWorldStateService implements WorldStateUseCase {
         WorldStateSnapshot changed = new WorldStateSnapshot(
                 before.worldId(), before.revision() + 1, before.currentRoom(), before.position(),
                 before.activity(), before.activityStartedAt(), before.outfit(), now,
-                emotion.trim(), before.interactionTarget(), now);
+                emotion.trim(), intensity, before.interactionTarget(), now);
         WorldStateSnapshot saved = store.save(changed);
         publish(saved, "avatar.expression", Map.of(
                 "revision", saved.revision(),
                 "expression", saved.emotion(),
-                "intensity", intensity));
+                "intensity", saved.emotionIntensity()));
         return saved;
     }
 

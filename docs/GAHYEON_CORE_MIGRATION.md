@@ -38,6 +38,8 @@ Implemented:
 - provider-neutral Tool risk and decision policy in Core. Unknown tools fail
   closed, write tools require approval, and destructive tools are denied;
   Spring AI annotations/callback execution remain provider infrastructure;
+- typed `EmotionState` with intensity persisted alongside World State. Desktop
+  restores both expression and intensity after a Core restart;
 - persisted `Principal` and `ExternalIdentity(provider, externalId)` records;
 - `ConversationSessionId`, `ClientSource`, and `ConversationModality`;
 - immutable `ConversationSession` client context;
