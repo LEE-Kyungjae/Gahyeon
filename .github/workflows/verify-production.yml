@@ -55,19 +55,28 @@ jobs:
           namespace=gahyeonbot
           deployment=gahyeonbot
 
+          if [ -n "$EXPECTED_IMAGE_TAG" ]; then
+            for attempt in $(seq 1 60); do
+              images="$(kubectl -n "$namespace" get deployment "$deployment" \
+                -o jsonpath='{range .spec.template.spec.containers[*]}{.name}={.image}{"\n"}{end}')"
+              mismatched="$(printf '%s\n' "$images" | grep -Fv ":$EXPECTED_IMAGE_TAG" || true)"
+              if [ -z "$mismatched" ]; then
+                break
+              fi
+              if [ "$attempt" -eq 60 ]; then
+                printf 'Timed out waiting for %s. Current images:\n%s\n' \
+                  "$EXPECTED_IMAGE_TAG" "$images" >&2
+                exit 1
+              fi
+              sleep 10
+            done
+          fi
+
           kubectl -n "$namespace" rollout status "deployment/$deployment" --timeout=10m
 
           images="$(kubectl -n "$namespace" get deployment "$deployment" \
             -o jsonpath='{range .spec.template.spec.containers[*]}{.name}={.image}{"\n"}{end}')"
           printf '%s\n' "$images"
-
-          if [ -n "$EXPECTED_IMAGE_TAG" ]; then
-            mismatched="$(printf '%s\n' "$images" | grep -Fv ":$EXPECTED_IMAGE_TAG" || true)"
-            if [ -n "$mismatched" ]; then
-              printf 'Unexpected production image:\n%s\n' "$mismatched" >&2
-              exit 1
-            fi
-          fi
 
           kubectl -n "$namespace" get pods -l app=gahyeonbot -o wide
           kubectl -n "$namespace" get ingress gahyeonbot -o wide
