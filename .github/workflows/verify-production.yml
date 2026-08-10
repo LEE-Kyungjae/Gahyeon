@@ -1,0 +1,76 @@
+name: Verify Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_image_tag:
+        description: Expected gahyeonbot image tag (for example sha-caff3e2)
+        required: false
+        type: string
+  workflow_run:
+    workflows:
+      - Build Image
+    types:
+      - completed
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${SSH_PORT:-22}" "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Verify rollout and runtime
+        env:
+          REQUESTED_IMAGE_TAG: ${{ inputs.expected_image_tag }}
+          DEPLOYED_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_PORT: ${{ secrets.SSH_PORT }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+        run: |
+          set -euo pipefail
+          expected_image_tag="$REQUESTED_IMAGE_TAG"
+          if [ -z "$expected_image_tag" ] && [ -n "$DEPLOYED_HEAD_SHA" ]; then
+            expected_image_tag="sha-${DEPLOYED_HEAD_SHA:0:7}"
+          fi
+          ssh -p "${SSH_PORT:-22}" "$SSH_USER@$SSH_HOST" \
+            "EXPECTED_IMAGE_TAG='$expected_image_tag' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          namespace=gahyeonbot
+          deployment=gahyeonbot
+
+          kubectl -n "$namespace" rollout status "deployment/$deployment" --timeout=10m
+
+          images="$(kubectl -n "$namespace" get deployment "$deployment" \
+            -o jsonpath='{range .spec.template.spec.containers[*]}{.name}={.image}{"\n"}{end}')"
+          printf '%s\n' "$images"
+
+          if [ -n "$EXPECTED_IMAGE_TAG" ]; then
+            mismatched="$(printf '%s\n' "$images" | grep -Fv ":$EXPECTED_IMAGE_TAG" || true)"
+            if [ -n "$mismatched" ]; then
+              printf 'Unexpected production image:\n%s\n' "$mismatched" >&2
+              exit 1
+            fi
+          fi
+
+          kubectl -n "$namespace" get pods -l app=gahyeonbot -o wide
+          kubectl -n "$namespace" get ingress gahyeonbot -o wide
+          kubectl -n "$namespace" get deployment "$deployment" \
+            -o jsonpath='{.status.readyReplicas}/{.status.replicas}{" replicas ready\n"}'
+          REMOTE
