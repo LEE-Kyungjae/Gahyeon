@@ -2,6 +2,7 @@ package com.gahyeonbot.adapters.desktop;
 
 import com.gahyeonbot.application.event.GahyeonEventQuery;
 import com.gahyeonbot.core.event.GahyeonEvent;
+import com.gahyeonbot.core.event.EventScopeType;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -60,7 +61,7 @@ public class DesktopEventStreamService {
         try {
             for (GahyeonEvent event : events.after(subscription.cursor, READ_BATCH_SIZE)) {
                 subscription.cursor = event.sequence();
-                if (!event.sessionId().value().equals(subscription.sessionId)) continue;
+                if (!isVisibleTo(event, subscription.sessionId)) continue;
                 subscription.emitter.send(SseEmitter.event()
                         .id(Long.toString(event.sequence()))
                         .name(event.type())
@@ -70,6 +71,13 @@ public class DesktopEventStreamService {
             subscriptions.remove(subscriptionId);
             subscription.emitter.completeWithError(error);
         }
+    }
+
+    private boolean isVisibleTo(GahyeonEvent event, String sessionId) {
+        return event.scope().type() == EventScopeType.WORLD
+                || event.scope().type() == EventScopeType.SYSTEM
+                || event.scope().type() == EventScopeType.SESSION
+                && event.scope().id().equals(sessionId);
     }
 
     record StreamCursor(long sequence) {}

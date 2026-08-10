@@ -2,6 +2,7 @@ package com.gahyeonbot.adapters.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.gahyeonbot.core.event.GahyeonEventDraft;
+import com.gahyeonbot.core.event.EventScopeType;
 import com.gahyeonbot.core.session.ConversationSessionId;
 import com.gahyeonbot.repository.GahyeonEventRecordRepository;
 import org.junit.jupiter.api.Test;
@@ -27,7 +28,7 @@ class PersistentGahyeonEventStoreTest {
                 "avatar.expression.changed", session, "request-1",
                 Map.of("expression", "happy", "intensity", 0.7)));
 
-        assertThat(first.schemaVersion()).isEqualTo(1);
+        assertThat(first.schemaVersion()).isEqualTo(2);
         assertThat(second.sequence()).isGreaterThan(first.sequence());
         assertThat(store.after(first.sequence(), 100))
                 .singleElement()
@@ -36,5 +37,20 @@ class PersistentGahyeonEventStoreTest {
                     assertThat(event.type()).isEqualTo("avatar.expression.changed");
                     assertThat(event.payload()).containsEntry("expression", "happy");
                 });
+    }
+
+    @Test
+    void persistsWorldScopedEventsWithoutFakeConversationSession() {
+        var store = new PersistentGahyeonEventStore(repository, new ObjectMapper());
+
+        var event = store.publish(GahyeonEventDraft.world(
+                "world.state.changed",
+                "gahyeon-home",
+                "world-revision-2",
+                Map.of("room", "workspace")));
+
+        assertThat(event.scope().type()).isEqualTo(EventScopeType.WORLD);
+        assertThat(event.scope().id()).isEqualTo("gahyeon-home");
+        assertThat(event.sessionId()).isNull();
     }
 }

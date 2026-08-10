@@ -6,6 +6,8 @@ import com.gahyeonbot.application.event.GahyeonEventPublisher;
 import com.gahyeonbot.application.event.GahyeonEventQuery;
 import com.gahyeonbot.core.event.GahyeonEvent;
 import com.gahyeonbot.core.event.GahyeonEventDraft;
+import com.gahyeonbot.core.event.EventScope;
+import com.gahyeonbot.core.event.EventScopeType;
 import com.gahyeonbot.core.session.ConversationSessionId;
 import com.gahyeonbot.entity.GahyeonEventRecord;
 import com.gahyeonbot.repository.GahyeonEventRecordRepository;
@@ -39,7 +41,9 @@ public class PersistentGahyeonEventStore implements GahyeonEventPublisher, Gahye
                     .eventId(UUID.randomUUID().toString())
                     .schemaVersion(GahyeonEvent.CURRENT_SCHEMA_VERSION)
                     .eventType(draft.type())
-                    .sessionId(draft.sessionId().value())
+                    .scopeType(draft.scope().type().name())
+                    .scopeId(draft.scope().id())
+                    .sessionId(draft.sessionId() == null ? null : draft.sessionId().value())
                     .correlationId(draft.correlationId())
                     .payloadJson(objectMapper.writeValueAsString(draft.payload()))
                     .occurredAt(Instant.now())
@@ -70,7 +74,12 @@ public class PersistentGahyeonEventStore implements GahyeonEventPublisher, Gahye
                     record.getEventId(),
                     record.getId(),
                     record.getEventType(),
-                    new ConversationSessionId(record.getSessionId()),
+                    new EventScope(
+                            EventScopeType.valueOf(record.getScopeType()),
+                            record.getScopeId()),
+                    record.getSessionId() == null
+                            ? null
+                            : new ConversationSessionId(record.getSessionId()),
                     record.getCorrelationId(),
                     record.getOccurredAt(),
                     payload);

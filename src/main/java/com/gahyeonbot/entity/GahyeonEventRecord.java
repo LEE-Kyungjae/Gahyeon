@@ -28,7 +28,13 @@ public class GahyeonEventRecord {
     @Column(name = "event_type", nullable = false, length = 120)
     private String eventType;
 
-    @Column(name = "session_id", nullable = false, length = 200)
+    @Column(name = "scope_type", nullable = false, length = 30)
+    private String scopeType;
+
+    @Column(name = "scope_id", nullable = false, length = 200)
+    private String scopeId;
+
+    @Column(name = "session_id", length = 200)
     private String sessionId;
 
     @Column(name = "correlation_id", nullable = false, length = 120)
