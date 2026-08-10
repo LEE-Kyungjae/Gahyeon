@@ -49,6 +49,9 @@ Implemented:
   binary `AudioOutput` segments. Piper/Voicebox/Edge selection and provider
   temporary files remain behind `TtsServiceSynthesisAdapter`; only the Discord
   adapter materializes a playback file for Lavaplayer.
+- Conversation lifecycle emits schema-versioned persistent events with global
+  sequence cursors. Headless/Desktop transports can resume reads through
+  `GET /api/gahyeon/events?afterSequence=...` without owning Core state.
 
 The headless HTTP adapter is disabled by default because authentication has not
 yet been introduced. For local development only:
