@@ -32,6 +32,10 @@ button, input, textarea { font: inherit; }
 
 .conversation { display: grid; grid-template-rows: auto 1fr auto; min-width: 0; padding: 34px 30px 26px; background: #15171f; border-left: 1px solid #ffffff0d; }
 .conversation-header { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding-bottom: 24px; border-bottom: 1px solid #ffffff0d; }
+.conversation-actions { display: flex; align-items: center; gap: 8px; }
+.voice-toggle { padding: 6px 8px; border: 1px solid #ffffff12; border-radius: 8px; color: #696c78; background: transparent; font-size: 8px; letter-spacing: .08em; cursor: pointer; }
+.voice-toggle.enabled { color: #a9d7c0; border-color: #77c39b36; background: #5aa67c0d; }
+.voice-toggle:disabled { opacity: .4; cursor: default; }
 .eyebrow { color: #8b8e9c; font-size: 9px; letter-spacing: .17em; }
 .conversation-header h2 { margin-top: 6px; font-size: 20px; font-weight: 500; }
 .name-input { width: 108px; padding: 8px 10px; color: #babcc7; background: transparent; border: 1px solid transparent; border-radius: 8px; text-align: right; outline: none; }
@@ -45,11 +49,15 @@ button, input, textarea { font: inherit; }
 .message.system p { color: #d99999; border: 1px solid #8c4b4b42; background: #3b24252e; }
 .typing i { display: inline-block; width: 5px; height: 5px; margin: 0 2px; border-radius: 50%; background: #9d9fac; animation: pulse 1s infinite alternate; }
 .typing i:nth-child(2) { animation-delay: .2s; }.typing i:nth-child(3) { animation-delay: .4s; }
-.composer { display: grid; grid-template-columns: 1fr 42px; gap: 10px; padding: 10px; border: 1px solid #ffffff12; border-radius: 18px; background: #1b1e27; }
+.composer { display: grid; grid-template-columns: 42px 1fr 42px; gap: 10px; padding: 10px; border: 1px solid #ffffff12; border-radius: 18px; background: #1b1e27; }
 .composer textarea { resize: none; min-height: 42px; max-height: 100px; padding: 11px 9px; border: 0; outline: 0; color: #eef0f6; background: transparent; line-height: 1.45; }
 .composer textarea::placeholder { color: #6f7280; }
-.composer button { width: 42px; height: 42px; align-self: end; border: 0; border-radius: 13px; color: #171820; background: #dad5e4; font-size: 21px; cursor: pointer; transition: opacity .2s, transform .2s; }
+.composer button { width: 42px; height: 42px; align-self: end; border-radius: 13px; cursor: pointer; transition: opacity .2s, transform .2s; }
+.send-button { border: 0; color: #171820; background: #dad5e4; font-size: 21px; }
+.mic-button { border: 1px solid #ffffff12; color: #a6a8b3; background: #252833; font-size: 10px; }
+.mic-button.recording { color: #ff9c9c; border-color: #ff777752; background: #4a252a; animation: record-pulse .8s infinite alternate; }
 .composer button:hover { transform: translateY(-1px); }.composer button:disabled { opacity: .25; cursor: default; transform: none; }
 
 @keyframes pulse { from { opacity: .25; transform: translateY(2px); } to { opacity: 1; transform: translateY(-1px); } }
+@keyframes record-pulse { from { box-shadow: 0 0 0 #ff777700; } to { box-shadow: 0 0 18px #ff777738; } }
 @media (max-width: 900px) { .shell { grid-template-columns: 1fr; }.stage { display: none; }.conversation { border-left: 0; } }

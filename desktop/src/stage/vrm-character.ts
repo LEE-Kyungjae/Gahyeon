@@ -24,7 +24,7 @@ export class VrmCharacterRenderer implements CharacterRenderer {
     if (expression) {
       expression.setValue('happy', state.expression === 'happy' ? state.expressionIntensity : 0)
       expression.setValue('relaxed', state.expression === 'relaxed' ? state.expressionIntensity : 0)
-      expression.setValue('aa', state.speaking ? 0.28 : 0)
+      expression.setValue('aa', state.speaking ? Math.max(0.08, state.speechAmplitude) : 0)
       expression.update()
     }
     this.vrm.update(deltaSeconds)

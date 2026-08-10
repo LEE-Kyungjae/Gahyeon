@@ -14,6 +14,7 @@ export interface StageState {
   expression: string
   expressionIntensity: number
   speaking: boolean
+  speechAmplitude: number
 }
 
 export const initialStageState: StageState = {
@@ -24,6 +25,7 @@ export const initialStageState: StageState = {
   expression: 'neutral',
   expressionIntensity: 0,
   speaking: false,
+  speechAmplitude: 0,
 }
 
 export function reduceStageEvent(state: StageState, event: GahyeonDesktopEvent): StageState {
@@ -40,8 +42,14 @@ export function reduceStageEvent(state: StageState, event: GahyeonDesktopEvent):
       }
     case 'avatar.speech.started':
       return { ...state, revision, speaking: true }
+    case 'avatar.speech.level':
+      return {
+        ...state,
+        revision,
+        speechAmplitude: clamp(number(payload.level, state.speechAmplitude), 0, 1),
+      }
     case 'avatar.speech.stopped':
-      return { ...state, revision, speaking: false }
+      return { ...state, revision, speaking: false, speechAmplitude: 0 }
     case 'character.moved':
       return {
         ...state,
@@ -73,6 +81,7 @@ export function reduceStageEvent(state: StageState, event: GahyeonDesktopEvent):
 function isWorldEvent(type: string) {
   return type === 'avatar.expression'
     || type === 'avatar.speech.started'
+    || type === 'avatar.speech.level'
     || type === 'avatar.speech.stopped'
     || type === 'character.moved'
     || type === 'behavior.activity.changed'

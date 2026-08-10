@@ -1,4 +1,5 @@
 import {
+  BoxGeometry,
   CapsuleGeometry,
   Group,
   Mesh,
@@ -11,6 +12,7 @@ import type { StageState } from './stage-state'
 export class PlaceholderCharacterRenderer implements CharacterRenderer {
   readonly object = new Group()
   private readonly materials: MeshStandardMaterial[]
+  private readonly mouth: Mesh
   private elapsed = 0
 
   constructor() {
@@ -24,7 +26,11 @@ export class PlaceholderCharacterRenderer implements CharacterRenderer {
     const head = new Mesh(new SphereGeometry(0.42, 28, 20), headMaterial)
     head.position.y = 2.08
     head.castShadow = true
-    this.object.add(body, head)
+    const mouthMaterial = new MeshStandardMaterial({ color: '#4a343d', roughness: 0.9 })
+    this.materials.push(mouthMaterial)
+    this.mouth = new Mesh(new BoxGeometry(0.16, 0.025, 0.018), mouthMaterial)
+    this.mouth.position.set(0, 1.98, 0.407)
+    this.object.add(body, head, this.mouth)
   }
 
   update(state: StageState, deltaSeconds: number) {
@@ -33,6 +39,7 @@ export class PlaceholderCharacterRenderer implements CharacterRenderer {
     this.object.position.y = Math.sin(this.elapsed * 1.4) * 0.018 * idleAmount
     const happy = state.expression === 'happy' ? state.expressionIntensity : 0
     this.materials[0].color.set(happy > 0 ? '#c3a7c9' : '#aaa0ba')
+    this.mouth.scale.y = 1 + state.speechAmplitude * 9
   }
 
   dispose() {

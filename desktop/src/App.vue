@@ -2,6 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { getGahyeonBridge } from './gahyeon-api'
 import StageView from './components/StageView.vue'
+import { SpeechPlayer } from './audio/speech-player'
+import { WavRecorder } from './audio/wav-recorder'
 import { initialStageState, reduceStageEvent } from './stage/stage-state'
 
 interface ChatEntry {
@@ -15,6 +17,11 @@ const sessionId = persistentId('gahyeon.sessionId', 'desktop')
 const displayName = ref(localStorage.getItem('gahyeon.displayName') ?? '사용자')
 const input = ref('')
 const sending = ref(false)
+const recording = ref(false)
+const transcribing = ref(false)
+const transcriptionReady = ref(false)
+const synthesisReady = ref(false)
+const voiceOutput = ref(localStorage.getItem('gahyeon.voiceOutput') !== 'false')
 const streamState = ref<'connecting' | 'connected' | 'error'>('connecting')
 const messages = ref<ChatEntry[]>([
   { id: 'welcome', role: 'gahyeon', text: '여기 있어. 무슨 이야기를 해볼까?' },
@@ -26,6 +33,9 @@ let unsubscribe: (() => void) | undefined
 const gahyeon = getGahyeonBridge()
 const modelUrl = import.meta.env.VITE_GAHYEON_VRM_URL as string | undefined
 const worldId = 'gahyeon-home'
+const recorder = new WavRecorder()
+const speechPlayer = new SpeechPlayer()
+let recordingTimeout: number | undefined
 
 const statusLabel = computed(() => ({
   connecting: 'Core 연결 중',
@@ -34,6 +44,15 @@ const statusLabel = computed(() => ({
 })[streamState.value])
 
 onMounted(async () => {
+  try {
+    const speech = await gahyeon.getSpeechStatus()
+    transcriptionReady.value = speech.transcriptionReady
+    synthesisReady.value = speech.synthesisReady
+  }
+  catch {
+    transcriptionReady.value = false
+    synthesisReady.value = false
+  }
   try {
     const snapshot = await gahyeon.getWorldState(worldId)
     stageState.value = reduceStageEvent(stageState.value, {
@@ -55,7 +74,12 @@ onMounted(async () => {
   })
 })
 
-onBeforeUnmount(() => unsubscribe?.())
+onBeforeUnmount(() => {
+  unsubscribe?.()
+  if (recordingTimeout !== undefined) window.clearTimeout(recordingTimeout)
+  void recorder.cancel()
+  void speechPlayer.dispose()
+})
 
 async function send() {
   const text = input.value.trim()
@@ -63,6 +87,7 @@ async function send() {
   localStorage.setItem('gahyeon.displayName', displayName.value)
   input.value = ''
   sending.value = true
+  speechPlayer.stop()
   messages.value.push({ id: crypto.randomUUID(), role: 'user', text })
   await scrollToEnd()
   try {
@@ -74,6 +99,13 @@ async function send() {
       message: text,
     })
     messages.value.push({ id: response.runId || crypto.randomUUID(), role: 'gahyeon', text: response.content })
+    if (voiceOutput.value && synthesisReady.value) {
+      await speechPlayer.speak(response.content, gahyeon, {
+        onStart: () => applySpeechEvent('avatar.speech.started', {}),
+        onLevel: level => applySpeechEvent('avatar.speech.level', { level }),
+        onStop: () => applySpeechEvent('avatar.speech.stopped', {}),
+      })
+    }
   }
   catch (error) {
     messages.value.push({
@@ -86,6 +118,62 @@ async function send() {
     sending.value = false
     await scrollToEnd()
   }
+}
+
+async function toggleRecording() {
+  if (transcribing.value || sending.value) return
+  if (!recording.value) {
+    if (!transcriptionReady.value) {
+      addSystemMessage('STT가 준비되지 않았습니다.')
+      return
+    }
+    try {
+      speechPlayer.stop()
+      await recorder.start()
+      recording.value = true
+      recordingTimeout = window.setTimeout(() => void toggleRecording(), 20_000)
+    }
+    catch (error) {
+      addSystemMessage(error instanceof Error ? error.message : String(error))
+    }
+    return
+  }
+
+  recording.value = false
+  if (recordingTimeout !== undefined) window.clearTimeout(recordingTimeout)
+  recordingTimeout = undefined
+  transcribing.value = true
+  try {
+    const wav = await recorder.stop()
+    const transcript = (await gahyeon.transcribeWav(wav)).trim()
+    if (!transcript) throw new Error('음성을 인식하지 못했습니다.')
+    input.value = transcript
+    await send()
+  }
+  catch (error) {
+    addSystemMessage(error instanceof Error ? error.message : String(error))
+  }
+  finally {
+    transcribing.value = false
+  }
+}
+
+function toggleVoiceOutput() {
+  voiceOutput.value = !voiceOutput.value
+  localStorage.setItem('gahyeon.voiceOutput', String(voiceOutput.value))
+  if (!voiceOutput.value) {
+    speechPlayer.stop()
+    applySpeechEvent('avatar.speech.stopped', {})
+  }
+}
+
+function applySpeechEvent(event: string, payload: Record<string, unknown>) {
+  stageState.value = reduceStageEvent(stageState.value, { event, data: { payload } })
+}
+
+function addSystemMessage(text: string) {
+  messages.value.push({ id: crypto.randomUUID(), role: 'system', text })
+  void scrollToEnd()
 }
 
 async function scrollToEnd() {
@@ -132,7 +220,17 @@ function persistentId(key: string, prefix: string) {
           <span class="eyebrow">CONVERSATION</span>
           <h2>가현과의 공간</h2>
         </div>
-        <input v-model="displayName" class="name-input" aria-label="표시 이름" maxlength="40">
+        <div class="conversation-actions">
+          <button
+            class="voice-toggle"
+            type="button"
+            :class="{ enabled: voiceOutput && synthesisReady }"
+            :disabled="!synthesisReady"
+            :aria-label="voiceOutput ? '음성 출력 끄기' : '음성 출력 켜기'"
+            @click="toggleVoiceOutput"
+          >{{ voiceOutput && synthesisReady ? 'VOICE ON' : 'VOICE OFF' }}</button>
+          <input v-model="displayName" class="name-input" aria-label="표시 이름" maxlength="40">
+        </div>
       </header>
 
       <div ref="messageList" class="messages" aria-live="polite">
@@ -147,6 +245,14 @@ function persistentId(key: string, prefix: string) {
       </div>
 
       <form class="composer" @submit.prevent="send">
+        <button
+          type="button"
+          class="mic-button"
+          :class="{ recording }"
+          :disabled="!transcriptionReady || sending || transcribing"
+          :aria-label="recording ? '녹음 종료' : '마이크 입력'"
+          @click="toggleRecording"
+        >{{ transcribing ? '…' : recording ? '■' : '●' }}</button>
         <textarea
           v-model="input"
           rows="1"
@@ -154,7 +260,7 @@ function persistentId(key: string, prefix: string) {
           aria-label="메시지"
           @keydown.enter.exact.prevent="send"
         />
-        <button type="submit" :disabled="sending || !input.trim()" aria-label="보내기">↑</button>
+        <button class="send-button" type="submit" :disabled="sending || !input.trim()" aria-label="보내기">↑</button>
       </form>
     </section>
   </main>
