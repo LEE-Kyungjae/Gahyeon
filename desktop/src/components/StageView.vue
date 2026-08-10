@@ -6,6 +6,7 @@ import { ThreeStage } from '../stage/three-stage'
 const props = defineProps<{
   state: StageState
   modelUrl?: string
+  animationManifestUrl?: string
   lookingGlassEnabled?: boolean
 }>()
 
@@ -22,7 +23,14 @@ onMounted(async () => {
   if (!props.modelUrl) return
   try {
     const { VrmCharacterRenderer } = await import('../stage/vrm-character')
-    stage.setCharacter(await VrmCharacterRenderer.load(props.modelUrl))
+    const character = await VrmCharacterRenderer.load(
+      props.modelUrl,
+      props.animationManifestUrl,
+    )
+    stage.setCharacter(character)
+    if (character.animationWarnings.length > 0) {
+      modelError.value = `일부 VRMA 대신 기본 동작을 사용합니다: ${character.animationWarnings.join('; ')}`
+    }
   }
   catch (error) {
     modelError.value = error instanceof Error ? error.message : String(error)

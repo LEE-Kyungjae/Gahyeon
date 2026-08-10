@@ -123,7 +123,12 @@ export class ThreeStage {
     const desiredCamera = characterPosition.clone().add(new Vector3(0, 2.15, 6.7))
     this.camera.position.lerp(desiredCamera, Math.min(1, delta * 2.8))
     this.camera.lookAt(characterPosition.clone().add(new Vector3(0, 1.35, 0)))
-    this.character.update(this.state, delta)
+    this.character.update(
+      this.navigationPath.length > 0
+        ? { ...this.state, activity: 'walk' }
+        : this.state,
+      delta,
+    )
     this.renderer.render(this.scene, this.camera)
   }
 

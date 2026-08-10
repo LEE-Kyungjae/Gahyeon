@@ -84,6 +84,10 @@ Implemented:
 - Looking Glass is an opt-in lazy WebXR display adapter over the same Three.js
   scene and `StageState`. Bridge/device absence does not affect the normal
   Desktop renderer; physical Go calibration remains a hardware acceptance test.
+- VRM activities support official VRMA humanoid retargeting and 350 ms mixer
+  cross-fades. A deterministic procedural pose set covers all activities when a
+  licensed clip is absent, including presentation-selected walking while a
+  waypoint path is active.
 
 The headless HTTP adapter is disabled by default because authentication has not
 yet been introduced. For local development only:
@@ -142,10 +146,10 @@ Example body:
    adapter and provider name can be removed.
 3. Move utterance/VAD coordination out of `VoiceAssistantService`; Discord
    capture/playback is now the remaining JDA-specific portion.
-4. Add renderer-side VRM animation clips and clip blending for deterministic
-   activities; amplitude-driven visemes are already connected.
+4. Acquire and validate licensed Gahyeon-specific VRMA assets against the real
+   character model; the loader, blending, and procedural fallback are complete.
 5. Replace diagnostic room geometry with production assets and navmesh data.
-6. Add the Looking Glass renderer against the same world snapshot.
+6. Complete physical Looking Glass Go depth/performance acceptance.
 
 Discord-only moderation, guild music, and DM delivery remain Discord adapter
 capabilities unless explicitly exposed to Gahyeon as tools.

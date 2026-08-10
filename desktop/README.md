@@ -27,6 +27,12 @@ To load a VRM model, copy `.env.example` to `.env` and set
 uses a lightweight diagnostic character so world movement and camera behavior
 remain testable.
 
+Optional activity clips are configured with `VITE_GAHYEON_VRMA_MANIFEST`.
+Desktop retargets VRMA clips through the official Pixiv package and cross-fades
+activity changes. Every activity has a procedural fallback, so a missing clip
+does not stop the avatar. See `docs/VRM_ANIMATION.md` for the manifest and asset
+acceptance rules.
+
 Desktop queries Core speech readiness at startup. When configured, the mic
 button records mono PCM WAV locally, sends it through Core STT, and submits the
 transcript as a normal conversation. Replies are segmented through Core TTS and

@@ -1,0 +1,12 @@
+{
+  "idle": "/animations/idle.vrma",
+  "walk": "/animations/walk.vrma",
+  "sit": "/animations/sit.vrma",
+  "read": "/animations/read.vrma",
+  "sleep": "/animations/sleep.vrma",
+  "work": "/animations/work.vrma",
+  "look_outside": "/animations/look-outside.vrma",
+  "relax": "/animations/relax.vrma",
+  "attention": "/animations/attention.vrma",
+  "conversation": "/animations/conversation.vrma"
+}
