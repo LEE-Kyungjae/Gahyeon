@@ -44,6 +44,9 @@ gahyeon:
     enabled: ${GAHYEON_HEADLESS_ENABLED:false}
   desktop:
     event-poll-millis: ${GAHYEON_DESKTOP_EVENT_POLL_MILLIS:250}
+  behavior:
+    enabled: ${GAHYEON_BEHAVIOR_ENABLED:false}
+    tick-millis: ${GAHYEON_BEHAVIOR_TICK_MILLIS:10000}
 
 bot:
   enabled: ${BOT_ENABLED:true}

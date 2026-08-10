@@ -1,5 +1,6 @@
 package com.gahyeonbot.application.conversation;
 
+import com.gahyeonbot.application.behavior.ConversationPresencePort;
 import com.gahyeonbot.application.event.GahyeonEventPublisher;
 import com.gahyeonbot.core.conversation.ConversationRequest;
 import com.gahyeonbot.core.conversation.ConversationResponse;
@@ -7,6 +8,7 @@ import com.gahyeonbot.core.conversation.ConversationUseCase;
 import com.gahyeonbot.core.event.GahyeonEventDraft;
 import com.gahyeonbot.core.event.GahyeonEventTypes;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -15,12 +17,22 @@ import java.util.Map;
 public class GahyeonConversationService implements ConversationUseCase {
     private final ConversationAgentPort agentPort;
     private final GahyeonEventPublisher events;
+    private final ConversationPresencePort presence;
 
+    @Autowired
     public GahyeonConversationService(
             ConversationAgentPort agentPort,
-            GahyeonEventPublisher events) {
+            GahyeonEventPublisher events,
+            ConversationPresencePort presence) {
         this.agentPort = agentPort;
         this.events = events;
+        this.presence = presence;
+    }
+
+    GahyeonConversationService(
+            ConversationAgentPort agentPort,
+            GahyeonEventPublisher events) {
+        this(agentPort, events, session -> ConversationPresencePort.PresenceLease.NOOP);
     }
 
     @Override
@@ -33,7 +45,7 @@ public class GahyeonConversationService implements ConversationUseCase {
                         "source", request.session().source().name().toLowerCase(),
                         "modality", request.session().modality().name().toLowerCase(),
                         "actorId", request.session().actorId().value())));
-        try {
+        try (var ignored = presence.enter(request.session())) {
             ConversationResponse response = agentPort.execute(request);
             Map<String, Object> payload = new LinkedHashMap<>();
             if (response.runId() != null) payload.put("runId", response.runId());
