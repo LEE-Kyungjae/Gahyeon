@@ -88,6 +88,10 @@ Implemented:
   cross-fades. A deterministic procedural pose set covers all activities when a
   licensed clip is absent, including presentation-selected walking while a
   waypoint path is active.
+- Streaming utterance segmentation is platform-neutral. Pre-roll, speech onset,
+  minimum speech, short-utterance silence, maximum duration, and flush decisions
+  live in `StreamingUtteranceAccumulator`; Discord only normalizes JDA PCM and
+  supplies the TEN VAD adapter.
 
 The headless HTTP adapter is disabled by default because authentication has not
 yet been introduced. For local development only:
@@ -144,12 +148,10 @@ Example body:
    linking before exposing the transport outside localhost.
 2. Extract the admission policy from `OpenAiService` so the compatibility
    adapter and provider name can be removed.
-3. Move utterance/VAD coordination out of `VoiceAssistantService`; Discord
-   capture/playback is now the remaining JDA-specific portion.
-4. Acquire and validate licensed Gahyeon-specific VRMA assets against the real
+3. Acquire and validate licensed Gahyeon-specific VRMA assets against the real
    character model; the loader, blending, and procedural fallback are complete.
-5. Replace diagnostic room geometry with production assets and navmesh data.
-6. Complete physical Looking Glass Go depth/performance acceptance.
+4. Replace diagnostic room geometry with production assets and navmesh data.
+5. Complete physical Looking Glass Go depth/performance acceptance.
 
 Discord-only moderation, guild music, and DM delivery remain Discord adapter
 capabilities unless explicitly exposed to Gahyeon as tools.

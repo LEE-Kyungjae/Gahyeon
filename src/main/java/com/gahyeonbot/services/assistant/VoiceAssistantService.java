@@ -2,6 +2,9 @@ package com.gahyeonbot.services.assistant;
 
 import com.gahyeonbot.adapters.discord.DiscordIdentityMapper;
 import com.gahyeonbot.adapters.discord.DiscordAudioFileMaterializer;
+import com.gahyeonbot.adapters.speech.TenVadDetector;
+import com.gahyeonbot.application.speech.StreamingUtteranceAccumulator;
+import com.gahyeonbot.application.speech.UtteranceSegmentationPolicy;
 import com.gahyeonbot.core.audio.GuildMusicManager;
 import com.gahyeonbot.core.conversation.ConversationRequest;
 import com.gahyeonbot.core.session.ClientSource;
@@ -31,7 +34,6 @@ import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayOutputStream;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -45,8 +47,6 @@ import java.util.concurrent.atomic.AtomicLong;
 @Service
 @RequiredArgsConstructor
 public class VoiceAssistantService {
-    private static final int MIN_UTTERANCE_BYTES = WavEncoder.SAMPLE_RATE * 4 / 2; // ~0.5 second
-
     private final AssistantProperties properties;
     private final TranscriptionUseCase transcription;
     private final AssistantChatProvider chatProvider;
@@ -179,33 +179,9 @@ public class VoiceAssistantService {
                 byte[] pcm = WavEncoder.bigEndianToLittleEndian(userAudio.getAudioData(1.0));
                 Utterance utterance = utterances.computeIfAbsent(
                         userAudio.getUser().getIdLong(),
-                        ignored -> new Utterance(userAudio.getUser().getName(), properties.getVad()));
+                        ignored -> new Utterance(userAudio.getUser().getName()));
                 synchronized (utterance) {
-                    int max = properties.getMaxUtteranceSeconds()
-                            * WavEncoder.SAMPLE_RATE * WavEncoder.CHANNELS * WavEncoder.BITS_PER_SAMPLE / 8;
-                    long now = System.currentTimeMillis();
-                    if (utterance.vad == null) {
-                        if (utterance.pcm.size() + pcm.length <= max) utterance.pcm.writeBytes(pcm);
-                        utterance.lastVoiceAt = now;
-                        return;
-                    }
-
-                    TenVadDetector.Detection detection = utterance.vad.processDiscordPcm(pcm);
-                    if (!utterance.speechStarted) {
-                        if (detection.voice()) {
-                            utterance.speechStarted = true;
-                            utterance.pcm.writeBytes(utterance.preRoll.toByteArray());
-                            utterance.preRoll.reset();
-                        } else {
-                            utterance.appendPreRoll(pcm, properties.getVad().getPreRollMillis());
-                            return;
-                        }
-                    }
-                    if (utterance.pcm.size() + pcm.length <= max) utterance.pcm.writeBytes(pcm);
-                    if (detection.voice()) {
-                        utterance.lastVoiceAt = now;
-                        utterance.voiceSamples += (long) detection.voiceFrames() * properties.getVad().getHopSize();
-                    }
+                    utterance.accumulator.accept(pcm, System.currentTimeMillis());
                 }
             }
         }
@@ -214,38 +190,13 @@ public class VoiceAssistantService {
             if (closed) return;
             long now = System.currentTimeMillis();
             utterances.forEach((userId, utterance) -> {
-                byte[] pcm = null;
                 synchronized (utterance) {
-                    long requiredSilence = utterance.vad == null
-                            ? properties.getSilenceMillis()
-                            : properties.getVad().getEndSilenceMillis();
-                    long speechMillis = utterance.vad == null
-                            ? Long.MAX_VALUE
-                            : utterance.voiceSamples * 1_000 / 16_000;
-                    if (utterance.vad != null
-                            && speechMillis < properties.getVad().getShortSpeechMillis()) {
-                        requiredSilence = Math.max(requiredSilence,
-                                properties.getVad().getShortSpeechEndSilenceMillis());
-                    }
-                    long silentMillis = now - utterance.lastVoiceAt;
-                    boolean maxLength = utterance.pcm.size() >= properties.getMaxUtteranceSeconds()
-                            * WavEncoder.SAMPLE_RATE * WavEncoder.CHANNELS * WavEncoder.BITS_PER_SAMPLE / 8;
-                    boolean validSpeech = utterance.speechStarted
-                            && utterance.pcm.size() >= MIN_UTTERANCE_BYTES
-                            && speechMillis >= properties.getVad().getMinSpeechMillis();
-                    if (validSpeech && (silentMillis >= requiredSilence || maxLength)) {
-                        pcm = utterance.pcm.toByteArray();
-                        long detectedSpeechMillis = speechMillis;
-                        long capturedAudioMillis = pcm.length * 1_000L
-                                / (WavEncoder.SAMPLE_RATE * WavEncoder.CHANNELS
-                                * WavEncoder.BITS_PER_SAMPLE / 8);
-                        utterance.reset();
-                        byte[] captured = pcm;
-                        workers.submit(() -> process(
-                                userId, utterance.username, captured,
-                                capturedAudioMillis, detectedSpeechMillis));
-                        pcm = null;
-                    }
+                    utterance.accumulator.poll(now).ifPresent(completed -> workers.submit(() -> process(
+                            userId,
+                            utterance.username,
+                            completed.pcm(),
+                            completed.capturedAudioMillis(),
+                            completed.detectedSpeechMillis())));
                 }
             });
         }
@@ -423,43 +374,33 @@ public class VoiceAssistantService {
         }
     }
 
-    private static final class Utterance {
+    private final class Utterance {
         private final String username;
-        private final ByteArrayOutputStream pcm = new ByteArrayOutputStream();
-        private final ByteArrayOutputStream preRoll = new ByteArrayOutputStream();
-        private final TenVadDetector vad;
-        private long lastVoiceAt = System.currentTimeMillis();
-        private long voiceSamples;
-        private boolean speechStarted;
+        private final StreamingUtteranceAccumulator accumulator;
 
-        private Utterance(String username, AssistantProperties.Vad settings) {
+        private Utterance(String username) {
             this.username = username;
-            this.vad = settings.isEnabled()
-                    ? new TenVadDetector(settings.getHopSize(), settings.getThreshold())
-                    : null;
-            this.speechStarted = vad == null;
-        }
-
-        private void appendPreRoll(byte[] packet, long preRollMillis) {
-            int maxBytes = (int) (WavEncoder.SAMPLE_RATE * WavEncoder.CHANNELS
-                    * WavEncoder.BITS_PER_SAMPLE / 8 * preRollMillis / 1_000);
-            preRoll.writeBytes(packet);
-            if (preRoll.size() <= maxBytes) return;
-            byte[] bytes = preRoll.toByteArray();
-            preRoll.reset();
-            preRoll.write(bytes, bytes.length - maxBytes, maxBytes);
-        }
-
-        private void reset() {
-            pcm.reset();
-            preRoll.reset();
-            voiceSamples = 0;
-            speechStarted = vad == null;
-            lastVoiceAt = System.currentTimeMillis();
+            AssistantProperties.Vad vad = properties.getVad();
+            int bytesPerSecond = WavEncoder.SAMPLE_RATE * WavEncoder.CHANNELS
+                    * WavEncoder.BITS_PER_SAMPLE / 8;
+            var policy = new UtteranceSegmentationPolicy(
+                    bytesPerSecond,
+                    properties.getMaxUtteranceSeconds(),
+                    bytesPerSecond / 2,
+                    vad.isEnabled() ? vad.getEndSilenceMillis() : properties.getSilenceMillis(),
+                    vad.isEnabled() ? vad.getMinSpeechMillis() : 0,
+                    vad.isEnabled() ? vad.getShortSpeechMillis() : 0,
+                    vad.isEnabled() ? vad.getShortSpeechEndSilenceMillis() : properties.getSilenceMillis(),
+                    vad.isEnabled() ? vad.getPreRollMillis() : 0,
+                    16_000);
+            this.accumulator = new StreamingUtteranceAccumulator(
+                    policy,
+                    vad.isEnabled() ? new TenVadDetector(vad.getHopSize(), vad.getThreshold()) : null,
+                    System.currentTimeMillis());
         }
 
         private void close() {
-            if (vad != null) vad.close();
+            accumulator.close();
         }
     }
 
