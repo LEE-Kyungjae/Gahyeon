@@ -25,6 +25,7 @@ let afterSequence = Number(localStorage.getItem(`gahyeon.cursor.${sessionId}`) ?
 let unsubscribe: (() => void) | undefined
 const gahyeon = getGahyeonBridge()
 const modelUrl = import.meta.env.VITE_GAHYEON_VRM_URL as string | undefined
+const worldId = 'gahyeon-home'
 
 const statusLabel = computed(() => ({
   connecting: 'Core 연결 중',
@@ -32,7 +33,17 @@ const statusLabel = computed(() => ({
   error: 'Core 연결 끊김',
 })[streamState.value])
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const snapshot = await gahyeon.getWorldState(worldId)
+    stageState.value = reduceStageEvent(stageState.value, {
+      event: 'world.state.restored',
+      data: snapshot,
+    })
+  }
+  catch {
+    streamState.value = 'error'
+  }
   unsubscribe = gahyeon.subscribeEvents({ sessionId, afterSequence }, event => {
     stageState.value = reduceStageEvent(stageState.value, event)
     if (event.id) {

@@ -62,12 +62,24 @@ Implemented:
   camera follow behavior, renderer-neutral semantic state reducer, diagnostic
   fallback character, and lazy-loaded VRM adapter. No AI provider runs in the
   renderer.
+- Event schema v2 introduces explicit `SESSION`, `WORLD`, and `SYSTEM` scopes,
+  so persistent world and presentation events no longer require a fabricated
+  conversation session.
+- World State is a separate persisted aggregate containing room, world
+  coordinates, activity, activity start time, outfit, world time, emotion,
+  interaction target, and an optimistic revision. Desktop restores the latest
+  snapshot before consuming newer WORLD events.
+- A deterministic FSM selects sleep, work, reading, looking outside, relaxing,
+  and idle behavior from time and state. Bed, desk, bookshelf, chair, window,
+  and room center are explicit interaction points. Conversation presence pauses
+  autonomous transitions and restores the previous activity after the final
+  concurrent conversation ends.
 
 The headless HTTP adapter is disabled by default because authentication has not
 yet been introduced. For local development only:
 
 ```bash
-GAHYEON_HEADLESS_ENABLED=true ./gradlew bootRun
+GAHYEON_HEADLESS_ENABLED=true GAHYEON_BEHAVIOR_ENABLED=true ./gradlew bootRun
 ```
 
 With the application's `/api` context path, the endpoint is:
@@ -75,6 +87,10 @@ With the application's `/api` context path, the endpoint is:
 ```text
 POST /api/gahyeon/conversations/{sessionId}/messages
 POST /api/gahyeon/desktop/conversations/{sessionId}/messages
+GET  /api/gahyeon/desktop/worlds/{worldId}
+POST /api/gahyeon/desktop/worlds/{worldId}/move
+POST /api/gahyeon/desktop/worlds/{worldId}/activity
+POST /api/gahyeon/desktop/worlds/{worldId}/emotion
 ```
 
 Example body:
@@ -112,8 +128,10 @@ Example body:
    adapter and provider name can be removed.
 3. Move utterance/VAD coordination out of `VoiceAssistantService`; Discord
    capture/playback is now the remaining JDA-specific portion.
-4. Add streaming delivery (SSE/WebSocket) over the persistent event cursor.
-5. Connect a minimal Desktop text client before adding avatar rendering.
+4. Add renderer-side animation clips and viseme-driven lip sync.
+5. Model room geometry and navigation paths instead of only interaction-point
+   coordinates.
+6. Add the Looking Glass renderer against the same world snapshot.
 
 Discord-only moderation, guild music, and DM delivery remain Discord adapter
 capabilities unless explicitly exposed to Gahyeon as tools.

@@ -7,6 +7,7 @@ export interface Vector3State {
 }
 
 export interface StageState {
+  revision: number
   room: string
   position: Vector3State
   activity: string
@@ -16,6 +17,7 @@ export interface StageState {
 }
 
 export const initialStageState: StageState = {
+  revision: 0,
   room: 'bedroom',
   position: { x: 0, y: 0, z: 0 },
   activity: 'idle',
@@ -26,32 +28,37 @@ export const initialStageState: StageState = {
 
 export function reduceStageEvent(state: StageState, event: GahyeonDesktopEvent): StageState {
   const payload = eventPayload(event.data)
+  const revision = number(payload.revision, state.revision)
+  if (isWorldEvent(event.event) && revision < state.revision) return state
   switch (event.event) {
     case 'avatar.expression':
       return {
         ...state,
+        revision,
         expression: text(payload.expression, state.expression),
         expressionIntensity: clamp(number(payload.intensity, state.expressionIntensity), 0, 1),
       }
     case 'avatar.speech.started':
-      return { ...state, speaking: true }
+      return { ...state, revision, speaking: true }
     case 'avatar.speech.stopped':
-      return { ...state, speaking: false }
+      return { ...state, revision, speaking: false }
     case 'character.moved':
       return {
         ...state,
-        room: text(payload.room, state.room),
+        revision,
+        room: text(payload.room, text(payload.currentRoom, state.room)),
         position: vector(payload.position, state.position),
       }
     case 'behavior.activity.changed':
-      return { ...state, activity: text(payload.activity, state.activity) }
+      return { ...state, revision, activity: text(payload.activity, state.activity) }
     case 'world.state.restored':
       return {
         ...state,
-        room: text(payload.room, state.room),
+        revision,
+        room: text(payload.room, text(payload.currentRoom, state.room)),
         position: vector(payload.position, state.position),
-        activity: text(payload.activity, state.activity),
-        expression: text(payload.expression, state.expression),
+        activity: lowerText(payload.activity, state.activity),
+        expression: text(payload.expression, text(payload.emotion, state.expression)),
       }
     case 'conversation.started':
       return { ...state, activity: 'attention' }
@@ -61,6 +68,15 @@ export function reduceStageEvent(state: StageState, event: GahyeonDesktopEvent):
     default:
       return state
   }
+}
+
+function isWorldEvent(type: string) {
+  return type === 'avatar.expression'
+    || type === 'avatar.speech.started'
+    || type === 'avatar.speech.stopped'
+    || type === 'character.moved'
+    || type === 'behavior.activity.changed'
+    || type === 'world.state.restored'
 }
 
 function eventPayload(data: unknown): Record<string, unknown> {
@@ -82,6 +98,10 @@ function vector(value: unknown, fallback: Vector3State): Vector3State {
 
 function text(value: unknown, fallback: string) {
   return typeof value === 'string' && value.trim() ? value : fallback
+}
+
+function lowerText(value: unknown, fallback: string) {
+  return text(value, fallback).toLowerCase()
 }
 
 function number(value: unknown, fallback: number) {

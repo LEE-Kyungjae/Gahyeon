@@ -33,4 +33,29 @@ describe('stage state reducer', () => {
       data: {},
     }).activity).toBe('idle')
   })
+
+  it('restores persisted snapshots and ignores older world revisions', () => {
+    const restored = reduceStageEvent(initialStageState, {
+      event: 'world.state.restored',
+      data: {
+        revision: 8,
+        currentRoom: 'living_room',
+        position: { x: -2, y: 0, z: -5 },
+        activity: 'RELAX',
+        emotion: 'happy',
+      },
+    })
+    const stale = reduceStageEvent(restored, {
+      event: 'character.moved',
+      data: { payload: { revision: 7, room: 'bedroom', position: { x: 0, y: 0, z: 0 } } },
+    })
+
+    expect(restored).toMatchObject({
+      revision: 8,
+      room: 'living_room',
+      activity: 'relax',
+      expression: 'happy',
+    })
+    expect(stale).toBe(restored)
+  })
 })

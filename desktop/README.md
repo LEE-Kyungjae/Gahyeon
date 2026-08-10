@@ -8,7 +8,7 @@ memory, STT, TTS, behavior, or world-state decisions.
 Start Core with the local-only transport enabled:
 
 ```bash
-GAHYEON_HEADLESS_ENABLED=true ./gradlew bootRun
+GAHYEON_HEADLESS_ENABLED=true GAHYEON_BEHAVIOR_ENABLED=true ./gradlew bootRun
 ```
 
 Then start Desktop:

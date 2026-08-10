@@ -19,6 +19,7 @@ export interface GahyeonDesktopEvent {
 
 export interface GahyeonDesktopBridge {
   sendMessage(request: MessageRequest): Promise<MessageResponse>
+  getWorldState(worldId: string): Promise<unknown>
   subscribeEvents(
     request: { sessionId: string, afterSequence: number },
     listener: (event: GahyeonDesktopEvent) => void,
@@ -41,6 +42,11 @@ const browserBridge: GahyeonDesktopBridge = {
     )
     if (!response.ok) throw new Error(`Gahyeon Core 응답 오류 (${response.status})`)
     return response.json() as Promise<MessageResponse>
+  },
+  async getWorldState(worldId) {
+    const response = await fetch(`/api/gahyeon/desktop/worlds/${encodeURIComponent(worldId)}`)
+    if (!response.ok) throw new Error(`World State 응답 오류 (${response.status})`)
+    return response.json()
   },
   subscribeEvents(request, listener) {
     const query = new URLSearchParams({

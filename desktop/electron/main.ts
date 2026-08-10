@@ -45,6 +45,14 @@ ipcMain.handle('gahyeon:message', async (_event, request: {
   return response.json()
 })
 
+ipcMain.handle('gahyeon:world:get', async (_event, worldId: string) => {
+  const response = await fetch(
+    `${apiBaseUrl}/gahyeon/desktop/worlds/${encodeURIComponent(worldId)}`,
+  )
+  if (!response.ok) throw new Error(`World State 응답 오류 (${response.status})`)
+  return response.json()
+})
+
 ipcMain.on('gahyeon:events:subscribe', (ipcEvent, request: {
   sessionId: string
   afterSequence: number
