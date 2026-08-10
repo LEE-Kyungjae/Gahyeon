@@ -22,6 +22,11 @@ npm run dev
 Set `GAHYEON_CORE_API_URL` when Core is not available at
 `http://127.0.0.1:8080/api`.
 
+Set the same high-entropy `GAHYEON_CLIENT_TOKEN` in the Core and Desktop process
+environments for non-loopback access. Without a token, Core accepts Gahyeon
+client APIs from loopback only. The token stays in Electron's main process and
+is not exposed through the renderer preload API.
+
 To load a VRM model, copy `.env.example` to `.env` and set
 `VITE_GAHYEON_VRM_URL` to a renderer-accessible URL. Without a model, the stage
 uses a lightweight diagnostic character so world movement and camera behavior

@@ -3,7 +3,14 @@ import { join } from 'node:path'
 import { parseEventStream } from './sse.js'
 
 const apiBaseUrl = process.env.GAHYEON_CORE_API_URL ?? 'http://127.0.0.1:8080/api'
+const clientToken = process.env.GAHYEON_CLIENT_TOKEN ?? ''
 const subscriptions = new Map<number, AbortController>()
+
+function coreHeaders(headers: Record<string, string> = {}) {
+  return clientToken
+    ? { ...headers, authorization: `Bearer ${clientToken}` }
+    : headers
+}
 
 function createWindow() {
   const window = new BrowserWindow({
@@ -37,7 +44,7 @@ ipcMain.handle('gahyeon:message', async (_event, request: {
     `${apiBaseUrl}/gahyeon/desktop/conversations/${encodeURIComponent(request.sessionId)}/messages`,
     {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: coreHeaders({ 'content-type': 'application/json' }),
       body: JSON.stringify(request),
     },
   )
@@ -48,13 +55,16 @@ ipcMain.handle('gahyeon:message', async (_event, request: {
 ipcMain.handle('gahyeon:world:get', async (_event, worldId: string) => {
   const response = await fetch(
     `${apiBaseUrl}/gahyeon/desktop/worlds/${encodeURIComponent(worldId)}`,
+    { headers: coreHeaders() },
   )
   if (!response.ok) throw new Error(`World State 응답 오류 (${response.status})`)
   return response.json()
 })
 
 ipcMain.handle('gahyeon:speech:status', async () => {
-  const response = await fetch(`${apiBaseUrl}/gahyeon/desktop/speech/status`)
+  const response = await fetch(`${apiBaseUrl}/gahyeon/desktop/speech/status`, {
+    headers: coreHeaders(),
+  })
   if (!response.ok) throw new Error(`Speech 상태 응답 오류 (${response.status})`)
   return response.json()
 })
@@ -62,7 +72,7 @@ ipcMain.handle('gahyeon:speech:status', async () => {
 ipcMain.handle('gahyeon:speech:transcribe', async (_event, audio: ArrayBuffer) => {
   const response = await fetch(`${apiBaseUrl}/gahyeon/desktop/speech/transcriptions`, {
     method: 'POST',
-    headers: { 'content-type': 'audio/wav' },
+    headers: coreHeaders({ 'content-type': 'audio/wav' }),
     body: Buffer.from(audio),
   })
   if (!response.ok) throw new Error(`STT 응답 오류 (${response.status})`)
@@ -73,7 +83,7 @@ ipcMain.handle('gahyeon:speech:transcribe', async (_event, audio: ArrayBuffer) =
 ipcMain.handle('gahyeon:speech:prepare', async (_event, text: string) => {
   const response = await fetch(`${apiBaseUrl}/gahyeon/desktop/speech/segments`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: coreHeaders({ 'content-type': 'application/json' }),
     body: JSON.stringify({ text }),
   })
   if (!response.ok) throw new Error(`TTS 분할 응답 오류 (${response.status})`)
@@ -83,7 +93,7 @@ ipcMain.handle('gahyeon:speech:prepare', async (_event, text: string) => {
 ipcMain.handle('gahyeon:speech:synthesize', async (_event, segment: { index: number, text: string }) => {
   const response = await fetch(`${apiBaseUrl}/gahyeon/desktop/speech/synthesis`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: coreHeaders({ 'content-type': 'application/json' }),
     body: JSON.stringify({ ...segment, voiceProfile: 'gahyeon.assistant' }),
   })
   if (!response.ok) throw new Error(`TTS 응답 오류 (${response.status})`)
@@ -120,7 +130,7 @@ async function consumeEvents(
       url.searchParams.set('sessionId', request.sessionId)
       url.searchParams.set('afterSequence', String(cursor))
       const response = await fetch(url, {
-        headers: { accept: 'text/event-stream' },
+        headers: coreHeaders({ accept: 'text/event-stream' }),
         signal: controller.signal,
       })
       if (!response.ok || !response.body) throw new Error(`Event stream 오류 (${response.status})`)

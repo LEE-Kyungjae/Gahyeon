@@ -99,11 +99,16 @@ Implemented:
   live in `StreamingUtteranceAccumulator`; Discord only normalizes JDA PCM and
   supplies the TEN VAD adapter.
 
-The headless HTTP adapter is disabled by default because authentication has not
-yet been introduced. For local development only:
+The headless HTTP adapter is disabled by default. With no client token it only
+accepts loopback traffic. Configure the same high-entropy token in Core and a
+remote client before exposing the transport:
 
 ```bash
 GAHYEON_HEADLESS_ENABLED=true GAHYEON_BEHAVIOR_ENABLED=true ./gradlew bootRun
+```
+
+```bash
+GAHYEON_HEADLESS_ENABLED=true GAHYEON_CLIENT_TOKEN='<secret>' ./gradlew bootRun
 ```
 
 With the application's `/api` context path, the endpoint is:
@@ -145,8 +150,9 @@ Example body:
 - `AgentGateway` currently describes response modality (`TEXT`, `VOICE`,
   `SYSTEM`) rather than client source. It should eventually be renamed or split
   without rewriting the runtime loop.
-- Headless/Desktop expose request/response plus a versioned event stream, but
-  the transport remains local-only until authenticated account linking exists.
+- Headless/Desktop expose request/response plus a versioned event stream.
+  Bearer authentication protects remote transport; per-account credential
+  linking is still required before multi-user remote access.
 
 ## Next migration slices
 
