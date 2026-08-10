@@ -4,6 +4,7 @@ import com.gahyeonbot.application.identity.IdentityResolutionService;
 import com.gahyeonbot.core.conversation.ConversationRequest;
 import com.gahyeonbot.core.conversation.ConversationResponse;
 import com.gahyeonbot.core.conversation.ConversationUseCase;
+import com.gahyeonbot.core.identity.IdentityProvider;
 import com.gahyeonbot.core.session.ClientSource;
 import com.gahyeonbot.core.session.ConversationModality;
 import com.gahyeonbot.core.session.ConversationSession;
@@ -41,7 +42,11 @@ public class DesktopConversationController {
     public ResponseEntity<MessageResponse> converse(
             @PathVariable String sessionId,
             @Valid @RequestBody MessageRequest body) {
-        var actorId = identities.resolveDesktop(body.installationId(), body.displayName());
+        var actorId = identities.resolveExternal(
+                IdentityProvider.DESKTOP,
+                body.installationId(),
+                body.displayName(),
+                null);
         var session = new ConversationSession(
                 new ConversationSessionId(sessionId),
                 actorId,

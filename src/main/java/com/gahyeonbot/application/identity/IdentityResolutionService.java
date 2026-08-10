@@ -29,61 +29,50 @@ public class IdentityResolutionService {
         this.transactions = new TransactionTemplate(transactionManager);
     }
 
-    public ActorId resolveDiscord(long discordUserId, String displayName) {
-        if (discordUserId <= 0) throw new IllegalArgumentException("Discord user ID가 올바르지 않습니다.");
-        return resolve(
-                IdentityProvider.DISCORD,
-                Long.toString(discordUserId),
-                discordUserId,
-                displayName);
-    }
-
-    public ActorId resolveDesktop(String installationId, String displayName) {
-        if (installationId == null || installationId.isBlank()) {
-            throw new IllegalArgumentException("Desktop installation ID가 비어 있습니다.");
-        }
-        return resolve(
-                IdentityProvider.DESKTOP,
-                installationId.trim(),
-                null,
-                displayName);
-    }
-
-    private ActorId resolve(
+    /**
+     * Resolves an adapter-owned external identity to Gahyeon's stable actor ID.
+     * preferredActorId exists only to preserve IDs from pre-Core installations.
+     */
+    public ActorId resolveExternal(
             IdentityProvider provider,
             String externalId,
-            Long compatiblePrincipalId,
-            String displayName) {
+            String displayName,
+            Long preferredActorId) {
+        if (provider == null) throw new IllegalArgumentException("identity provider가 필요합니다.");
+        if (externalId == null || externalId.isBlank()) {
+            throw new IllegalArgumentException("external identity ID가 필요합니다.");
+        }
+        String normalizedExternalId = externalId.trim();
         String safeName = displayName == null || displayName.isBlank() ? "unknown" : displayName.trim();
-        var existing = externalIdentityRepository.findByProviderAndExternalId(provider, externalId);
+        var existing = externalIdentityRepository.findByProviderAndExternalId(provider, normalizedExternalId);
         if (existing.isPresent()) return new ActorId(existing.get().getPrincipal().getId());
 
         try {
             ActorId created = transactions.execute(status -> {
-                var raced = externalIdentityRepository.findByProviderAndExternalId(provider, externalId);
+                var raced = externalIdentityRepository.findByProviderAndExternalId(provider, normalizedExternalId);
                 if (raced.isPresent()) return new ActorId(raced.get().getPrincipal().getId());
-                Principal principal = compatiblePrincipalId == null
+                Principal principal = preferredActorId == null
                         ? principalRepository.save(Principal.builder()
                                 .id(nextInternalPrincipalId())
                                 .displayName(safeName)
                                 .build())
-                        : principalRepository.findById(compatiblePrincipalId)
+                        : principalRepository.findById(preferredActorId)
                                 .orElseGet(() -> principalRepository.save(Principal.builder()
-                                        .id(compatiblePrincipalId)
+                                        .id(preferredActorId)
                                         .displayName(safeName)
                                         .build()));
                 externalIdentityRepository.saveAndFlush(ExternalIdentity.builder()
                         .id(UUID.randomUUID().toString())
                         .principal(principal)
                         .provider(provider)
-                        .externalId(externalId)
+                        .externalId(normalizedExternalId)
                         .build());
                 return new ActorId(principal.getId());
             });
             if (created == null) throw new IllegalStateException("Identity transaction returned no result");
             return created;
         } catch (DataIntegrityViolationException race) {
-            return externalIdentityRepository.findByProviderAndExternalId(provider, externalId)
+            return externalIdentityRepository.findByProviderAndExternalId(provider, normalizedExternalId)
                     .map(identity -> new ActorId(identity.getPrincipal().getId()))
                     .orElseThrow(() -> race);
         }

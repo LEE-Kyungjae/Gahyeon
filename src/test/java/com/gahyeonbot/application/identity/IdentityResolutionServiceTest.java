@@ -22,8 +22,10 @@ class IdentityResolutionServiceTest {
         var service = new IdentityResolutionService(
                 principals, externalIdentities, transactionManager);
 
-        ActorId first = service.resolveDiscord(123456789L, "first name");
-        ActorId second = service.resolveDiscord(123456789L, "changed name");
+        ActorId first = service.resolveExternal(
+                IdentityProvider.DISCORD, "123456789", "first name", 123456789L);
+        ActorId second = service.resolveExternal(
+                IdentityProvider.DISCORD, "123456789", "changed name", 123456789L);
 
         assertThat(first).isEqualTo(new ActorId(123456789L));
         assertThat(second).isEqualTo(first);
@@ -41,8 +43,10 @@ class IdentityResolutionServiceTest {
         var service = new IdentityResolutionService(
                 principals, externalIdentities, transactionManager);
 
-        ActorId first = service.resolveDesktop("installation-abc", "Desktop user");
-        ActorId second = service.resolveDesktop("installation-abc", "Renamed user");
+        ActorId first = service.resolveExternal(
+                IdentityProvider.DESKTOP, "installation-abc", "Desktop user", null);
+        ActorId second = service.resolveExternal(
+                IdentityProvider.DESKTOP, "installation-abc", "Renamed user", null);
 
         assertThat(first.value()).isPositive();
         assertThat(second).isEqualTo(first);

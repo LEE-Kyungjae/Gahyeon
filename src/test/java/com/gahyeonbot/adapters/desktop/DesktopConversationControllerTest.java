@@ -5,6 +5,7 @@ import com.gahyeonbot.core.conversation.ConversationRequest;
 import com.gahyeonbot.core.conversation.ConversationResponse;
 import com.gahyeonbot.core.conversation.ConversationUseCase;
 import com.gahyeonbot.core.identity.ActorId;
+import com.gahyeonbot.core.identity.IdentityProvider;
 import com.gahyeonbot.core.session.ClientSource;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -22,7 +23,7 @@ class DesktopConversationControllerTest {
     void resolvesDesktopIdentityAndBuildsDesktopSession() {
         ConversationUseCase conversation = mock(ConversationUseCase.class);
         IdentityResolutionService identities = mock(IdentityResolutionService.class);
-        when(identities.resolveDesktop("install-1", "Zaeze"))
+        when(identities.resolveExternal(IdentityProvider.DESKTOP, "install-1", "Zaeze", null))
                 .thenReturn(new ActorId(42));
         when(conversation.converse(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(new ConversationResponse(
