@@ -4,9 +4,17 @@ import {
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
+  Object3D,
+  Material,
+  Texture,
 } from 'three'
 
-export class GahyeonHomeEnvironment {
+export interface WorldEnvironment {
+  readonly object: Object3D
+  dispose(): void
+}
+
+export class GahyeonHomeEnvironment implements WorldEnvironment {
   readonly object = new Group()
   private readonly geometries = new Set<BoxGeometry | PlaneGeometry>()
   private readonly materials = new Set<MeshStandardMaterial>()
@@ -75,4 +83,39 @@ export class GahyeonHomeEnvironment {
   private wall(x: number, y: number, z: number, width: number, height: number, depth: number) {
     this.furniture('wall', x, y, z, width, height, depth, '#343541')
   }
+}
+
+/** Loads a licensed production world without making it part of Core state. */
+export class GltfWorldEnvironment implements WorldEnvironment {
+  private constructor(readonly object: Object3D) {}
+
+  static async load(url: string): Promise<GltfWorldEnvironment> {
+    const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js')
+    const gltf = await new GLTFLoader().loadAsync(url)
+    gltf.scene.name = 'gahyeon-world-asset'
+    gltf.scene.traverse(node => {
+      const mesh = node as Mesh
+      if (!mesh.isMesh) return
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+    })
+    return new GltfWorldEnvironment(gltf.scene)
+  }
+
+  dispose() {
+    this.object.traverse(node => {
+      const mesh = node as Mesh
+      if (!mesh.isMesh) return
+      mesh.geometry?.dispose()
+      const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      materials.forEach(disposeMaterial)
+    })
+  }
+}
+
+function disposeMaterial(material: Material) {
+  for (const value of Object.values(material)) {
+    if (value instanceof Texture) value.dispose()
+  }
+  material.dispose()
 }

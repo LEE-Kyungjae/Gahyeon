@@ -14,7 +14,7 @@ import type { CharacterRenderer } from './character-renderer'
 import { PlaceholderCharacterRenderer } from './placeholder-character'
 import { buildNavigationPath } from './navigation-path'
 import type { StageState } from './stage-state'
-import { GahyeonHomeEnvironment } from './world-environment'
+import { GahyeonHomeEnvironment, type WorldEnvironment } from './world-environment'
 
 export class ThreeStage {
   private readonly scene = new Scene()
@@ -22,7 +22,7 @@ export class ThreeStage {
   private readonly renderer: WebGLRenderer
   private lastFrameTime = performance.now()
   private readonly observer: ResizeObserver
-  private readonly environment = new GahyeonHomeEnvironment()
+  private environment: WorldEnvironment = new GahyeonHomeEnvironment()
   private character: CharacterRenderer = new PlaceholderCharacterRenderer()
   private state: StageState
   private room: string
@@ -72,9 +72,15 @@ export class ThreeStage {
   setCharacter(character: CharacterRenderer) {
     this.scene.remove(this.character.object)
     this.character.dispose()
-    this.environment.dispose()
     this.character = character
     this.scene.add(character.object)
+  }
+
+  setEnvironment(environment: WorldEnvironment) {
+    this.scene.remove(this.environment.object)
+    this.environment.dispose()
+    this.environment = environment
+    this.scene.add(environment.object)
   }
 
   async enableLookingGlass(buttonHost: HTMLElement) {
@@ -111,6 +117,7 @@ export class ThreeStage {
     this.renderer.setAnimationLoop(null)
     this.observer.disconnect()
     this.character.dispose()
+    this.environment.dispose()
     this.renderer.dispose()
     this.renderer.domElement.remove()
   }

@@ -34,6 +34,7 @@ let unsubscribe: (() => void) | undefined
 const gahyeon = getGahyeonBridge()
 const modelUrl = import.meta.env.VITE_GAHYEON_VRM_URL as string | undefined
 const animationManifestUrl = import.meta.env.VITE_GAHYEON_VRMA_MANIFEST as string | undefined
+const worldUrl = import.meta.env.VITE_GAHYEON_WORLD_URL as string | undefined
 const lookingGlassEnabled = import.meta.env.VITE_GAHYEON_LOOKING_GLASS === 'true'
 const worldId = 'gahyeon-home'
 const recorder = new WavRecorder()
@@ -212,6 +213,7 @@ function persistentId(key: string, prefix: string) {
         :state="stageState"
         :model-url="modelUrl"
         :animation-manifest-url="animationManifestUrl"
+        :world-url="worldUrl"
         :looking-glass-enabled="lookingGlassEnabled"
       />
 

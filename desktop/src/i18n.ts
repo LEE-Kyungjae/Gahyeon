@@ -15,6 +15,7 @@ const messages = {
     'voice.sttUnavailable': 'STT가 준비되지 않았습니다.', 'voice.noTranscript': '음성을 인식하지 못했습니다.',
     'stage.partialAnimation': '일부 VRMA 대신 기본 동작을 사용합니다: {details}',
     'stage.lookingGlassFailure': 'Looking Glass 초기화 실패: {details}',
+    'stage.worldFailure': '3D World 에셋을 불러오지 못해 기본 World를 사용합니다: {details}',
     'stage.enableLookingGlass': 'LOOKING GLASS 켜기', 'stage.loading': '불러오는 중…', 'locale.label': '언어',
   },
   en: {
@@ -29,6 +30,7 @@ const messages = {
     'voice.sttUnavailable': 'Speech recognition is not ready.', 'voice.noTranscript': 'No speech could be recognized.',
     'stage.partialAnimation': 'Using fallback motion for some VRMA clips: {details}',
     'stage.lookingGlassFailure': 'Looking Glass initialization failed: {details}',
+    'stage.worldFailure': 'Could not load the 3D world asset; using the fallback world: {details}',
     'stage.enableLookingGlass': 'ENABLE LOOKING GLASS', 'stage.loading': 'LOADING…', 'locale.label': 'Language',
   },
 } as const

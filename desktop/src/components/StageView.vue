@@ -2,12 +2,14 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { StageState } from '../stage/stage-state'
 import { ThreeStage } from '../stage/three-stage'
+import { GltfWorldEnvironment } from '../stage/world-environment'
 import { t } from '../i18n'
 
 const props = defineProps<{
   state: StageState
   modelUrl?: string
   animationManifestUrl?: string
+  worldUrl?: string
   lookingGlassEnabled?: boolean
 }>()
 
@@ -21,6 +23,14 @@ let stage: ThreeStage | undefined
 onMounted(async () => {
   if (!host.value) return
   stage = new ThreeStage(host.value, props.state)
+  if (props.worldUrl) {
+    try {
+      stage.setEnvironment(await GltfWorldEnvironment.load(props.worldUrl))
+    }
+    catch (error) {
+      modelError.value = t('stage.worldFailure', { details: error instanceof Error ? error.message : String(error) })
+    }
+  }
   if (!props.modelUrl) return
   try {
     const { VrmCharacterRenderer } = await import('../stage/vrm-character')

@@ -42,6 +42,10 @@ To load a VRM model, copy `.env.example` to `.env` and set
 uses a lightweight diagnostic character so world movement and camera behavior
 remain testable.
 
+Set `VITE_GAHYEON_WORLD_URL` to load a licensed GLB/GLTF environment. The asset
+is presentation-only: Core coordinates, rooms, activities, and interaction
+targets remain authoritative. Loading failure preserves the procedural home.
+
 Optional activity clips are configured with `VITE_GAHYEON_VRMA_MANIFEST`.
 Desktop retargets VRMA clips through the official Pixiv package and cross-fades
 activity changes. Every activity has a procedural fallback, so a missing clip
