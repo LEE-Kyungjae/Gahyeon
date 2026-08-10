@@ -5,6 +5,7 @@ import com.gahyeonbot.core.identity.ActorId;
 import com.gahyeonbot.core.session.*;
 import com.gahyeonbot.services.ai.ConversationAdmissionService;
 import com.gahyeonbot.services.ai.agent.AgentResult;
+import com.gahyeonbot.services.ai.agent.AgentGateway;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
@@ -18,7 +19,7 @@ class AdmissionControlledConversationAdapterTest {
     @Test
     void forwardsAnOptionalToolScopeToTheAdmissionService() throws Exception {
         ConversationAdmissionService legacy = mock(ConversationAdmissionService.class);
-        when(legacy.chatResult("message:1", 20L, "tester", 10L, "안녕"))
+        when(legacy.chatResult("message:1", "session-1", AgentGateway.TEXT, 20L, "tester", 10L, "안녕"))
                 .thenReturn(new AgentResult("run-1", "반가워요.", List.of("weather"), Duration.ofMillis(4)));
         var adapter = new AdmissionControlledConversationAdapter(legacy);
 
@@ -28,20 +29,20 @@ class AdmissionControlledConversationAdapterTest {
 
         assertThat(response.runId()).isEqualTo("run-1");
         assertThat(response.tools()).containsExactly("weather");
-        verify(legacy).chatResult("message:1", 20L, "tester", 10L, "안녕");
+        verify(legacy).chatResult("message:1", "session-1", AgentGateway.TEXT, 20L, "tester", 10L, "안녕");
     }
 
     @Test
     void supportsAHeadlessClientWithoutDiscordContext() throws Exception {
         ConversationAdmissionService legacy = mock(ConversationAdmissionService.class);
-        when(legacy.chatResult("message:1", 20L, "tester", null, "안녕"))
+        when(legacy.chatResult("message:1", "session-1", AgentGateway.TEXT, 20L, "tester", null, "안녕"))
                 .thenReturn(new AgentResult("run-2", "반가워요.", List.of(), Duration.ZERO));
         var adapter = new AdmissionControlledConversationAdapter(legacy);
 
         var response = adapter.execute(request(ClientSource.HEADLESS, Map.of()));
 
         assertThat(response.runId()).isEqualTo("run-2");
-        verify(legacy).chatResult("message:1", 20L, "tester", null, "안녕");
+        verify(legacy).chatResult("message:1", "session-1", AgentGateway.TEXT, 20L, "tester", null, "안녕");
     }
 
     private static ConversationRequest request(ClientSource source, Map<String, String> context) {

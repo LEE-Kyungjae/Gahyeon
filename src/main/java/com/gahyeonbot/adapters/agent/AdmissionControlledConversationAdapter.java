@@ -5,6 +5,7 @@ import com.gahyeonbot.core.conversation.ConversationRequest;
 import com.gahyeonbot.core.conversation.ConversationRejectedException;
 import com.gahyeonbot.core.conversation.ConversationResponse;
 import com.gahyeonbot.services.ai.ConversationAdmissionService;
+import com.gahyeonbot.services.ai.agent.AgentGateway;
 import com.gahyeonbot.services.ai.agent.AgentResult;
 import org.springframework.stereotype.Component;
 
@@ -26,6 +27,8 @@ public class AdmissionControlledConversationAdapter implements ConversationAgent
         try {
             result = admission.chatResult(
                     request.requestId(),
+                    request.session().id().value(),
+                    AgentGateway.valueOf(request.session().modality().name()),
                     request.session().actorId().value(),
                     request.displayName(),
                     toolScopeId,

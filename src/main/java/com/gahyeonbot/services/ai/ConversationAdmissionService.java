@@ -96,7 +96,9 @@ public class ConversationAdmissionService {
      * - 동일 사용자의 요청은 Lock으로 순차 처리 (Race Condition 방지)
      * - 다른 사용자의 요청은 병렬 처리 (성능 유지)
      *
-     * @param interactionId Discord Interaction ID (중복 방지용)
+     * @param interactionId client request ID (중복 방지용)
+     * @param sessionId platform-neutral conversation session ID
+     * @param gateway conversation modality used by the agent runtime
      * @param userId 사용자 ID
      * @param username 사용자 이름
      * @param toolScopeId optional numeric scope used by legacy tool adapters
@@ -105,16 +107,10 @@ public class ConversationAdmissionService {
      * @throws RateLimitException Rate Limit 초과 시
      * @throws AdversarialPromptException 적대적 프롬프트 감지 시
      */
-    public String chat(String interactionId, Long userId, String username, Long toolScopeId, String userMessage) throws RateLimitException, AdversarialPromptException {
-        return chatResult(interactionId, userId, username, toolScopeId, userMessage).content();
-    }
-
-    /**
-     * Platform adapters use this result-preserving entry point so run identity,
-     * tool usage, and duration are not lost at the Core boundary.
-     */
     public AgentResult chatResult(
             String interactionId,
+            String sessionId,
+            AgentGateway gateway,
             Long userId,
             String username,
             Long toolScopeId,
@@ -123,7 +119,7 @@ public class ConversationAdmissionService {
         Lock userLock = userLocks.computeIfAbsent(userId, k -> new ReentrantLock());
         userLock.lock();
         try {
-            return chatInternal(interactionId, userId, username, toolScopeId, userMessage);
+            return chatInternal(interactionId, sessionId, gateway, userId, username, toolScopeId, userMessage);
         } finally {
             userLock.unlock();
         }
@@ -133,7 +129,14 @@ public class ConversationAdmissionService {
      * 내부 chat 메서드 (Lock으로 보호됨)
      */
     @Transactional
-    private AgentResult chatInternal(String interactionId, Long userId, String username, Long toolScopeId, String userMessage) throws RateLimitException, AdversarialPromptException {
+    private AgentResult chatInternal(
+            String interactionId,
+            String sessionId,
+            AgentGateway gateway,
+            Long userId,
+            String username,
+            Long toolScopeId,
+            String userMessage) throws RateLimitException, AdversarialPromptException {
         if (!isEnabled) {
             throw new RateLimitException("OpenAI 서비스가 비활성화되어 있습니다.");
         }
@@ -178,8 +181,8 @@ public class ConversationAdmissionService {
             log.info("에이전트 요청 시작 - 사용자: {}, 메시지 길이: {} 문자", username, userMessage.length());
             AgentResult result = agentRuntime.execute(new AgentRequest(
                     interactionId,
-                    "discord:text:" + userId,
-                    AgentGateway.TEXT,
+                    sessionId,
+                    gateway,
                     toolScopeId,
                     userId,
                     username,
