@@ -58,7 +58,8 @@ public class MessageListener extends ListenerAdapter {
             event.getChannel().sendTyping().queue();
             var session = new ConversationSession(
                     new ConversationSessionId("discord:text:" + event.getAuthor().getId()),
-                    identityMapper.toActorId(event.getAuthor().getIdLong()),
+                    identityMapper.toActorId(
+                            event.getAuthor().getIdLong(), event.getAuthor().getName()),
                     ClientSource.DISCORD,
                     ConversationModality.TEXT,
                     Map.of("discord.guildId", event.getGuild().getId()));

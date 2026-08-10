@@ -1,0 +1,38 @@
+package com.gahyeonbot.application.identity;
+
+import com.gahyeonbot.core.identity.ActorId;
+import com.gahyeonbot.core.identity.IdentityProvider;
+import com.gahyeonbot.repository.ExternalIdentityRepository;
+import com.gahyeonbot.repository.PrincipalRepository;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.transaction.PlatformTransactionManager;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DataJpaTest
+class IdentityResolutionServiceTest {
+    @Autowired PrincipalRepository principals;
+    @Autowired ExternalIdentityRepository externalIdentities;
+    @Autowired PlatformTransactionManager transactionManager;
+
+    @Test
+    void persistsAndReusesDiscordIdentityWithoutChangingLegacyActorId() {
+        var service = new IdentityResolutionService(
+                principals, externalIdentities, transactionManager);
+
+        ActorId first = service.resolveDiscord(123456789L, "first name");
+        ActorId second = service.resolveDiscord(123456789L, "changed name");
+
+        assertThat(first).isEqualTo(new ActorId(123456789L));
+        assertThat(second).isEqualTo(first);
+        assertThat(principals.count()).isOne();
+        assertThat(externalIdentities.count()).isOne();
+        assertThat(externalIdentities.findByProviderAndExternalId(
+                IdentityProvider.DISCORD, "123456789"))
+                .get()
+                .extracting(identity -> identity.getPrincipal().getId())
+                .isEqualTo(123456789L);
+    }
+}

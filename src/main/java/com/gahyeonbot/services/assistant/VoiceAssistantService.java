@@ -280,7 +280,7 @@ public class VoiceAssistantService {
                     synchronized (guard.aiLock) {
                         var conversationSession = new ConversationSession(
                                 conversationSessionId,
-                                identityMapper.toActorId(userId),
+                                identityMapper.toActorId(userId, username),
                                 ClientSource.DISCORD,
                                 ConversationModality.VOICE,
                                 Map.of("discord.guildId", guild.getId()));

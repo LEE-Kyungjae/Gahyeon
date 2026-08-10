@@ -29,6 +29,7 @@ provider implementations.
 Implemented:
 
 - internal `ActorId` rather than a Discord type in the Core contract;
+- persisted `Principal` and `ExternalIdentity(provider, externalId)` records;
 - `ConversationSessionId`, `ClientSource`, and `ConversationModality`;
 - immutable `ConversationSession` client context;
 - platform-neutral request/response and `ConversationUseCase`;
@@ -68,9 +69,11 @@ Example body:
 
 ## Known compatibility debt
 
-- `DiscordIdentityMapper` currently projects a Discord user ID directly into
-  the numeric internal `ActorId`. A persisted principal/external-identity table
-  must replace this before Desktop account linking is enabled.
+- Discord identities now resolve through persisted external-identity records.
+  During the compatibility phase, a Discord principal keeps the same numeric
+  value as its prior user ID so existing memory and runtime ownership remain
+  readable. Desktop account linking still needs an internal-ID allocator and a
+  linking flow before this compatibility rule can be removed.
 - `LegacyOpenAiConversationAdapter` still projects `discord.guildId` into the
   legacy admission service. Discord compatibility is confined to the adapter,
   but the legacy runtime ledger still stores `guild_id` and `user_id`.
@@ -82,8 +85,8 @@ Example body:
 
 ## Next migration slices
 
-1. Persist `Principal` and `ExternalIdentity`, then migrate Discord identity
-   lookup away from direct ID reuse.
+1. Add internal-ID allocation and an authenticated identity-linking flow for
+   Desktop clients.
 2. Extract the admission policy from `OpenAiService` so the compatibility
    adapter and provider name can be removed.
 3. Split `VoiceAssistantService` into platform-neutral utterance processing and
