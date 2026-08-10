@@ -1,6 +1,7 @@
 package com.gahyeonbot.services.assistant;
 
 import com.gahyeonbot.adapters.discord.DiscordIdentityMapper;
+import com.gahyeonbot.adapters.discord.DiscordAudioFileMaterializer;
 import com.gahyeonbot.core.audio.GuildMusicManager;
 import com.gahyeonbot.core.conversation.ConversationRequest;
 import com.gahyeonbot.core.session.ClientSource;
@@ -8,9 +9,12 @@ import com.gahyeonbot.core.session.ConversationModality;
 import com.gahyeonbot.core.session.ConversationSession;
 import com.gahyeonbot.core.session.ConversationSessionId;
 import com.gahyeonbot.core.speech.AudioInput;
+import com.gahyeonbot.core.speech.AudioOutput;
+import com.gahyeonbot.core.speech.SpeechSegment;
+import com.gahyeonbot.core.speech.SpeechSynthesisUseCase;
 import com.gahyeonbot.core.speech.TranscriptionUseCase;
+import com.gahyeonbot.core.speech.VoiceProfileId;
 import com.gahyeonbot.services.music.MusicService;
-import com.gahyeonbot.services.tts.TtsService;
 import com.gahyeonbot.services.tts.TtsTrackMetadata;
 import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
@@ -47,7 +51,8 @@ public class VoiceAssistantService {
     private final TranscriptionUseCase transcription;
     private final AssistantChatProvider chatProvider;
     private final DiscordIdentityMapper identityMapper;
-    private final TtsService ttsService;
+    private final SpeechSynthesisUseCase speechSynthesis;
+    private final DiscordAudioFileMaterializer audioFiles;
     private final MusicService musicService;
     private final com.gahyeonbot.core.audio.AudioManager audioManager;
 
@@ -300,7 +305,8 @@ public class VoiceAssistantService {
                 // A progress acknowledgement may already be playing when the answer arrives.
                 musicManager.interruptTtsPlayback();
                 textChannel.sendMessage("**가현**: " + limit(answer, 1800)).queue();
-                if (properties.isSpeakResponses() && ttsService.isEnabled() && !closed
+                if (properties.isSpeakResponses()
+                        && speechSynthesis.isReady(VoiceProfileId.ASSISTANT) && !closed
                         && TtsSpeechText.isSafeToSpeak(answer)) {
                     queueSpeech(answer, revision);
                 } else if (!TtsSpeechText.isSafeToSpeak(answer)) {
@@ -318,7 +324,8 @@ public class VoiceAssistantService {
                 AtomicBoolean waitingForAnswer) {
             long delay = properties.getResponseAcknowledgementMillis();
             String message = properties.getResponseAcknowledgementText();
-            if (!properties.isSpeakResponses() || !ttsService.isEnabled()
+            if (!properties.isSpeakResponses()
+                    || !speechSynthesis.isReady(VoiceProfileId.ASSISTANT)
                     || delay < 0 || message == null || message.isBlank()) {
                 return null;
             }
@@ -334,8 +341,11 @@ public class VoiceAssistantService {
                 AtomicBoolean waitingForAnswer) {
             if (closed || revision != responseRevision.get() || !waitingForAnswer.get()) return;
             try {
-                Path audio = ttsService.synthesizeSegmentToAudio(
-                        message, properties.getTtsProvider());
+                var segments = speechSynthesis.prepare(message);
+                if (segments.isEmpty()) return;
+                AudioOutput output = speechSynthesis.synthesize(
+                        segments.getFirst(), VoiceProfileId.ASSISTANT);
+                Path audio = audioFiles.materialize(output);
                 if (closed || revision != responseRevision.get() || !waitingForAnswer.get()) {
                     java.nio.file.Files.deleteIfExists(audio);
                     return;
@@ -383,10 +393,11 @@ public class VoiceAssistantService {
         private void speakLatest(String answer, long revision) throws Exception {
             String spokenText = TtsSpeechText.sanitize(answer);
             if (spokenText.isBlank()) return;
-            for (String segment : ttsService.prepareSegments(spokenText)) {
+            for (SpeechSegment segment : speechSynthesis.prepare(spokenText)) {
                 if (closed || revision != responseRevision.get()) return;
-                Path audio = ttsService.synthesizeSegmentToAudio(
-                        segment, properties.getTtsProvider());
+                AudioOutput output = speechSynthesis.synthesize(
+                        segment, VoiceProfileId.ASSISTANT);
+                Path audio = audioFiles.materialize(output);
                 if (closed || revision != responseRevision.get()) {
                     java.nio.file.Files.deleteIfExists(audio);
                     return;

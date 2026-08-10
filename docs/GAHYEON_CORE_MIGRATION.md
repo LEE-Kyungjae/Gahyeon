@@ -45,6 +45,10 @@ Implemented:
 - STT now enters through `TranscriptionUseCase` and `SpeechRecognitionPort` with
   a defensive binary `AudioInput`; the provider no longer defines the
   application-facing contract.
+- TTS now enters through a logical `VoiceProfileId` and returns defensive
+  binary `AudioOutput` segments. Piper/Voicebox/Edge selection and provider
+  temporary files remain behind `TtsServiceSynthesisAdapter`; only the Discord
+  adapter materializes a playback file for Lavaplayer.
 
 The headless HTTP adapter is disabled by default because authentication has not
 yet been introduced. For local development only:
@@ -92,8 +96,8 @@ Example body:
    Desktop clients.
 2. Extract the admission policy from `OpenAiService` so the compatibility
    adapter and provider name can be removed.
-3. Split `VoiceAssistantService` into platform-neutral utterance processing and
-   Discord capture/playback adapters.
+3. Move utterance/VAD coordination out of `VoiceAssistantService`; Discord
+   capture/playback is now the remaining JDA-specific portion.
 4. Define versioned command/query and event-stream envelopes with request,
    correlation, session, and sequence identifiers.
 5. Connect a minimal Desktop text client before adding avatar rendering.
