@@ -73,6 +73,7 @@ See the [Core migration](docs/GAHYEON_CORE_MIGRATION.md), [Desktop client](deskt
 | `TOKEN` | Discord bot token |
 | `APPLICATION_ID` | Discord application ID |
 | `BOT_ENABLED` | Enables the Discord connection |
+| `GAHYEON_AGENT_PROVIDER` | LLM agent provider; set to `openai` to enable the OpenAI/OpenRouter adapter |
 | `ASSISTANT_ENABLED` | Enables the voice assistant |
 | `ASSISTANT_OPENROUTER_ENABLED` | Enables the OpenRouter assistant provider |
 | `OPENROUTER_API_KEY` | OpenRouter API key |

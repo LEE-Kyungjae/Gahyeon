@@ -122,6 +122,11 @@ GAHYEON_HEADLESS_ENABLED=true GAHYEON_BEHAVIOR_ENABLED=true ./gradlew bootRun
 GAHYEON_HEADLESS_ENABLED=true GAHYEON_CLIENT_TOKEN='<secret>' ./gradlew bootRun
 ```
 
+LLM infrastructure is independently opt-in with
+`GAHYEON_AGENT_PROVIDER=openai`. Without it, Core still boots and serves World,
+Event, STT/TTS readiness, and Desktop presentation APIs; conversation reports
+the provider as unavailable instead of preventing the process from starting.
+
 With the application's `/api` context path, the endpoint is:
 
 ```text

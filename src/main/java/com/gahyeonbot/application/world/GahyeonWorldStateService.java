@@ -4,6 +4,7 @@ import com.gahyeonbot.application.event.GahyeonEventPublisher;
 import com.gahyeonbot.core.event.GahyeonEventDraft;
 import com.gahyeonbot.core.world.*;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
@@ -17,6 +18,7 @@ public class GahyeonWorldStateService implements WorldStateUseCase {
     private final GahyeonEventPublisher events;
     private final Clock clock;
 
+    @Autowired
     public GahyeonWorldStateService(WorldStateStore store, GahyeonEventPublisher events) {
         this(store, events, Clock.systemUTC());
     }

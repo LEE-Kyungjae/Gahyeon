@@ -14,14 +14,22 @@ app:
 
 spring:
   ai:
+    model:
+      chat: ${GAHYEON_AGENT_PROVIDER:none}
+      audio:
+        speech: ${SPRING_AI_MODEL_AUDIO_SPEECH:none}
+        transcription: ${SPRING_AI_MODEL_AUDIO_TRANSCRIPTION:none}
+      embedding: ${SPRING_AI_MODEL_EMBEDDING:none}
+      image: ${SPRING_AI_MODEL_IMAGE:none}
+      moderation: ${SPRING_AI_MODEL_MODERATION:none}
     openai:
-      api-key: ${AGENT_API_KEY:${OPENROUTER_API_KEY:${OPEN_ROUTER:${OPENAI_API_KEY:}}}}
-      base-url: ${AGENT_BASE_URL:${OPENROUTER_BASE_URL:https://openrouter.ai/api}}
       chat:
         options:
           model: ${AGENT_MODEL:${OPENROUTER_MODEL:openrouter/free}}
           temperature: 0.7
           max-tokens: 500     # 응답 길이 제한으로 비용 절감
+      api-key: ${AGENT_API_KEY:${OPENROUTER_API_KEY:${OPEN_ROUTER:${OPENAI_API_KEY:}}}}
+      base-url: ${AGENT_BASE_URL:${OPENROUTER_BASE_URL:https://openrouter.ai/api}}
   application:
     name: gahyeonbot
   profiles:

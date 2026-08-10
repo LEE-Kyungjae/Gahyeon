@@ -81,6 +81,7 @@ Discord 음성 → TEN VAD → STT → AI 에이전트/OpenRouter → TTS → Di
 | `TOKEN` | Discord 봇 토큰 |
 | `APPLICATION_ID` | Discord 애플리케이션 ID |
 | `BOT_ENABLED` | Discord 연결 활성화 여부 |
+| `GAHYEON_AGENT_PROVIDER` | LLM Agent provider. `openai`로 설정하면 OpenAI/OpenRouter Adapter 활성화 |
 | `ASSISTANT_ENABLED` | 음성 비서 활성화 |
 | `ASSISTANT_OPENROUTER_ENABLED` | OpenRouter AI 제공자 활성화 |
 | `OPENROUTER_API_KEY` | OpenRouter API 키 |

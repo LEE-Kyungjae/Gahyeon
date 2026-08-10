@@ -20,6 +20,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.model.tool.DefaultToolCallingChatOptions;
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -28,6 +29,7 @@ import java.time.ZoneId;
 import java.util.*;
 
 @Service
+@ConditionalOnProperty(name = "spring.ai.model.chat", havingValue = "openai")
 @RequiredArgsConstructor
 @Slf4j
 public class DefaultAgentRuntime implements AgentRuntime {
