@@ -42,6 +42,8 @@ gahyeon:
   headless:
     # The endpoint has no authentication yet; explicitly opt in for local development only.
     enabled: ${GAHYEON_HEADLESS_ENABLED:false}
+  desktop:
+    event-poll-millis: ${GAHYEON_DESKTOP_EVENT_POLL_MILLIS:250}
 
 bot:
   enabled: ${BOT_ENABLED:true}

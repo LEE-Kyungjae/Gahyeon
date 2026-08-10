@@ -55,6 +55,9 @@ Implemented:
 - Desktop requests resolve a stable installation ID through the platform
   identity map and enter Core with `ClientSource.DESKTOP`; clients never submit
   a database principal ID.
+- Desktop clients can consume session-scoped Server-Sent Events and resume from
+  a durable sequence cursor through
+  `GET /api/gahyeon/desktop/events?sessionId=...&afterSequence=...`.
 
 The headless HTTP adapter is disabled by default because authentication has not
 yet been introduced. For local development only:
