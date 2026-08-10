@@ -14,6 +14,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
@@ -45,6 +46,8 @@ public class WeatherService {
 
     private final WeatherRepository weatherRepository;
     private final WeatherForecastRepository forecastRepository;
+    @Value("${weather.prefetch.enabled:${bot.enabled:true}}")
+    private boolean prefetchEnabled;
     private RestTemplate restTemplate;
 
     // 메모리 캐시 (도시별)
@@ -74,6 +77,10 @@ public class WeatherService {
      */
     @EventListener(ApplicationReadyEvent.class)
     public void warmupWeatherAsync() {
+        if (!prefetchEnabled) {
+            log.info("weather.prefetch.enabled=false: 날씨 워밍업을 건너뜁니다.");
+            return;
+        }
         CompletableFuture.runAsync(() -> {
             try {
                 fetchAllCitiesWeather();
@@ -251,6 +258,7 @@ public class WeatherService {
     @Scheduled(cron = "0 0 * * * *")
     @Transactional
     public void scheduledWeatherUpdate() {
+        if (!prefetchEnabled) return;
         log.info("스케줄된 현재 날씨 업데이트 시작 - {}개 도시", City.values().length);
         fetchAllCitiesWeather();
     }
@@ -261,6 +269,7 @@ public class WeatherService {
     @Scheduled(cron = "0 0 6 * * *")
     @Transactional
     public void scheduledForecastUpdate() {
+        if (!prefetchEnabled) return;
         log.info("스케줄된 예보 업데이트 시작 - {}개 도시", City.values().length);
         fetchAllCitiesForecasts();
         cleanupOldForecasts();

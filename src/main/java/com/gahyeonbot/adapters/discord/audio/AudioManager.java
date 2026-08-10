@@ -9,6 +9,7 @@ import com.sedmelluq.discord.lavaplayer.player.AudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.player.DefaultAudioPlayerManager;
 import com.sedmelluq.discord.lavaplayer.source.AudioSourceManagers;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Value;
 import se.michaelthelin.spotify.SpotifyApi;
 import se.michaelthelin.spotify.model_objects.specification.Track;
 import se.michaelthelin.spotify.requests.data.search.simplified.SearchTracksRequest;
@@ -25,6 +26,8 @@ import se.michaelthelin.spotify.requests.data.search.simplified.SearchTracksRequ
 public class AudioManager {
     private static final Logger logger = LoggerFactory.getLogger(AudioManager.class);
     private final AppCredentialsConfig config;
+    @Value("${bot.enabled:true}")
+    private boolean botEnabled;
     private AudioPlayerManager playerManager;
     private SpotifyApi spotifyApi;
 
@@ -34,6 +37,10 @@ public class AudioManager {
      */
     @PostConstruct
     public void initialize() {
+        if (!botEnabled) {
+            logger.info("bot.enabled=false: Discord LavaPlayer/Spotify 초기화를 건너뜁니다.");
+            return;
+        }
         this.playerManager = new DefaultAudioPlayerManager();
         AudioSourceManagers.registerRemoteSources(playerManager);
         AudioSourceManagers.registerLocalSource(playerManager);

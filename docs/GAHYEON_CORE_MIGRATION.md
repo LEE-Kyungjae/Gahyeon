@@ -147,7 +147,7 @@ Example body:
 ```json
 {
   "requestId": "local-test-1",
-  "actorId": 1,
+  "installationId": "local-installation-id",
   "displayName": "local-user",
   "message": "안녕하세요"
 }

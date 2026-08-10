@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import se.michaelthelin.spotify.SpotifyApi;
 import se.michaelthelin.spotify.model_objects.specification.Track;
 import se.michaelthelin.spotify.requests.authorization.client_credentials.ClientCredentialsRequest;
@@ -30,6 +31,8 @@ public class SpotifySearchService {
     private static final long TOKEN_REFRESH_INTERVAL = 3600; // 초 단위 (1시간)
 
     private final AppCredentialsConfig config;
+    @Value("${bot.enabled:true}")
+    private boolean botEnabled;
     private SpotifyApi spotifyApi;
     private ScheduledExecutorService scheduler;
     private boolean isEnabled = false;
@@ -40,6 +43,10 @@ public class SpotifySearchService {
      */
     @PostConstruct
     public void initialize() {
+        if (!botEnabled) {
+            logger.info("bot.enabled=false: Discord Spotify 검색 초기화를 건너뜁니다.");
+            return;
+        }
         String clientId = config.getSpotifyClientId();
         String clientSecret = config.getSpotifyClientSecret();
 

@@ -74,6 +74,7 @@ See the [Core migration](docs/GAHYEON_CORE_MIGRATION.md), [Desktop client](deskt
 | `APPLICATION_ID` | Discord application ID |
 | `BOT_ENABLED` | Enables the Discord connection |
 | `GAHYEON_AGENT_PROVIDER` | LLM agent provider; set to `openai` to enable the OpenAI/OpenRouter adapter |
+| `WEATHER_PREFETCH_ENABLED` | Weather warmup/scheduled refresh; defaults to `BOT_ENABLED` |
 | `ASSISTANT_ENABLED` | Enables the voice assistant |
 | `ASSISTANT_OPENROUTER_ENABLED` | Enables the OpenRouter assistant provider |
 | `OPENROUTER_API_KEY` | OpenRouter API key |

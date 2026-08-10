@@ -12,6 +12,10 @@ app:
     glm-connect-timeout-ms: ${GLM_CONNECT_TIMEOUT_MS:5000}
     glm-read-timeout-ms: ${GLM_READ_TIMEOUT_MS:20000}
 
+weather:
+  prefetch:
+    enabled: ${WEATHER_PREFETCH_ENABLED:${BOT_ENABLED:true}}
+
 spring:
   ai:
     model:
