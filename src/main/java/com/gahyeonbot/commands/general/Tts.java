@@ -3,7 +3,7 @@ package com.gahyeonbot.commands.general;
 import com.gahyeonbot.commands.util.AbstractCommand;
 import com.gahyeonbot.commands.util.Description;
 import com.gahyeonbot.commands.util.ResponseUtil;
-import com.gahyeonbot.core.audio.GuildMusicManager;
+import com.gahyeonbot.adapters.discord.audio.GuildMusicManager;
 import com.gahyeonbot.services.music.MusicService;
 import com.gahyeonbot.services.tts.TtsService;
 import com.gahyeonbot.services.tts.TtsTrackMetadata;
@@ -34,7 +34,7 @@ public class Tts extends AbstractCommand {
 
     private final TtsService ttsService;
     private final MusicService musicService;
-    private final com.gahyeonbot.core.audio.AudioManager audioManager;
+    private final com.gahyeonbot.adapters.discord.audio.AudioManager audioManager;
 
     @Override
     public String getName() {

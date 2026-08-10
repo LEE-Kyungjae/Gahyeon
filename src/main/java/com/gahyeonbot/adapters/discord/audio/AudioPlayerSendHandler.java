@@ -1,4 +1,4 @@
-package com.gahyeonbot.core.audio;
+package com.gahyeonbot.adapters.discord.audio;
 
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;
 import com.sedmelluq.discord.lavaplayer.track.playback.AudioFrame;

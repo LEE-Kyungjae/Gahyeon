@@ -1,8 +1,8 @@
 package com.gahyeonbot.config;
 
-import com.gahyeonbot.core.audio.GuildMusicManager;
-import com.gahyeonbot.core.audio.SoundCloudSource;
-import com.gahyeonbot.core.audio.StreamingSource;
+import com.gahyeonbot.adapters.discord.audio.GuildMusicManager;
+import com.gahyeonbot.adapters.discord.audio.SoundCloudSource;
+import com.gahyeonbot.adapters.discord.audio.StreamingSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;

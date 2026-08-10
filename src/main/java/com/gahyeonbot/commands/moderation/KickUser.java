@@ -5,7 +5,7 @@ import com.gahyeonbot.commands.util.Description;
 import com.gahyeonbot.commands.util.EmbedUtil;
 import com.gahyeonbot.commands.util.ICommand;
 import com.gahyeonbot.commands.util.ResponseUtil;
-import com.gahyeonbot.core.scheduler.LeaveSchedulerManager;
+import com.gahyeonbot.adapters.discord.scheduler.LeaveSchedulerManager;
 import com.gahyeonbot.models.Reservation;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;

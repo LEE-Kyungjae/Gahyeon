@@ -1,6 +1,6 @@
 package com.gahyeonbot.services.streaming;
 
-import com.gahyeonbot.core.audio.StreamingSource;
+import com.gahyeonbot.adapters.discord.audio.StreamingSource;
 import com.gahyeonbot.models.SearchResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

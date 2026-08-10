@@ -1,6 +1,6 @@
 package com.gahyeonbot.services.notification;
 
-import com.gahyeonbot.core.BotInitializerRunner;
+import com.gahyeonbot.adapters.discord.bootstrap.BotInitializerRunner;
 import com.gahyeonbot.entity.GitHubTrendingEvent;
 import com.gahyeonbot.entity.RepoReadmeCache;
 import com.gahyeonbot.repository.GitHubTrendingEventRepository;

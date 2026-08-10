@@ -4,7 +4,7 @@ import com.gahyeonbot.commands.util.AbstractCommand;
 import com.gahyeonbot.commands.util.Description;
 import com.gahyeonbot.commands.util.EmbedUtil;
 import com.gahyeonbot.commands.util.ResponseUtil;
-import com.gahyeonbot.core.audio.GuildMusicManager;
+import com.gahyeonbot.adapters.discord.audio.GuildMusicManager;
 import com.gahyeonbot.services.music.MusicService;
 import com.gahyeonbot.services.streaming.StreamingService;
 import lombok.RequiredArgsConstructor;
@@ -232,4 +232,3 @@ public class Music extends AbstractCommand {
         ResponseUtil.replyEmbed(event, EmbedUtil.createMusicStopEmbed(event));
     }
 }
-

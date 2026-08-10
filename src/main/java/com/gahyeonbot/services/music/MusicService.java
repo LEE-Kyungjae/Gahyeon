@@ -2,8 +2,8 @@ package com.gahyeonbot.services.music;
 
 import com.gahyeonbot.commands.util.EmbedUtil;
 import com.gahyeonbot.commands.util.ResponseUtil;
-import com.gahyeonbot.core.audio.AudioManager;
-import com.gahyeonbot.core.audio.GuildMusicManager;
+import com.gahyeonbot.adapters.discord.audio.AudioManager;
+import com.gahyeonbot.adapters.discord.audio.GuildMusicManager;
 import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;
 import com.sedmelluq.discord.lavaplayer.tools.FriendlyException;
 import com.sedmelluq.discord.lavaplayer.track.AudioPlaylist;

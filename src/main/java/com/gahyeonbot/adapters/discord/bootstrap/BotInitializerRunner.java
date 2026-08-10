@@ -1,8 +1,8 @@
-package com.gahyeonbot.core;
+package com.gahyeonbot.adapters.discord.bootstrap;
 
 import com.gahyeonbot.commands.util.EmbedUtil;
 import com.gahyeonbot.config.AppCredentialsConfig;
-import com.gahyeonbot.core.command.CommandRegistry;
+import com.gahyeonbot.adapters.discord.command.CommandRegistry;
 import com.gahyeonbot.listeners.CommandManager;
 import com.gahyeonbot.listeners.ListenerManager;
 import com.gahyeonbot.listeners.AssistantVoiceChannelListener;

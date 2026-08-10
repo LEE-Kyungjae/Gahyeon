@@ -1,4 +1,4 @@
-package com.gahyeonbot.core.audio;
+package com.gahyeonbot.adapters.discord.audio;
 
 /**
  * 음악 스트리밍 소스를 정의하는 인터페이스.

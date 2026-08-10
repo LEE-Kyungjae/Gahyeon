@@ -24,6 +24,10 @@ OpenAI, or other provider-specific classes. STT and TTS will follow the same
 port-and-adapter rule: Core owns capability contracts; infrastructure owns
 provider implementations.
 
+`CoreDependencyBoundaryTest` enforces this boundary. Discord bootstrap,
+LavaPlayer/JDA audio, slash-command registration, and voice-channel scheduling
+now live under `adapters.discord` rather than the Core namespace.
+
 ## Milestone 1: headless conversation seam
 
 Implemented:

@@ -1,6 +1,6 @@
 package com.gahyeonbot.services.notification;
 
-import com.gahyeonbot.core.BotInitializerRunner;
+import com.gahyeonbot.adapters.discord.bootstrap.BotInitializerRunner;
 import com.gahyeonbot.entity.DmDeliveryLog;
 import com.gahyeonbot.repository.DmDeliveryLogRepository;
 import lombok.Builder;

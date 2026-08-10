@@ -1,7 +1,7 @@
 package com.gahyeonbot.commands.music;
 
 import com.gahyeonbot.commands.util.*;
-import com.gahyeonbot.core.audio.GuildMusicManager;
+import com.gahyeonbot.adapters.discord.audio.GuildMusicManager;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;

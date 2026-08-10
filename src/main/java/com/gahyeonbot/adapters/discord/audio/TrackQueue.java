@@ -1,4 +1,4 @@
-package com.gahyeonbot.core.audio;
+package com.gahyeonbot.adapters.discord.audio;
 
 import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import java.util.ArrayList;

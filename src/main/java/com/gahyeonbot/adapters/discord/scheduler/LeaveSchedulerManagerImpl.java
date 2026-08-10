@@ -1,4 +1,4 @@
-package com.gahyeonbot.core.scheduler;
+package com.gahyeonbot.adapters.discord.scheduler;
 
 import com.gahyeonbot.models.Reservation;
 import org.slf4j.Logger;

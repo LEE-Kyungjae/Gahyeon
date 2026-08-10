@@ -1,6 +1,6 @@
 package com.gahyeonbot.config;
 
-import com.gahyeonbot.core.BotInitializerRunner;
+import com.gahyeonbot.adapters.discord.bootstrap.BotInitializerRunner;
 import lombok.RequiredArgsConstructor;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.sharding.ShardManager;

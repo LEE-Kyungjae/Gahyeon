@@ -2,15 +2,12 @@ package com.gahyeonbot.core.behavior;
 
 import com.gahyeonbot.core.world.WorldActivity;
 import com.gahyeonbot.core.world.WorldStateSnapshot;
-import org.springframework.stereotype.Component;
-
 import java.time.Clock;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Optional;
 
-@Component
 public class DeterministicBehaviorPolicy {
     private final Clock clock;
     private final ZoneId zone;

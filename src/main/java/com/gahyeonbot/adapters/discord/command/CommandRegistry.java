@@ -1,4 +1,4 @@
-package com.gahyeonbot.core.command;
+package com.gahyeonbot.adapters.discord.command;
 import com.gahyeonbot.commands.util.ICommand;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;

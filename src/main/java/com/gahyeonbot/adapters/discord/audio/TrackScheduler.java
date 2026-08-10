@@ -1,4 +1,4 @@
-package com.gahyeonbot.core.audio;
+package com.gahyeonbot.adapters.discord.audio;
 
 import net.dv8tion.jda.api.managers.AudioManager;
 import com.sedmelluq.discord.lavaplayer.player.AudioPlayer;

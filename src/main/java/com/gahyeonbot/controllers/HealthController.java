@@ -1,6 +1,6 @@
 package com.gahyeonbot.controllers;
 
-import com.gahyeonbot.core.BotInitializerRunner;
+import com.gahyeonbot.adapters.discord.bootstrap.BotInitializerRunner;
 import com.gahyeonbot.services.weather.WeatherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;

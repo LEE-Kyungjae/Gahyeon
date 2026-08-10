@@ -5,7 +5,7 @@ import com.gahyeonbot.adapters.discord.DiscordAudioFileMaterializer;
 import com.gahyeonbot.adapters.speech.TenVadDetector;
 import com.gahyeonbot.application.speech.StreamingUtteranceAccumulator;
 import com.gahyeonbot.application.speech.UtteranceSegmentationPolicy;
-import com.gahyeonbot.core.audio.GuildMusicManager;
+import com.gahyeonbot.adapters.discord.audio.GuildMusicManager;
 import com.gahyeonbot.core.conversation.ConversationRequest;
 import com.gahyeonbot.core.session.ClientSource;
 import com.gahyeonbot.core.session.ConversationModality;
@@ -54,7 +54,7 @@ public class VoiceAssistantService {
     private final SpeechSynthesisUseCase speechSynthesis;
     private final DiscordAudioFileMaterializer audioFiles;
     private final MusicService musicService;
-    private final com.gahyeonbot.core.audio.AudioManager audioManager;
+    private final com.gahyeonbot.adapters.discord.audio.AudioManager audioManager;
 
     private final Map<Long, Session> sessions = new ConcurrentHashMap<>();
     private final ScheduledExecutorService silenceDetector =

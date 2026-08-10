@@ -1,4 +1,4 @@
-package com.gahyeonbot.core;
+package com.gahyeonbot.adapters.discord.bootstrap;
 
 import com.gahyeonbot.config.AppCredentialsConfig;
 import moe.kyokobot.libdave.NativeDaveFactory;

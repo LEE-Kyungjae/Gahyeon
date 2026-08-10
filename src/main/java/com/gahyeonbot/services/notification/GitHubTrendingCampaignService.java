@@ -1,7 +1,7 @@
 package com.gahyeonbot.services.notification;
 
 import com.gahyeonbot.commands.util.EmbedUtil;
-import com.gahyeonbot.core.BotInitializerRunner;
+import com.gahyeonbot.adapters.discord.bootstrap.BotInitializerRunner;
 import com.gahyeonbot.entity.DmSubscription;
 import com.gahyeonbot.entity.GitHubTrending;
 import com.gahyeonbot.entity.GitHubTrendingEvent;
