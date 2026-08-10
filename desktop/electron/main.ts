@@ -48,7 +48,7 @@ ipcMain.handle('gahyeon:message', async (_event, request: {
       body: JSON.stringify(request),
     },
   )
-  if (!response.ok) throw new Error(`Gahyeon Core 응답 오류 (${response.status})`)
+  if (!response.ok) throw clientError('conversation', response.status)
   return response.json()
 })
 
@@ -57,7 +57,7 @@ ipcMain.handle('gahyeon:world:get', async (_event, worldId: string) => {
     `${apiBaseUrl}/gahyeon/desktop/worlds/${encodeURIComponent(worldId)}`,
     { headers: coreHeaders() },
   )
-  if (!response.ok) throw new Error(`World State 응답 오류 (${response.status})`)
+  if (!response.ok) throw clientError('world', response.status)
   return response.json()
 })
 
@@ -65,7 +65,7 @@ ipcMain.handle('gahyeon:speech:status', async () => {
   const response = await fetch(`${apiBaseUrl}/gahyeon/desktop/speech/status`, {
     headers: coreHeaders(),
   })
-  if (!response.ok) throw new Error(`Speech 상태 응답 오류 (${response.status})`)
+  if (!response.ok) throw clientError('speechStatus', response.status)
   return response.json()
 })
 
@@ -75,7 +75,7 @@ ipcMain.handle('gahyeon:speech:transcribe', async (_event, audio: ArrayBuffer) =
     headers: coreHeaders({ 'content-type': 'audio/wav' }),
     body: Buffer.from(audio),
   })
-  if (!response.ok) throw new Error(`STT 응답 오류 (${response.status})`)
+  if (!response.ok) throw clientError('transcription', response.status)
   const body = await response.json() as { transcript: string }
   return body.transcript
 })
@@ -86,7 +86,7 @@ ipcMain.handle('gahyeon:speech:prepare', async (_event, text: string) => {
     headers: coreHeaders({ 'content-type': 'application/json' }),
     body: JSON.stringify({ text }),
   })
-  if (!response.ok) throw new Error(`TTS 분할 응답 오류 (${response.status})`)
+  if (!response.ok) throw clientError('speechSegments', response.status)
   return response.json()
 })
 
@@ -96,12 +96,16 @@ ipcMain.handle('gahyeon:speech:synthesize', async (_event, segment: { index: num
     headers: coreHeaders({ 'content-type': 'application/json' }),
     body: JSON.stringify({ ...segment, voiceProfile: 'gahyeon.assistant' }),
   })
-  if (!response.ok) throw new Error(`TTS 응답 오류 (${response.status})`)
+  if (!response.ok) throw clientError('synthesis', response.status)
   return {
     data: await response.arrayBuffer(),
     mediaType: response.headers.get('content-type') ?? 'audio/wav',
   }
 })
+
+function clientError(code: string, detail: string | number) {
+  return new Error(`GAHYEON_CLIENT_ERROR:${code}:${detail}`)
+}
 
 ipcMain.on('gahyeon:events:subscribe', (ipcEvent, request: {
   sessionId: string
@@ -133,7 +137,7 @@ async function consumeEvents(
         headers: coreHeaders({ accept: 'text/event-stream' }),
         signal: controller.signal,
       })
-      if (!response.ok || !response.body) throw new Error(`Event stream 오류 (${response.status})`)
+      if (!response.ok || !response.body) throw clientError('eventStream', response.status)
       for await (const event of parseEventStream(response.body)) {
         if (event.id) cursor = Number(event.id)
         sender.send('gahyeon:event', event)
@@ -143,7 +147,7 @@ async function consumeEvents(
       if (controller.signal.aborted) break
       sender.send('gahyeon:event', {
         event: 'stream.error',
-        data: { message: error instanceof Error ? error.message : String(error) },
+        data: { code: 'eventStream' },
       })
       await new Promise(resolve => setTimeout(resolve, 1_000))
     }

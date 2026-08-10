@@ -11,6 +11,6 @@ describe('activity animation contract', () => {
     expect(validateAnimationManifest({ idle: '/idle.vrma', work: '/work.vrma' }))
       .toEqual({ idle: '/idle.vrma', work: '/work.vrma' })
     expect(() => validateAnimationManifest({ dance: '/dance.vrma' }))
-      .toThrow('지원하지 않는 VRMA activity')
+      .toThrow('GAHYEON_CLIENT_ERROR:vrmaManifest:unsupported activity dance')
   })
 })

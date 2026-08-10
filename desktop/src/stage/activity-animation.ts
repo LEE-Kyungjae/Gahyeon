@@ -30,18 +30,19 @@ export function animationActivity(value: string): AnimationActivity {
 
 export function validateAnimationManifest(value: unknown): Partial<Record<AnimationActivity, string>> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('VRMA manifest는 activity-to-URL JSON 객체여야 합니다.')
+    throw new GahyeonClientError('vrmaManifest', 'invalid JSON shape')
   }
   const result: Partial<Record<AnimationActivity, string>> = {}
   for (const [rawActivity, rawUrl] of Object.entries(value as Record<string, unknown>)) {
     const activity = animationActivity(rawActivity)
     if (activity !== rawActivity.trim().toLowerCase().replaceAll('-', '_')) {
-      throw new Error(`지원하지 않는 VRMA activity: ${rawActivity}`)
+      throw new GahyeonClientError('vrmaManifest', `unsupported activity ${rawActivity}`)
     }
     if (typeof rawUrl !== 'string' || !rawUrl.trim()) {
-      throw new Error(`${rawActivity} VRMA URL이 비어 있습니다.`)
+      throw new GahyeonClientError('vrmaManifest', `missing URL for ${rawActivity}`)
     }
     result[activity] = rawUrl.trim()
   }
   return result
 }
+import { GahyeonClientError } from '../client-error'

@@ -59,17 +59,17 @@ const browserBridge: GahyeonDesktopBridge = {
         body: JSON.stringify(request),
       },
     )
-    if (!response.ok) throw new Error(`Gahyeon Core 응답 오류 (${response.status})`)
+    if (!response.ok) throw new GahyeonClientError('conversation', String(response.status))
     return response.json() as Promise<MessageResponse>
   },
   async getWorldState(worldId) {
     const response = await fetch(`/api/gahyeon/desktop/worlds/${encodeURIComponent(worldId)}`)
-    if (!response.ok) throw new Error(`World State 응답 오류 (${response.status})`)
+    if (!response.ok) throw new GahyeonClientError('world', String(response.status))
     return response.json()
   },
   async getSpeechStatus() {
     const response = await fetch('/api/gahyeon/desktop/speech/status')
-    if (!response.ok) throw new Error(`Speech 상태 응답 오류 (${response.status})`)
+    if (!response.ok) throw new GahyeonClientError('speechStatus', String(response.status))
     return response.json() as Promise<SpeechStatus>
   },
   async transcribeWav(audio) {
@@ -78,7 +78,7 @@ const browserBridge: GahyeonDesktopBridge = {
       headers: { 'content-type': 'audio/wav' },
       body: audio,
     })
-    if (!response.ok) throw new Error(`STT 응답 오류 (${response.status})`)
+    if (!response.ok) throw new GahyeonClientError('transcription', String(response.status))
     const body = await response.json() as { transcript: string }
     return body.transcript
   },
@@ -88,7 +88,7 @@ const browserBridge: GahyeonDesktopBridge = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ text }),
     })
-    if (!response.ok) throw new Error(`TTS 분할 응답 오류 (${response.status})`)
+    if (!response.ok) throw new GahyeonClientError('speechSegments', String(response.status))
     return response.json() as Promise<SpeechSegment[]>
   },
   async synthesizeSpeech(segment) {
@@ -97,7 +97,7 @@ const browserBridge: GahyeonDesktopBridge = {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ ...segment, voiceProfile: 'gahyeon.assistant' }),
     })
-    if (!response.ok) throw new Error(`TTS 응답 오류 (${response.status})`)
+    if (!response.ok) throw new GahyeonClientError('synthesis', String(response.status))
     return { data: await response.arrayBuffer(), mediaType: response.headers.get('content-type') ?? 'audio/wav' }
   },
   subscribeEvents(request, listener) {
@@ -124,7 +124,7 @@ const browserBridge: GahyeonDesktopBridge = {
     }
     source.onerror = () => listener({
       event: 'stream.error',
-      data: { message: 'Gahyeon Core event stream에 연결할 수 없습니다.' },
+      data: { code: 'eventStream' },
     })
     return () => source.close()
   },
@@ -138,3 +138,4 @@ function parseData(value: string): unknown {
     return value
   }
 }
+import { GahyeonClientError } from './client-error'

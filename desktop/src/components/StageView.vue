@@ -4,6 +4,7 @@ import type { StageState } from '../stage/stage-state'
 import { ThreeStage } from '../stage/three-stage'
 import { GltfWorldEnvironment } from '../stage/world-environment'
 import { t } from '../i18n'
+import { localizedError } from '../client-error'
 
 const props = defineProps<{
   state: StageState
@@ -28,7 +29,7 @@ onMounted(async () => {
       stage.setEnvironment(await GltfWorldEnvironment.load(props.worldUrl))
     }
     catch (error) {
-      modelError.value = t('stage.worldFailure', { details: error instanceof Error ? error.message : String(error) })
+      modelError.value = t('stage.worldFailure', { details: localizedError(error) })
     }
   }
   if (!props.modelUrl) return
@@ -44,7 +45,7 @@ onMounted(async () => {
     }
   }
   catch (error) {
-    modelError.value = error instanceof Error ? error.message : String(error)
+    modelError.value = localizedError(error)
   }
 })
 
@@ -60,7 +61,7 @@ async function enableLookingGlass() {
     lookingGlassReady.value = true
   }
   catch (error) {
-    modelError.value = t('stage.lookingGlassFailure', { details: error instanceof Error ? error.message : String(error) })
+    modelError.value = t('stage.lookingGlassFailure', { details: localizedError(error) })
   }
   finally {
     lookingGlassLoading.value = false

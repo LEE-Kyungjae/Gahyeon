@@ -8,6 +8,7 @@ import {
 } from '@pixiv/three-vrm-animation'
 import { animationActivity, validateAnimationManifest, type AnimationActivity } from './activity-animation'
 import { VrmProceduralAnimator } from './vrm-procedural-animator'
+import { GahyeonClientError } from '../client-error'
 
 export class VrmAnimationController {
   private readonly mixer: AnimationMixer
@@ -23,7 +24,7 @@ export class VrmAnimationController {
 
   async loadManifest(url: string) {
     const response = await fetch(url, { cache: 'no-store' })
-    if (!response.ok) throw new Error(`VRMA manifest 응답 오류 (${response.status})`)
+    if (!response.ok) throw new GahyeonClientError('vrmaManifest', String(response.status))
     const manifest = validateAnimationManifest(await response.json())
     const loader = new GLTFLoader()
     loader.register(parser => new VRMAnimationLoaderPlugin(parser))
@@ -34,7 +35,7 @@ export class VrmAnimationController {
       try {
         const gltf = await loader.loadAsync(animationUrl)
         const animation = (gltf.userData.vrmAnimations as VRMAnimation[] | undefined)?.[0]
-        if (!animation) throw new Error('VRMC_vrm_animation clip이 없습니다.')
+        if (!animation) throw new GahyeonClientError('vrmaClip')
         const clip = createVRMAnimationClip(animation, this.vrm)
         clip.name = `gahyeon.${activity}`
         const action = this.mixer.clipAction(clip)

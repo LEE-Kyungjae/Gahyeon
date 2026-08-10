@@ -5,6 +5,7 @@ import type { CharacterRenderer } from './character-renderer'
 import type { StageState } from './stage-state'
 import { VrmAnimationController } from './vrm-animation-controller'
 import { blinkWeight } from './blink'
+import { GahyeonClientError } from '../client-error'
 
 export class VrmCharacterRenderer implements CharacterRenderer {
   readonly object = new Group()
@@ -21,7 +22,7 @@ export class VrmCharacterRenderer implements CharacterRenderer {
     const loader = new GLTFLoader()
     loader.register(parser => new VRMLoaderPlugin(parser))
     const gltf = await loader.loadAsync(url)
-    if (!gltf.userData.vrm) throw new Error('VRM 모델을 읽을 수 없습니다.')
+    if (!gltf.userData.vrm) throw new GahyeonClientError('vrmInvalid')
     const renderer = new VrmCharacterRenderer(gltf.userData.vrm as VRM)
     if (animationManifestUrl) {
       try {

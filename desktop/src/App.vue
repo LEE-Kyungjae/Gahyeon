@@ -6,6 +6,7 @@ import { SpeechPlayer } from './audio/speech-player'
 import { WavRecorder } from './audio/wav-recorder'
 import { initialStageState, reduceStageEvent } from './stage/stage-state'
 import { locale, setLocale, t, type Locale } from './i18n'
+import { localizedError } from './client-error'
 
 interface ChatEntry {
   id: string
@@ -117,7 +118,7 @@ async function send() {
     messages.value.push({
       id: crypto.randomUUID(),
       role: 'system',
-      text: error instanceof Error ? error.message : String(error),
+      text: localizedError(error),
     })
   }
   finally {
@@ -140,7 +141,7 @@ async function toggleRecording() {
       recordingTimeout = window.setTimeout(() => void toggleRecording(), 20_000)
     }
     catch (error) {
-      addSystemMessage(error instanceof Error ? error.message : String(error))
+      addSystemMessage(localizedError(error))
     }
     return
   }
@@ -157,7 +158,7 @@ async function toggleRecording() {
     await send()
   }
   catch (error) {
-    addSystemMessage(error instanceof Error ? error.message : String(error))
+    addSystemMessage(localizedError(error))
   }
   finally {
     transcribing.value = false

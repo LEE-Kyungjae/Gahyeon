@@ -35,7 +35,7 @@ export class WavRecorder {
   }
 
   async stop(): Promise<ArrayBuffer> {
-    if (!this.active || !this.context) throw new Error('녹음 중이 아닙니다.')
+    if (!this.active || !this.context) throw new GahyeonClientError('recorderInactive')
     this.processor?.disconnect()
     this.source?.disconnect()
     this.stream?.getTracks().forEach(track => track.stop())
@@ -45,7 +45,7 @@ export class WavRecorder {
     this.stream = undefined
     this.source = undefined
     this.processor = undefined
-    if (audio.length < this.sampleRate * 0.15) throw new Error('녹음이 너무 짧습니다.')
+    if (audio.length < this.sampleRate * 0.15) throw new GahyeonClientError('recordingShort')
     return encodePcm16Wav(audio, this.sampleRate)
   }
 
@@ -102,3 +102,4 @@ function writeAscii(view: DataView, offset: number, value: string) {
     view.setUint8(offset + index, value.charCodeAt(index))
   }
 }
+import { GahyeonClientError } from '../client-error'
