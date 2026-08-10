@@ -6,10 +6,14 @@ import { ThreeStage } from '../stage/three-stage'
 const props = defineProps<{
   state: StageState
   modelUrl?: string
+  lookingGlassEnabled?: boolean
 }>()
 
 const host = ref<HTMLElement>()
+const lookingGlassControls = ref<HTMLElement>()
 const modelError = ref('')
+const lookingGlassReady = ref(false)
+const lookingGlassLoading = ref(false)
 let stage: ThreeStage | undefined
 
 onMounted(async () => {
@@ -27,9 +31,34 @@ onMounted(async () => {
 
 watch(() => props.state, state => stage?.setState(state), { deep: true })
 onBeforeUnmount(() => stage?.dispose())
+
+async function enableLookingGlass() {
+  if (!stage || !lookingGlassControls.value || lookingGlassLoading.value) return
+  lookingGlassLoading.value = true
+  modelError.value = ''
+  try {
+    await stage.enableLookingGlass(lookingGlassControls.value)
+    lookingGlassReady.value = true
+  }
+  catch (error) {
+    modelError.value = `Looking Glass 초기화 실패: ${error instanceof Error ? error.message : String(error)}`
+  }
+  finally {
+    lookingGlassLoading.value = false
+  }
+}
 </script>
 
 <template>
   <div ref="host" class="stage-canvas" />
+  <div v-if="lookingGlassEnabled" ref="lookingGlassControls" class="looking-glass-controls">
+    <button
+      v-if="!lookingGlassReady"
+      type="button"
+      class="looking-glass-enable"
+      :disabled="lookingGlassLoading"
+      @click="enableLookingGlass"
+    >{{ lookingGlassLoading ? 'LOADING…' : 'ENABLE LOOKING GLASS' }}</button>
+  </div>
   <p v-if="modelError" class="model-error">{{ modelError }}</p>
 </template>

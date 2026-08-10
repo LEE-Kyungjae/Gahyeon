@@ -81,6 +81,9 @@ Implemented:
 - The Three.js stage now renders bedroom, living-room, workspace, hallways, and
   interaction objects. Doorway waypoints produce constant-speed room traversal,
   and the camera follows the character's interpolated position.
+- Looking Glass is an opt-in lazy WebXR display adapter over the same Three.js
+  scene and `StageState`. Bridge/device absence does not affect the normal
+  Desktop renderer; physical Go calibration remains a hardware acceptance test.
 
 The headless HTTP adapter is disabled by default because authentication has not
 yet been introduced. For local development only:

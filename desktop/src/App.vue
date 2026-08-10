@@ -32,6 +32,7 @@ let afterSequence = Number(localStorage.getItem(`gahyeon.cursor.${sessionId}`) ?
 let unsubscribe: (() => void) | undefined
 const gahyeon = getGahyeonBridge()
 const modelUrl = import.meta.env.VITE_GAHYEON_VRM_URL as string | undefined
+const lookingGlassEnabled = import.meta.env.VITE_GAHYEON_LOOKING_GLASS === 'true'
 const worldId = 'gahyeon-home'
 const recorder = new WavRecorder()
 const speechPlayer = new SpeechPlayer()
@@ -203,7 +204,11 @@ function persistentId(key: string, prefix: string) {
 
       <div class="ambient ambient-one" />
       <div class="ambient ambient-two" />
-      <StageView :state="stageState" :model-url="modelUrl" />
+      <StageView
+        :state="stageState"
+        :model-url="modelUrl"
+        :looking-glass-enabled="lookingGlassEnabled"
+      />
 
       <div class="presence">
         <span class="presence-dot" :class="streamState" />

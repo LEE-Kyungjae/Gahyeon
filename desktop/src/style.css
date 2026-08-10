@@ -22,6 +22,9 @@ button, input, textarea { font: inherit; }
 .stage-canvas { position: absolute; inset: 0; }
 .stage-canvas canvas { display: block; width: 100%; height: 100%; }
 .model-error { position: absolute; z-index: 3; left: 50%; bottom: 90px; transform: translateX(-50%); color: #dda4a4; font-size: 11px; }
+.looking-glass-controls { position: absolute; z-index: 4; right: 24px; bottom: 24px; }
+.looking-glass-enable, .looking-glass-xr-button { position: static !important; width: auto !important; padding: 9px 12px !important; border: 1px solid #ffffff1c !important; border-radius: 10px !important; color: #bfc2cf !important; background: #10121bc7 !important; font: 500 9px Inter, system-ui, sans-serif !important; letter-spacing: .09em; opacity: 1 !important; cursor: pointer; }
+.looking-glass-enable:disabled { opacity: .45 !important; }
 .presence { position: absolute; z-index: 2; left: 36px; bottom: 34px; display: flex; align-items: center; gap: 11px; padding: 11px 14px; border: 1px solid #ffffff17; border-radius: 14px; background: #0e1018a8; backdrop-filter: blur(16px); }
 .presence-dot { width: 8px; height: 8px; border-radius: 50%; background: #d7b66c; box-shadow: 0 0 14px currentColor; }
 .presence-dot.connected { color: #72c39a; background: currentColor; }

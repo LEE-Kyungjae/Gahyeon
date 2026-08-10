@@ -38,6 +38,11 @@ hallways, and the interaction objects used by the deterministic behavior
 policy. Movement follows doorway waypoints while the camera follows the actual
 character position rather than the final destination.
 
+Looking Glass support is opt-in through `VITE_GAHYEON_LOOKING_GLASS=true` and
+requires Looking Glass Bridge. The adapter is lazy-loaded and renders the same
+Three.js scene through WebXR; see `docs/LOOKING_GLASS.md` for setup and hardware
+verification status.
+
 ## Boundaries
 
 - `electron/main.ts`: transport and native desktop lifecycle

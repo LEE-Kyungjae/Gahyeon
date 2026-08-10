@@ -27,7 +27,7 @@ export class ThreeStage {
   private state: StageState
   private room: string
   private navigationPath: Vector3[] = []
-  private frame?: number
+  private lookingGlassInitialized = false
 
   constructor(private readonly host: HTMLElement, initialState: StageState) {
     this.state = initialState
@@ -53,7 +53,7 @@ export class ThreeStage {
     this.observer = new ResizeObserver(() => this.resize())
     this.observer.observe(host)
     this.resize()
-    this.frame = requestAnimationFrame(this.render)
+    this.renderer.setAnimationLoop(this.render)
   }
 
   setState(state: StageState) {
@@ -77,8 +77,38 @@ export class ThreeStage {
     this.scene.add(character.object)
   }
 
+  async enableLookingGlass(buttonHost: HTMLElement) {
+    if (this.lookingGlassInitialized) return
+    this.lookingGlassInitialized = true
+    let button: HTMLElement | undefined
+    try {
+      const [{ LookingGlassWebXRPolyfill }, { VRButton }] = await Promise.all([
+        import('@lookingglass/webxr'),
+        import('three/addons/webxr/VRButton.js'),
+      ])
+      this.renderer.xr.enabled = true
+      button = VRButton.createButton(this.renderer)
+      button.classList.add('looking-glass-xr-button')
+      buttonHost.append(button)
+      new LookingGlassWebXRPolyfill({
+        tileHeight: 512,
+        numViews: 45,
+        targetY: 1.35,
+        targetZ: 0,
+        targetDiam: 3.2,
+        fovy: 14 * Math.PI / 180,
+        inlineView: 2,
+      })
+    }
+    catch (error) {
+      button?.remove()
+      this.lookingGlassInitialized = false
+      throw error
+    }
+  }
+
   dispose() {
-    if (this.frame !== undefined) cancelAnimationFrame(this.frame)
+    this.renderer.setAnimationLoop(null)
     this.observer.disconnect()
     this.character.dispose()
     this.renderer.dispose()
@@ -95,7 +125,6 @@ export class ThreeStage {
     this.camera.lookAt(characterPosition.clone().add(new Vector3(0, 1.35, 0)))
     this.character.update(this.state, delta)
     this.renderer.render(this.scene, this.camera)
-    this.frame = requestAnimationFrame(this.render)
   }
 
   private advanceNavigation(deltaSeconds: number) {
