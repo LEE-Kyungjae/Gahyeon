@@ -1,6 +1,7 @@
 package com.gahyeonbot.config;
 
 import com.gahyeonbot.core.behavior.DeterministicBehaviorPolicy;
+import com.gahyeonbot.core.conversation.ConversationAdmissionPolicy;
 import com.gahyeonbot.core.tool.ToolPolicy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,5 +17,10 @@ public class GahyeonCoreConfiguration {
     @Bean
     public ToolPolicy toolPolicy() {
         return new ToolPolicy();
+    }
+
+    @Bean
+    public ConversationAdmissionPolicy conversationAdmissionPolicy() {
+        return new ConversationAdmissionPolicy();
     }
 }

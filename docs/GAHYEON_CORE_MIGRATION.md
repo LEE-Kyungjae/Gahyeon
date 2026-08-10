@@ -40,6 +40,10 @@ Implemented:
   Spring AI annotations/callback execution remain provider infrastructure;
 - typed `EmotionState` with intensity persisted alongside World State. Desktop
   restores both expression and intensity after a Core restart;
+- deterministic conversation admission policy in Core. Message validation,
+  normalized injection filtering, duplicate decisions, and actor/global limits
+  are tested without a database or moderation provider; infrastructure only
+  gathers usage and moderation facts;
 - persisted `Principal` and `ExternalIdentity(provider, externalId)` records;
 - `ConversationSessionId`, `ClientSource`, and `ConversationModality`;
 - immutable `ConversationSession` client context;
@@ -165,12 +169,10 @@ Example body:
 
 1. Replace the local Desktop installation identity with authenticated account
    linking before exposing the transport outside localhost.
-2. Split rate-limit/moderation policy from `ConversationAdmissionService` so
-   policy decisions can be tested without provider or persistence adapters.
-3. Acquire and validate licensed Gahyeon-specific VRMA assets against the real
+2. Acquire and validate licensed Gahyeon-specific VRMA assets against the real
    character model; the loader, blending, and procedural fallback are complete.
-4. Replace diagnostic room geometry with production assets and navmesh data.
-5. Complete physical Looking Glass Go depth/performance acceptance.
+3. Replace diagnostic room geometry with production assets and navmesh data.
+4. Complete physical Looking Glass Go depth/performance acceptance.
 
 Discord-only moderation, guild music, and DM delivery remain Discord adapter
 capabilities unless explicitly exposed to Gahyeon as tools.

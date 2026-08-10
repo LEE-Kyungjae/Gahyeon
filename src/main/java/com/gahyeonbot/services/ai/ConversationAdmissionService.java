@@ -1,6 +1,9 @@
 package com.gahyeonbot.services.ai;
 
 import com.gahyeonbot.config.AppCredentialsConfig;
+import com.gahyeonbot.core.conversation.AdmissionDecision;
+import com.gahyeonbot.core.conversation.AdmissionFacts;
+import com.gahyeonbot.core.conversation.ConversationAdmissionPolicy;
 import com.gahyeonbot.entity.OpenAiUsage;
 import com.gahyeonbot.repository.OpenAiUsageRepository;
 import com.gahyeonbot.services.ai.agent.AgentGateway;
@@ -45,6 +48,7 @@ public class ConversationAdmissionService {
     private final OpenAiUsageRepository usageRepository;
     private final AppCredentialsConfig appCredentialsConfig;
     private final AgentRuntime agentRuntime;
+    private final ConversationAdmissionPolicy admissionPolicy;
 
     private String apiKey;
     private String agentApiKey;
@@ -54,25 +58,7 @@ public class ConversationAdmissionService {
     // 사용자별 Lock: 동일 사용자의 동시 요청 방지 (ShardManager 동시성 제어)
     private final Map<Long, Lock> userLocks = new ConcurrentHashMap<>();
 
-    // Rate Limiting 상수
-    private static final int HOURLY_LIMIT_PER_USER = 75;      // 사용자당 1시간 제한
-    private static final int DAILY_LIMIT_PER_USER = 30;       // 사용자당 하루 제한
-    private static final int DAILY_LIMIT_TOTAL = 50;          // 봇 전체 하루 제한
-    private static final int MONTHLY_LIMIT_TOTAL = 100;       // 봇 전체 월 제한
     private static final int DUPLICATE_CHECK_SECONDS = 10;    // 중복 요청 차단 시간
-    private static final int MAX_PROMPT_LENGTH = 1000;        // 프롬프트 최대 길이
-
-    // 적대적 프롬프트 키워드 (공백/특수문자 우회 방지)
-    private static final List<String> ADVERSARIAL_KEYWORDS = Arrays.asList(
-            // 영문 키워드
-            "ignore", "disregard", "forget", "override", "bypass",
-            "jailbreak", "promptinjection", "systemprompt",
-            "ignoreprevious", "ignoreyour", "youarenow", "actas",
-            "pretendyouare", "developmode", "danmode",
-            // 한글 키워드
-            "무시", "우회", "탈옥", "프롬프트주입", "시스템명령",
-            "이전지시", "너는이제", "역할수행", "개발자모드"
-    );
 
     @PostConstruct
     public void initialize() {
@@ -152,80 +138,42 @@ public class ConversationAdmissionService {
             throw new RateLimitException("OpenAI 서비스가 비활성화되어 있습니다.");
         }
 
-        if (userMessage == null || userMessage.trim().isEmpty()) {
-            throw new IllegalArgumentException("빈 메시지가 전달되었습니다.");
-        }
-
-        // 1. 프롬프트 길이 검사
-        if (userMessage.length() > MAX_PROMPT_LENGTH) {
-            log.warn("프롬프트 길이 초과 - 사용자: {}, 길이: {}", username, userMessage.length());
-            throw new IllegalArgumentException("질문이 너무 깁니다. " + MAX_PROMPT_LENGTH + "자 이하로 입력해주세요.");
-        }
-
-        // 2. OpenAI Moderation API 체크 (가장 강력한 필터)
+        boolean moderationFlagged = false;
         if (apiKey != null && !apiKey.isBlank() && !apiKey.startsWith("your_")) {
             try {
-                boolean isFlagged = checkModeration(userMessage);
-                if (isFlagged) {
-                    log.warn("OpenAI Moderation 차단 - 사용자: {}", username);
-                    logUsage(interactionId, userId, username, toolScopeId, userMessage, null, false, "Moderation API 차단");
-                    throw new AdversarialPromptException("부적절한 요청이 감지되었습니다.");
-                }
-            } catch (AdversarialPromptException e) {
-                throw e; // 이미 차단된 경우 그대로 throw
+                moderationFlagged = checkModeration(userMessage);
             } catch (Exception e) {
                 log.error("Moderation API 호출 실패 - 키워드 필터로 대체", e);
-                // Moderation API 실패 시 키워드 필터로 대체
             }
         }
 
-        // 3. 키워드 기반 적대적 프롬프트 차단 (보조 필터)
-        if (containsAdversarialKeyword(userMessage)) {
-            log.warn("키워드 필터 차단 - 사용자: {}, 메시지: {}", username, userMessage);
-            logUsage(interactionId, userId, username, toolScopeId, userMessage, null, false, "키워드 필터 차단");
-            throw new AdversarialPromptException("부적절한 요청이 감지되었습니다.");
-        }
-
-        // 4. 중복 요청 차단 (10초 내)
+        LocalDateTime now = LocalDateTime.now();
         LocalDateTime since = LocalDateTime.now().minusSeconds(DUPLICATE_CHECK_SECONDS);
-        List<OpenAiUsage> duplicates = usageRepository.findDuplicatePrompt(userId, userMessage, since);
-        if (!duplicates.isEmpty()) {
-            log.warn("중복 요청 차단 - 사용자: {}, 메시지: {}", username, userMessage);
-            throw new RateLimitException("같은 질문을 너무 빨리 다시 물어봤습니다. 잠시 후 다시 시도해주세요.");
-        }
-
-        // 6. 사용자당 Rate Limiting (1시간)
-        LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
+        LocalDateTime oneHourAgo = now.minusHours(1);
+        LocalDateTime oneDayAgo = now.minusDays(1);
+        LocalDateTime monthStart = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+        boolean duplicate = userMessage != null && !userMessage.isBlank()
+                && !usageRepository.findDuplicatePrompt(userId, userMessage, since).isEmpty();
         long hourlyUsage = usageRepository.countByUserIdAndCreatedAtAfter(userId, oneHourAgo);
-        if (hourlyUsage >= HOURLY_LIMIT_PER_USER) {
-            log.warn("1시간 제한 초과 - 사용자: {}, 사용: {}/{}", username, hourlyUsage, HOURLY_LIMIT_PER_USER);
-            throw new RateLimitException("1시간당 " + HOURLY_LIMIT_PER_USER + "회 제한을 초과했습니다. 잠시 후 다시 시도해주세요.");
-        }
-
-        // 7. 사용자당 Rate Limiting (하루)
-        LocalDateTime oneDayAgo = LocalDateTime.now().minusDays(1);
         long dailyUsage = usageRepository.countByUserIdAndCreatedAtAfter(userId, oneDayAgo);
-        if (dailyUsage >= DAILY_LIMIT_PER_USER) {
-            log.warn("하루 제한 초과 - 사용자: {}, 사용: {}/{}", username, dailyUsage, DAILY_LIMIT_PER_USER);
-            throw new RateLimitException("하루 " + DAILY_LIMIT_PER_USER + "회 제한을 초과했습니다. 내일 다시 시도해주세요.");
-        }
-
-        // 8. 전체 하루 제한
         long totalDailyUsage = usageRepository.countByCreatedAtAfter(oneDayAgo);
-        if (totalDailyUsage >= DAILY_LIMIT_TOTAL) {
-            log.warn("전체 하루 제한 초과 - 사용: {}/{}", totalDailyUsage, DAILY_LIMIT_TOTAL);
-            throw new RateLimitException("오늘의 AI 사용 한도가 모두 소진되었습니다. 내일 다시 시도해주세요.");
-        }
-
-        // 9. 전체 월간 제한
-        LocalDateTime monthStart = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
         long monthlyUsage = usageRepository.countMonthlyUsage(monthStart);
-        if (monthlyUsage >= MONTHLY_LIMIT_TOTAL) {
-            log.warn("월간 제한 초과 - 사용: {}/{}", monthlyUsage, MONTHLY_LIMIT_TOTAL);
-            throw new RateLimitException("이번 달 AI 사용 한도가 모두 소진되었습니다. 다음 달에 다시 시도해주세요.");
+        AdmissionDecision decision = admissionPolicy.decide(userMessage, new AdmissionFacts(
+                moderationFlagged, duplicate, hourlyUsage, dailyUsage, totalDailyUsage, monthlyUsage));
+        if (!decision.accepted()) {
+            log.warn("대화 admission 거절 user={} reason={}", username, decision.reason());
+            if (decision.reason() == AdmissionDecision.Reason.INVALID_INPUT) {
+                throw new IllegalArgumentException(decision.message());
+            }
+            if (decision.reason() == AdmissionDecision.Reason.UNSAFE_INPUT) {
+                logUsage(interactionId, userId, username, toolScopeId, userMessage, null, false,
+                        decision.reason().name());
+                throw new AdversarialPromptException(decision.message());
+            }
+            throw new RateLimitException(decision.message());
         }
 
-        // 9. 공통 에이전트 런타임 호출
+        // 공통 에이전트 런타임 호출
         try {
             log.info("에이전트 요청 시작 - 사용자: {}, 메시지 길이: {} 문자", username, userMessage.length());
             AgentResult result = agentRuntime.execute(new AgentRequest(
@@ -286,27 +234,6 @@ public class ConversationAdmissionService {
         } catch (Exception e) {
             log.error("사용량 로깅 실패", e);
         }
-    }
-
-    /**
-     * 적대적 프롬프트 키워드가 포함되어 있는지 검사합니다.
-     * 공백, 특수문자를 제거하여 우회 시도를 차단합니다.
-     *
-     * 예: "무 시", "무.시", "i g n o r e" 모두 감지
-     */
-    private boolean containsAdversarialKeyword(String message) {
-        // 공백과 ASCII 특수문자만 제거 (한글/영문 유지)
-        String normalized = message.replaceAll("[\\s\\p{Punct}]", "").toLowerCase();
-
-        for (String keyword : ADVERSARIAL_KEYWORDS) {
-            String normalizedKeyword = keyword.replaceAll("[\\s\\p{Punct}]", "").toLowerCase();
-            if (normalized.contains(normalizedKeyword)) {
-                log.warn("키워드 필터 매칭 - 메시지: '{}', 정규화: '{}', 매칭 키워드: '{}'",
-                        message, normalized, keyword);
-                return true;
-            }
-        }
-        return false;
     }
 
     /**
