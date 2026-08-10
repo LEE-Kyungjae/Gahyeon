@@ -1,13 +1,12 @@
 package com.gahyeonbot.services.ai;
 
+import com.gahyeonbot.core.memory.MemoryRole;
 import com.gahyeonbot.entity.ConversationHistory;
 import com.gahyeonbot.repository.ConversationHistoryRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
@@ -37,13 +36,13 @@ class ConversationHistoryServiceTest {
 
         var context = new ConversationHistoryService(repository, glmService).buildAgentContext(7L);
 
-        assertThat(context.messages()).hasSize(4);
-        assertThat(context.messages().get(0)).isInstanceOf(UserMessage.class);
-        assertThat(context.messages().get(0).getText()).isEqualTo("첫 질문");
-        assertThat(context.messages().get(1)).isInstanceOf(AssistantMessage.class);
-        assertThat(context.messages().get(1).getText()).isEqualTo("첫 답");
-        assertThat(context.messages().get(2).getText()).isEqualTo("후속 질문");
-        assertThat(context.messages().get(3).getText()).isEqualTo("후속 답");
+        assertThat(context.recentMessages()).hasSize(4);
+        assertThat(context.recentMessages().get(0).role()).isEqualTo(MemoryRole.USER);
+        assertThat(context.recentMessages().get(0).content()).isEqualTo("첫 질문");
+        assertThat(context.recentMessages().get(1).role()).isEqualTo(MemoryRole.ASSISTANT);
+        assertThat(context.recentMessages().get(1).content()).isEqualTo("첫 답");
+        assertThat(context.recentMessages().get(2).content()).isEqualTo("후속 질문");
+        assertThat(context.recentMessages().get(3).content()).isEqualTo("후속 답");
     }
 
     private ConversationHistory conversation(Long id, String user, String assistant) {

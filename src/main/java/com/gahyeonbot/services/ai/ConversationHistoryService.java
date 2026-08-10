@@ -1,13 +1,15 @@
 package com.gahyeonbot.services.ai;
 
+import com.gahyeonbot.core.identity.ActorId;
+import com.gahyeonbot.core.memory.MemoryMessage;
+import com.gahyeonbot.core.memory.MemoryRole;
+import com.gahyeonbot.core.memory.MemorySnapshot;
+import com.gahyeonbot.core.memory.MemoryUseCase;
 import com.gahyeonbot.entity.ConversationHistory;
 import com.gahyeonbot.repository.ConversationHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +30,7 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ConversationHistoryService {
+public class ConversationHistoryService implements MemoryUseCase {
 
     private static final int RECENT_CONVERSATION_COUNT = 5;
     private static final int MAX_SUMMARY_CONTEXT_COUNT = 10;
@@ -114,7 +116,7 @@ public class ConversationHistoryService {
      * 이전 대화를 하나의 사용자 문자열로 합치지 않아 user/assistant 경계가 보존됩니다.
      */
     @Transactional(readOnly = true)
-    public AgentConversationContext buildAgentContext(Long userId) {
+    public MemorySnapshot buildAgentContext(Long userId) {
         List<ConversationHistory> summaries = repository.findLatestSummary(
                 userId, PageRequest.of(0, MAX_SUMMARY_CONTEXT_COUNT));
         List<ConversationHistory> orderedSummaries = new ArrayList<>(summaries);
@@ -129,19 +131,31 @@ public class ConversationHistoryService {
                 userId, PageRequest.of(0, RECENT_CONVERSATION_COUNT));
         List<ConversationHistory> orderedRecent = new ArrayList<>(recent);
         Collections.reverse(orderedRecent);
-        List<Message> messages = new ArrayList<>(orderedRecent.size() * 2);
+        List<MemoryMessage> messages = new ArrayList<>(orderedRecent.size() * 2);
         for (ConversationHistory conversation : orderedRecent) {
             if (conversation.getUserMessage() != null && !conversation.getUserMessage().isBlank()) {
-                messages.add(new UserMessage(conversation.getUserMessage()));
+                messages.add(new MemoryMessage(MemoryRole.USER, conversation.getUserMessage()));
             }
             if (conversation.getAiResponse() != null && !conversation.getAiResponse().isBlank()) {
-                messages.add(new AssistantMessage(conversation.getAiResponse()));
+                messages.add(new MemoryMessage(MemoryRole.ASSISTANT, conversation.getAiResponse()));
             }
         }
-        return new AgentConversationContext(summary, List.copyOf(messages));
+        return new MemorySnapshot(summary, messages);
     }
 
-    public record AgentConversationContext(String summary, List<Message> messages) {
+    @Override
+    public MemorySnapshot recall(ActorId actorId) {
+        return buildAgentContext(actorId.value());
+    }
+
+    @Override
+    public void remember(ActorId actorId, String userMessage, String assistantResponse) {
+        saveConversation(actorId.value(), userMessage, assistantResponse);
+    }
+
+    @Override
+    public void clear(ActorId actorId) {
+        clearHistory(actorId.value());
     }
 
     /**

@@ -33,6 +33,8 @@ now live under `adapters.discord` rather than the Core namespace.
 Implemented:
 
 - internal `ActorId` rather than a Discord type in the Core contract;
+- provider-neutral `MemoryUseCase`, `MemorySnapshot`, and role-preserving
+  `MemoryMessage`; the JPA conversation history is now its persistence adapter;
 - persisted `Principal` and `ExternalIdentity(provider, externalId)` records;
 - `ConversationSessionId`, `ClientSource`, and `ConversationModality`;
 - immutable `ConversationSession` client context;

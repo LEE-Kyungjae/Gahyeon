@@ -1,5 +1,9 @@
 package com.gahyeonbot.services.ai.agent;
 
+import com.gahyeonbot.core.identity.ActorId;
+import com.gahyeonbot.core.memory.MemoryRole;
+import com.gahyeonbot.core.memory.MemorySnapshot;
+import com.gahyeonbot.core.memory.MemoryUseCase;
 import com.gahyeonbot.entity.AgentRun;
 import com.gahyeonbot.repository.AgentRunRepository;
 import com.gahyeonbot.services.ai.*;
@@ -29,7 +33,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
     private static final int MAX_EVENT_PAYLOAD = 4_000;
 
     private final ChatModel chatModel;
-    private final ConversationHistoryService historyService;
+    private final MemoryUseCase memoryUseCase;
     private final AgentRunLedger ledger;
     private final AgentRunRepository runRepository;
     private final AgentApprovalService approvalService;
@@ -112,7 +116,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
             String backgroundResult) {
         List<String> usedTools = new ArrayList<>();
         try {
-            ConversationHistoryService.AgentConversationContext memory = loadMemory(request.userId());
+            MemorySnapshot memory = loadMemory(request.userId());
             List<Message> messages = initialMessages(request, memory, backgroundResult);
             ToolCallback[] callbacks = MethodToolCallbackProvider.builder()
                     .toolObjects(weatherTools, gitHubKnowledgeTools, paperKnowledgeTools, knowledgeFreshnessTools)
@@ -142,7 +146,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
                     String content = sanitizeFinalResponse(assistant.getText());
                     if (content.isBlank()) throw new IllegalStateException("모델의 최종 응답이 비어 있습니다.");
                     ledger.succeed(run.getId(), content);
-                    historyService.saveConversation(request.userId(), request.message(), content);
+                    memoryUseCase.remember(new ActorId(request.userId()), request.message(), content);
                     Duration duration = Duration.ofNanos(System.nanoTime() - startedNanos);
                     recordMetrics(request.gateway(), "succeeded", duration);
                     return new AgentResult(run.getId(), content, usedTools, duration);
@@ -218,22 +222,25 @@ public class DefaultAgentRuntime implements AgentRuntime {
         }
     }
 
-    private ConversationHistoryService.AgentConversationContext loadMemory(Long userId) {
+    private MemorySnapshot loadMemory(Long userId) {
         try {
-            return historyService.buildAgentContext(userId);
+            return memoryUseCase.recall(new ActorId(userId));
         } catch (Exception e) {
             log.warn("에이전트 메모리 로드 실패 user={}", userId, e);
-            return new ConversationHistoryService.AgentConversationContext("", List.of());
+            return MemorySnapshot.EMPTY;
         }
     }
 
     private List<Message> initialMessages(
             AgentRequest request,
-            ConversationHistoryService.AgentConversationContext memory,
+            MemorySnapshot memory,
             String backgroundResult) {
         List<Message> messages = new ArrayList<>();
         messages.add(new SystemMessage(promptProvider.systemPrompt(memory.summary())));
-        messages.addAll(memory.messages());
+        memory.recentMessages().forEach(message -> messages.add(
+                message.role() == MemoryRole.USER
+                        ? new UserMessage(message.content())
+                        : new AssistantMessage(message.content())));
         messages.add(new UserMessage("""
                 [gateway]
                 %s
