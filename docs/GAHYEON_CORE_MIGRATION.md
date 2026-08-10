@@ -58,6 +58,10 @@ Implemented:
 - Desktop clients can consume session-scoped Server-Sent Events and resume from
   a durable sequence cursor through
   `GET /api/gahyeon/desktop/events?sessionId=...&afterSequence=...`.
+- The independent Electron/Vue Desktop shell now contains a Three.js stage,
+  camera follow behavior, renderer-neutral semantic state reducer, diagnostic
+  fallback character, and lazy-loaded VRM adapter. No AI provider runs in the
+  renderer.
 
 The headless HTTP adapter is disabled by default because authentication has not
 yet been introduced. For local development only:

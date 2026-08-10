@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { getGahyeonBridge } from './gahyeon-api'
+import StageView from './components/StageView.vue'
+import { initialStageState, reduceStageEvent } from './stage/stage-state'
 
 interface ChatEntry {
   id: string
@@ -17,10 +19,12 @@ const streamState = ref<'connecting' | 'connected' | 'error'>('connecting')
 const messages = ref<ChatEntry[]>([
   { id: 'welcome', role: 'gahyeon', text: '여기 있어. 무슨 이야기를 해볼까?' },
 ])
+const stageState = ref(initialStageState)
 const messageList = ref<HTMLElement>()
 let afterSequence = Number(localStorage.getItem(`gahyeon.cursor.${sessionId}`) ?? '0')
 let unsubscribe: (() => void) | undefined
 const gahyeon = getGahyeonBridge()
+const modelUrl = import.meta.env.VITE_GAHYEON_VRM_URL as string | undefined
 
 const statusLabel = computed(() => ({
   connecting: 'Core 연결 중',
@@ -30,6 +34,7 @@ const statusLabel = computed(() => ({
 
 onMounted(() => {
   unsubscribe = gahyeon.subscribeEvents({ sessionId, afterSequence }, event => {
+    stageState.value = reduceStageEvent(stageState.value, event)
     if (event.id) {
       afterSequence = Number(event.id)
       localStorage.setItem(`gahyeon.cursor.${sessionId}`, String(afterSequence))
@@ -99,11 +104,7 @@ function persistentId(key: string, prefix: string) {
 
       <div class="ambient ambient-one" />
       <div class="ambient ambient-two" />
-      <div class="avatar-placeholder">
-        <div class="avatar-orbit" />
-        <span>Avatar renderer</span>
-        <small>VRM stage 연결 예정</small>
-      </div>
+      <StageView :state="stageState" :model-url="modelUrl" />
 
       <div class="presence">
         <span class="presence-dot" :class="streamState" />

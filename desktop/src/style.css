@@ -19,9 +19,9 @@ button, input, textarea { font: inherit; }
 .ambient { position: absolute; border-radius: 999px; filter: blur(3px); opacity: .36; }
 .ambient-one { width: 430px; height: 430px; right: -150px; top: 80px; background: #865f8c; }
 .ambient-two { width: 260px; height: 260px; left: -80px; bottom: -60px; background: #425f76; }
-.avatar-placeholder { position: absolute; inset: 18% 12% 13%; display: grid; place-content: center; justify-items: center; gap: 8px; color: #d9d5e6; text-transform: uppercase; letter-spacing: .15em; font-size: 12px; }
-.avatar-placeholder small { color: #828491; font-size: 9px; }
-.avatar-orbit { position: absolute; width: min(50vw, 500px); aspect-ratio: 1; border: 1px solid #fff1; border-radius: 50%; box-shadow: inset 0 0 90px #a692b017, 0 0 90px #b398c610; }
+.stage-canvas { position: absolute; inset: 0; }
+.stage-canvas canvas { display: block; width: 100%; height: 100%; }
+.model-error { position: absolute; z-index: 3; left: 50%; bottom: 90px; transform: translateX(-50%); color: #dda4a4; font-size: 11px; }
 .presence { position: absolute; z-index: 2; left: 36px; bottom: 34px; display: flex; align-items: center; gap: 11px; padding: 11px 14px; border: 1px solid #ffffff17; border-radius: 14px; background: #0e1018a8; backdrop-filter: blur(16px); }
 .presence-dot { width: 8px; height: 8px; border-radius: 50%; background: #d7b66c; box-shadow: 0 0 14px currentColor; }
 .presence-dot.connected { color: #72c39a; background: currentColor; }
