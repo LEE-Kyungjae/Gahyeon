@@ -27,6 +27,17 @@ To load a VRM model, copy `.env.example` to `.env` and set
 uses a lightweight diagnostic character so world movement and camera behavior
 remain testable.
 
+Desktop queries Core speech readiness at startup. When configured, the mic
+button records mono PCM WAV locally, sends it through Core STT, and submits the
+transcript as a normal conversation. Replies are segmented through Core TTS and
+played through the system speaker. Playback amplitude drives the renderer's
+`aa` viseme; no microphone or audio-provider object enters Gahyeon Core.
+
+The diagnostic world contains bedroom, living-room, workspace, connecting
+hallways, and the interaction objects used by the deterministic behavior
+policy. Movement follows doorway waypoints while the camera follows the actual
+character position rather than the final destination.
+
 ## Boundaries
 
 - `electron/main.ts`: transport and native desktop lifecycle
@@ -34,5 +45,7 @@ remain testable.
 - `src/`: presentation only
 - `src/stage/`: renderer-neutral state reducer and interchangeable Three/VRM
   character renderers
+- `src/audio/`: local PCM recording, Core speech transport, playback, and
+  presentation-only lip-sync analysis
 - future avatar/world packages consume semantic Core events; they do not call
   LLM or memory providers directly

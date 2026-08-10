@@ -74,6 +74,13 @@ Implemented:
   and room center are explicit interaction points. Conversation presence pauses
   autonomous transitions and restores the previous activity after the final
   concurrent conversation ends.
+- Desktop microphone input is encoded as mono PCM WAV and enters the existing
+  Core transcription use case. Core TTS returns binary segments to Desktop;
+  speaker playback and amplitude-derived VRM visemes remain presentation
+  responsibilities.
+- The Three.js stage now renders bedroom, living-room, workspace, hallways, and
+  interaction objects. Doorway waypoints produce constant-speed room traversal,
+  and the camera follows the character's interpolated position.
 
 The headless HTTP adapter is disabled by default because authentication has not
 yet been introduced. For local development only:
@@ -91,6 +98,10 @@ GET  /api/gahyeon/desktop/worlds/{worldId}
 POST /api/gahyeon/desktop/worlds/{worldId}/move
 POST /api/gahyeon/desktop/worlds/{worldId}/activity
 POST /api/gahyeon/desktop/worlds/{worldId}/emotion
+GET  /api/gahyeon/desktop/speech/status
+POST /api/gahyeon/desktop/speech/transcriptions
+POST /api/gahyeon/desktop/speech/segments
+POST /api/gahyeon/desktop/speech/synthesis
 ```
 
 Example body:
@@ -128,9 +139,9 @@ Example body:
    adapter and provider name can be removed.
 3. Move utterance/VAD coordination out of `VoiceAssistantService`; Discord
    capture/playback is now the remaining JDA-specific portion.
-4. Add renderer-side animation clips and viseme-driven lip sync.
-5. Model room geometry and navigation paths instead of only interaction-point
-   coordinates.
+4. Add renderer-side VRM animation clips and clip blending for deterministic
+   activities; amplitude-driven visemes are already connected.
+5. Replace diagnostic room geometry with production assets and navmesh data.
 6. Add the Looking Glass renderer against the same world snapshot.
 
 Discord-only moderation, guild music, and DM delivery remain Discord adapter
