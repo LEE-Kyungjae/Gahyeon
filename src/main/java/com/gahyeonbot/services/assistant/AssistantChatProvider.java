@@ -1,6 +1,8 @@
 package com.gahyeonbot.services.assistant;
 
+import com.gahyeonbot.core.conversation.ConversationRequest;
+
 public interface AssistantChatProvider {
     boolean isReady();
-    String chat(long guildId, long userId, String username, String message);
+    String chat(ConversationRequest request);
 }

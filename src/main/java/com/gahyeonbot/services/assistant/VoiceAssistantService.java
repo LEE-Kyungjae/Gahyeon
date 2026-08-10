@@ -1,6 +1,12 @@
 package com.gahyeonbot.services.assistant;
 
+import com.gahyeonbot.adapters.discord.DiscordIdentityMapper;
 import com.gahyeonbot.core.audio.GuildMusicManager;
+import com.gahyeonbot.core.conversation.ConversationRequest;
+import com.gahyeonbot.core.session.ClientSource;
+import com.gahyeonbot.core.session.ConversationModality;
+import com.gahyeonbot.core.session.ConversationSession;
+import com.gahyeonbot.core.session.ConversationSessionId;
 import com.gahyeonbot.services.music.MusicService;
 import com.gahyeonbot.services.tts.TtsService;
 import com.gahyeonbot.services.tts.TtsTrackMetadata;
@@ -24,6 +30,7 @@ import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -37,6 +44,7 @@ public class VoiceAssistantService {
     private final AssistantProperties properties;
     private final SpeechToTextProvider speechToTextProvider;
     private final AssistantChatProvider chatProvider;
+    private final DiscordIdentityMapper identityMapper;
     private final TtsService ttsService;
     private final MusicService musicService;
     private final com.gahyeonbot.core.audio.AudioManager audioManager;
@@ -120,6 +128,7 @@ public class VoiceAssistantService {
         private final MessageChannel textChannel;
         private final GuildMusicManager musicManager;
         private final long ownerUserId;
+        private final ConversationSessionId conversationSessionId;
         private final Map<Long, Utterance> utterances = new ConcurrentHashMap<>();
         private final Map<Long, RequestGuard> requestGuards = new ConcurrentHashMap<>();
         private final AudioReceiveHandler receiver = new Receiver();
@@ -136,6 +145,8 @@ public class VoiceAssistantService {
             this.textChannel = textChannel;
             this.musicManager = musicManager;
             this.ownerUserId = ownerUserId;
+            this.conversationSessionId = new ConversationSessionId(
+                    "discord:voice:" + guild.getId());
             this.silenceTask = silenceDetector.scheduleWithFixedDelay(
                     this::flushSilent, 250, 250, TimeUnit.MILLISECONDS);
         }
@@ -267,7 +278,17 @@ public class VoiceAssistantService {
                 String answer;
                 try {
                     synchronized (guard.aiLock) {
-                        answer = chatProvider.chat(guild.getIdLong(), userId, username, transcript);
+                        var conversationSession = new ConversationSession(
+                                conversationSessionId,
+                                identityMapper.toActorId(userId),
+                                ClientSource.DISCORD,
+                                ConversationModality.VOICE,
+                                Map.of("discord.guildId", guild.getId()));
+                        answer = chatProvider.chat(new ConversationRequest(
+                                "voice:" + guild.getId() + ":" + UUID.randomUUID(),
+                                conversationSession,
+                                username,
+                                transcript));
                     }
                 } finally {
                     waitingForAnswer.set(false);

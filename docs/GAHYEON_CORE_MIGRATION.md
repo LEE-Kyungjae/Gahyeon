@@ -38,6 +38,9 @@ Implemented:
 - compatibility adapter that preserves the existing rate-limit, moderation,
   memory, and `AgentRuntime` behavior;
 - tests proving Desktop/Headless requests do not require Discord context.
+- Discord voice conversation now builds the same Core request; JDA capture and
+  playback remain in the Discord service while conversation orchestration is no
+  longer called with a Discord-shaped provider method.
 
 The headless HTTP adapter is disabled by default because authentication has not
 yet been introduced. For local development only:

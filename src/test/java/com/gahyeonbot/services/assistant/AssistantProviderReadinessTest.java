@@ -1,13 +1,16 @@
 package com.gahyeonbot.services.assistant;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.gahyeonbot.services.ai.agent.AgentRequest;
-import com.gahyeonbot.services.ai.agent.AgentResult;
-import com.gahyeonbot.services.ai.agent.AgentRuntime;
+import com.gahyeonbot.core.conversation.ConversationRequest;
+import com.gahyeonbot.core.conversation.ConversationResponse;
+import com.gahyeonbot.core.conversation.ConversationUseCase;
+import com.gahyeonbot.core.identity.ActorId;
+import com.gahyeonbot.core.session.*;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,42 +41,43 @@ class AssistantProviderReadinessTest {
     }
 
     @Test
-    void voiceGatewayUsesSharedAgentRuntimeAndGuildSession() {
+    void voiceGatewayUsesSharedPlatformNeutralConversationCore() {
         AssistantProperties properties = new AssistantProperties();
         properties.setEnabled(true);
         properties.getOpenrouter().setEnabled(true);
         properties.getOpenrouter().setApiKey("openrouter-key");
         properties.getOpenrouter().setModel("provider/model");
-        CapturingRuntime runtime = new CapturingRuntime();
+        CapturingConversation conversation = new CapturingConversation();
 
-        String answer = new OpenRouterAssistantProvider(properties, runtime)
-                .chat(10L, 20L, "tester", "날씨 알려줘");
+        var request = new ConversationRequest(
+                "voice:request-1",
+                new ConversationSession(
+                        new ConversationSessionId("discord:voice:10"),
+                        new ActorId(20),
+                        ClientSource.DISCORD,
+                        ConversationModality.VOICE,
+                        Map.of("discord.guildId", "10")),
+                "tester",
+                "날씨 알려줘");
+        String answer = new OpenRouterAssistantProvider(properties, conversation).chat(request);
 
         assertThat(answer).isEqualTo("응답");
-        assertThat(runtime.request.gateway())
-                .isEqualTo(com.gahyeonbot.services.ai.agent.AgentGateway.VOICE);
-        assertThat(runtime.request.sessionKey()).isEqualTo("discord:voice:10");
-        assertThat(runtime.request.userId()).isEqualTo(20L);
+        assertThat(conversation.request.session().modality()).isEqualTo(ConversationModality.VOICE);
+        assertThat(conversation.request.session().id().value()).isEqualTo("discord:voice:10");
+        assertThat(conversation.request.session().actorId()).isEqualTo(new ActorId(20));
     }
 
-    private static AgentRuntime runtimeStub() {
-        return new AgentRuntime() {
-            @Override public AgentResult execute(AgentRequest request) { return null; }
-            @Override public AgentResult resume(String runId, long actorUserId) { return null; }
-            @Override public AgentResult resumeBackground(String runId, String result) { return null; }
-        };
+    private static ConversationUseCase runtimeStub() {
+        return request -> null;
     }
 
-    private static final class CapturingRuntime implements AgentRuntime {
-        private AgentRequest request;
+    private static final class CapturingConversation implements ConversationUseCase {
+        private ConversationRequest request;
 
         @Override
-        public AgentResult execute(AgentRequest request) {
+        public ConversationResponse converse(ConversationRequest request) {
             this.request = request;
-            return new AgentResult("run", "응답", List.of(), Duration.ofMillis(1));
+            return new ConversationResponse("run", "응답", List.of(), Duration.ofMillis(1));
         }
-
-        @Override public AgentResult resume(String runId, long actorUserId) { return null; }
-        @Override public AgentResult resumeBackground(String runId, String result) { return null; }
     }
 }
