@@ -1,6 +1,8 @@
 package com.gahyeonbot.services.assistant;
 
-public interface SpeechToTextProvider {
-    boolean isReady();
-    String transcribe(byte[] wavAudio);
+import com.gahyeonbot.application.speech.SpeechRecognitionPort;
+
+/** @deprecated provider compatibility alias; depend on SpeechRecognitionPort instead. */
+@Deprecated(forRemoval = false)
+public interface SpeechToTextProvider extends SpeechRecognitionPort {
 }

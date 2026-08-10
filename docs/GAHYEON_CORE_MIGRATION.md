@@ -42,6 +42,9 @@ Implemented:
 - Discord voice conversation now builds the same Core request; JDA capture and
   playback remain in the Discord service while conversation orchestration is no
   longer called with a Discord-shaped provider method.
+- STT now enters through `TranscriptionUseCase` and `SpeechRecognitionPort` with
+  a defensive binary `AudioInput`; the provider no longer defines the
+  application-facing contract.
 
 The headless HTTP adapter is disabled by default because authentication has not
 yet been introduced. For local development only:

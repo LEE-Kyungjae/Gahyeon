@@ -7,6 +7,8 @@ import com.gahyeonbot.core.session.ClientSource;
 import com.gahyeonbot.core.session.ConversationModality;
 import com.gahyeonbot.core.session.ConversationSession;
 import com.gahyeonbot.core.session.ConversationSessionId;
+import com.gahyeonbot.core.speech.AudioInput;
+import com.gahyeonbot.core.speech.TranscriptionUseCase;
 import com.gahyeonbot.services.music.MusicService;
 import com.gahyeonbot.services.tts.TtsService;
 import com.gahyeonbot.services.tts.TtsTrackMetadata;
@@ -42,7 +44,7 @@ public class VoiceAssistantService {
     private static final int MIN_UTTERANCE_BYTES = WavEncoder.SAMPLE_RATE * 4 / 2; // ~0.5 second
 
     private final AssistantProperties properties;
-    private final SpeechToTextProvider speechToTextProvider;
+    private final TranscriptionUseCase transcription;
     private final AssistantChatProvider chatProvider;
     private final DiscordIdentityMapper identityMapper;
     private final TtsService ttsService;
@@ -55,12 +57,12 @@ public class VoiceAssistantService {
     private final ExecutorService workers = Executors.newVirtualThreadPerTaskExecutor();
 
     public boolean isConfigured() {
-        return properties.isEnabled() && speechToTextProvider.isReady() && chatProvider.isReady();
+        return properties.isEnabled() && transcription.isReady() && chatProvider.isReady();
     }
 
     public StartResult start(Guild guild, Member requester, MessageChannel textChannel) {
         if (!properties.isEnabled()) return new StartResult(false, "비서 기능이 비활성화되어 있습니다.");
-        if (!speechToTextProvider.isReady()) return new StartResult(false, "STT 설정이 필요합니다.");
+        if (!transcription.isReady()) return new StartResult(false, "STT 설정이 필요합니다.");
         if (!chatProvider.isReady()) return new StartResult(false, "OpenRouter 키와 모델 설정이 필요합니다.");
         if (requester == null || requester.getVoiceState() == null
                 || requester.getVoiceState().getChannel() == null) {
@@ -252,7 +254,8 @@ public class VoiceAssistantService {
             if (closed) return;
             try {
                 long sttStartedAt = System.nanoTime();
-                String transcript = speechToTextProvider.transcribe(WavEncoder.pcmToWav(pcm));
+                String transcript = transcription.transcribe(new AudioInput(
+                        WavEncoder.pcmToWav(pcm), "audio/wav"));
                 long sttMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sttStartedAt);
                 log.info("비서 STT 완료 guild={} user={} audioMs={} detectedSpeechMs={} sttMs={} chars={}",
                         guild.getIdLong(), userId, capturedAudioMillis, detectedSpeechMillis,
