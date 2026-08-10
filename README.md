@@ -1,190 +1,150 @@
 # Gahyeon
 
-[한국어](README.md) | [English](README.en.md)
+[한국어](README.md) · [English](README.en.md)
 
-Gahyeon은 지속적인 기억, 음성, 자율 행동과 3D World를 갖도록 확장 중인 독립형 AI Agent입니다. Discord와 Desktop은 동일한 Gahyeon Core에 접근하는 Client/Adapter이며, 대화·기억·음성·행동 결정은 특정 UI나 플랫폼에 종속되지 않습니다.
-
-```text
-Discord Adapter ─┐
-                 ├─ Gahyeon Core ─ Event/API ─ Desktop Client ─ Renderer
-Headless API ────┘
-```
-
-현재 Discord의 서버 관리·음악·예약 기능은 호환 Adapter로 계속 제공됩니다. Desktop은 텍스트·마이크·스피커·VRM Avatar·World를 제공하며, Looking Glass Go는 같은 World를 표시하는 선택적 Renderer입니다.
-
-## 주요 기능
-
-- **AI 에이전트**: `/가현아` 또는 전용 채팅 채널의 일반 메시지를 AI 에이전트로 전달합니다.
-- **독립형 AI Core**: Discord 없이도 Headless/Desktop API를 통해 Conversation, Session, STT, TTS와 World State를 실행합니다.
-- **Desktop Client**: 텍스트·음성 대화, VRM Avatar, 표정·립싱크·활동 애니메이션과 이동 가능한 World를 제공합니다.
-- **지속형 World**: 위치·방·활동·감정·상호작용 대상을 저장하고, 결정론적 Behavior가 대화하지 않는 동안의 행동을 선택합니다.
-- **서버별 비서 채널**: `/설정`으로 기존 `가현봇-채팅`과 `가현봇-비서` 채널을 만들고 연결합니다. 채널명은 기존 서버 호환을 위해 유지합니다.
-- **음성 비서**: 전용 음성 채널 입장을 감지해 봇이 자동 참여하고 STT → AI → TTS 파이프라인으로 응답합니다.
-- **안전한 턴 감지**: TEN VAD와 연속 무음 기준으로 발화 종료를 판단해 짧은 쉼마다 API를 호출하지 않습니다.
-- **대화 문맥 유지**: 사용자와 비서 메시지의 역할 경계를 보존해 후속 질문을 처리합니다.
-- **다중 TTS 제공자**: Voicebox, Edge TTS, 범용 HTTP 커스텀 TTS를 지원하며 실패 시 Edge로 전환할 수 있습니다.
-- **음악과 음성 채널 관리**: 재생·일시정지·스킵·큐 관리와 예약 나가기 기능을 제공합니다.
-- **뉴스레터 및 서버 관리**: 구독형 DM 콘텐츠와 관리 명령을 제공합니다.
-
-## 비서 사용법
-
-### 서버 설정
-
-관리자가 Discord에서 다음 명령을 한 번 실행합니다.
+Gahyeon은 지속적인 기억, 음성, 자율 행동과 살아 있는 3D World를 가진
+모듈형 embodied AI agent입니다. Discord Bot에 Desktop을 덧붙인 구조가
+아닙니다. 하나의 Gahyeon Core가 판단하고 Discord와 Desktop은 서로 다른
+입출력 Adapter로 동작합니다.
 
 ```text
-/설정
+                       Gahyeon Core
+ Conversation · Memory · STT/TTS · Tools · Session
+          Emotion · Behavior · Persistent World
+                             │
+                       Event / HTTP API
+                  ┌──────────┴──────────┐
+                  ▼                     ▼
+          Discord Adapter        Desktop Client
+                                      │
+                            Desktop / Looking Glass
 ```
 
-Gahyeon Discord Adapter는 전용 채팅 채널과 음성 채널을 생성하거나 기존 설정을 복구합니다.
+## 현재 구현
 
-- 전용 채팅 채널의 일반 메시지는 `/가현아`와 동일하게 처리됩니다.
-- 전용 음성 채널에 입장하면 음성 비서가 자동으로 참여합니다.
-- 수동 제어가 필요하면 `/비서 action:시작`, `종료`, `상태`를 사용합니다.
-
-### 음성 처리 흐름
-
-```text
-Discord 음성 → TEN VAD → STT → AI 에이전트/OpenRouter → TTS → Discord 음성
-```
-
-발화는 설정된 최소 음성 길이와 연속 무음 시간을 충족할 때 한 번만 확정됩니다. OpenRouter 응답은 한 턴당 하나의 스트리밍 요청으로 수신합니다.
-
-## 기술 스택
-
-- Java 21, Spring Boot 3
-- JDA 5, LavaPlayer
-- PostgreSQL / H2, Flyway
-- OpenRouter 기반 에이전트 런타임
-- TEN VAD와 교체 가능한 HTTP STT
-- Voicebox, Edge TTS, 범용 커스텀 TTS
-- Docker, GitHub Actions, Blue/Green 배포
-
-자세한 구조는 [Core 마이그레이션 문서](docs/GAHYEON_CORE_MIGRATION.md), [Desktop 문서](desktop/README.md), [아키텍처 문서](docs/ARCHITECTURE.md)를 참고하세요.
-
-## 요구 환경
-
-- Java 21
-- 프로젝트에 포함된 Gradle Wrapper
-- Discord Bot Token 및 Application ID
-- AI 비서를 사용할 경우 OpenRouter API 키
-- 음악 기능을 사용할 경우 Spotify API 자격 증명
-- 운영 환경의 PostgreSQL
-- 음성 비서를 사용할 경우 접근 가능한 STT/TTS 서비스
-
-## 주요 환경 변수
-
-### 기본 및 AI
-
-| 변수 | 설명 |
+| 영역 | 상태 |
 | --- | --- |
-| `TOKEN` | Discord 봇 토큰 |
-| `APPLICATION_ID` | Discord 애플리케이션 ID |
-| `BOT_ENABLED` | Discord 연결 활성화 여부 |
-| `GAHYEON_AGENT_PROVIDER` | LLM Agent provider. `openai`로 설정하면 OpenAI/OpenRouter Adapter 활성화 |
-| `WEATHER_PREFETCH_ENABLED` | 날씨 워밍업/주기 갱신 여부. 기본값은 `BOT_ENABLED`를 따름 |
-| `ASSISTANT_ENABLED` | 음성 비서 활성화 |
-| `ASSISTANT_OPENROUTER_ENABLED` | OpenRouter AI 제공자 활성화 |
-| `OPENROUTER_API_KEY` | OpenRouter API 키 |
-| `OPENROUTER_MODEL` | 사용할 OpenRouter 모델 ID |
-| `SPOTIFY_CLIENT_ID` | Spotify Client ID |
-| `SPOTIFY_CLIENT_SECRET` | Spotify Client Secret |
+| 독립 Headless Core | Discord와 LLM 공급자 없이 기동 가능 |
+| Discord | 텍스트, Slash Command, 음성, 음악 및 운영 기능을 Adapter로 유지 |
+| Desktop | 한국어/영어 UI, 텍스트·마이크·스피커, VRM, 표정, 립싱크, 이동 World |
+| 행동과 World | 결정론적 FSM, Interaction Point, 위치·방·활동·감정 영속화 |
+| 렌더링 | 일반 모니터 기본, 동일 World State를 사용하는 Looking Glass WebXR 선택 지원 |
+| 음성 | 교체 가능한 STT 및 Voicebox/Edge/custom TTS, Piper 증류 연구 도구 |
 
-### STT와 발화 감지
+실제 캐릭터 VRM/VRMA와 완성형 환경 에셋은 라이선스가 있는 파일을 별도로
+공급해야 합니다. 에셋이 없어도 절차형 캐릭터와 World fallback으로 전체
+흐름을 실행할 수 있습니다.
 
-| 변수 | 설명 |
-| --- | --- |
-| `ASSISTANT_STT_ENABLED` | STT 활성화 |
-| `ASSISTANT_STT_BASE_URL` | STT 서버 기본 URL |
-| `ASSISTANT_STT_ENDPOINT` | 전사 API 경로 |
-| `ASSISTANT_STT_API_KEY_REQUIRED` | STT 인증 필요 여부 |
-| `ASSISTANT_STT_API_KEY` | STT API 키 |
-| `ASSISTANT_STT_MODEL` | STT 모델 이름 |
-| `ASSISTANT_VAD_ENABLED` | TEN VAD 활성화 |
-| `ASSISTANT_VAD_THRESHOLD` | 음성 판정 임계값 |
-| `ASSISTANT_VAD_END_SILENCE_MILLIS` | 한 턴을 확정할 연속 무음 시간 |
+## 빠른 시작: Core + Desktop
 
-### TTS
-
-| 변수 | 설명 |
-| --- | --- |
-| `TTS_PROVIDER` | `voicebox`, `edge`, `custom` |
-| `TTS_FALLBACK_TO_EDGE` | 기본 TTS 실패 시 Edge 사용 |
-| `VOICEBOX_BASE_URL` | Voicebox 서버 URL |
-| `VOICEBOX_PROFILE_ID` | 사용할 Voicebox 프로필 ID |
-| `VOICEBOX_PROFILE_NAME` | ID가 없을 때 검색할 프로필 이름 |
-| `VOICEBOX_MODEL_SIZE` | Voicebox 모델 크기 |
-| `VOICEBOX_TIMEOUT_SECONDS` | Voicebox 요청 제한 시간 |
-| `CUSTOM_TTS_ENDPOINT` | 커스텀 합성 HTTP 엔드포인트 |
-| `CUSTOM_TTS_API_KEY` | 커스텀 TTS Bearer 토큰 |
-| `CUSTOM_TTS_MODEL` | 추론 서버의 모델 별칭 |
-| `CUSTOM_TTS_SPEAKER_ID` | 추론 서버의 화자 ID |
-| `CUSTOM_TTS_FORMAT` | `wav` 또는 `mp3` |
-
-전체 설정과 HTTP 계약은 [커스텀 음성 TTS 문서](docs/CUSTOM_VOICE_TTS.md)를 참고하세요. 비밀키는 저장소나 이미지에 넣지 말고 환경 변수 또는 GitHub Actions Secrets로 주입하세요.
-
-## 로컬 실행
+요구 환경은 Java 21 이상, Node.js 20 이상입니다.
 
 ```bash
-git clone https://github.com/LEE-Kyungjae/gahyeonbot.git
-cd gahyeonbot
 ./gradlew clean test
+GAHYEON_HEADLESS_ENABLED=true \
+GAHYEON_BEHAVIOR_ENABLED=true \
+BOT_ENABLED=false \
 ./gradlew bootRun
 ```
 
-Discord 연결 없이 Gahyeon Core와 Headless/Desktop API만 실행하려면:
+다른 터미널에서:
 
 ```bash
-BOT_ENABLED=false ./gradlew bootRun
+cd desktop
+npm install
+npm test
+npm run dev
 ```
 
-기본 개발 프로필은 별도 DB 설정이 없으면 인메모리 H2를 사용합니다. PostgreSQL을 사용하려면 관련 `POSTGRES_DEV_*` 변수와 `FLYWAY_ENABLED=true`를 설정하세요.
+원격 연결은 Core와 Desktop 양쪽에 동일한 고엔트로피
+`GAHYEON_CLIENT_TOKEN`을 설정해야 합니다. 토큰이 없으면 Gahyeon API는
+loopback 요청만 허용합니다.
 
-## Docker
+LLM 대화를 켜려면:
 
 ```bash
-docker build -t gahyeonbot:latest .
-docker run --rm \
-  -e TOKEN \
-  -e APPLICATION_ID \
-  -e OPENROUTER_API_KEY \
-  gahyeonbot:latest
+GAHYEON_AGENT_PROVIDER=openai \
+AGENT_API_KEY='<key>' \
+AGENT_BASE_URL='https://openrouter.ai/api' \
+AGENT_MODEL='<model>' \
+GAHYEON_HEADLESS_ENABLED=true BOT_ENABLED=false ./gradlew bootRun
 ```
 
-컨테이너에서 `127.0.0.1`은 컨테이너 자신을 가리킵니다. STT, Voicebox 또는 커스텀 TTS가 다른 호스트에 있다면 컨테이너에서 접근 가능한 주소를 지정해야 합니다.
+공급자를 설정하지 않아도 World, Event, Desktop과 음성 readiness API는
+정상적으로 기동합니다.
 
-## 커스텀 음성 연구 상태
+## Discord Adapter 실행
 
-- **Voicebox**: 녹음 기반 프로필을 통한 음성 복제를 지원합니다.
-- **Piper 증류**: Voicebox 교사 음성을 경량 Piper 모델로 증류하는 실험 도구가 `scripts/`에 있습니다. 현재 연구 단계이며 기본 Discord TTS로 간주하지 않습니다.
-- 생성 음성의 사용 권한과 화자 동의를 확인하고, 모델·원본 녹음·프로필 ID를 비밀정보에 준해 관리하세요.
+```bash
+BOT_ENABLED=true \
+TOKEN='<discord-token>' \
+APPLICATION_ID='<application-id>' \
+GAHYEON_AGENT_PROVIDER=openai \
+AGENT_API_KEY='<key>' \
+./gradlew bootRun
+```
 
-## 테스트와 배포
+`/설정`은 기존 호환 채팅·음성 채널을 구성합니다. `/가현아`와 전용 채팅
+메시지는 동일한 `ConversationUseCase`를 호출하며, 음성은
+`TEN VAD → STT → Conversation → TTS` 경로를 사용합니다.
+
+## Desktop 배포 빌드
+
+```bash
+cd desktop
+npm run package   # 현재 OS용 unpacked app
+npm run dist      # 설치 배포물
+```
+
+출력은 `desktop/release/`에 생성됩니다. 운영 배포의 코드 서명과 공증
+인증서는 저장소가 아닌 release 환경에서 주입합니다.
+
+## 핵심 설정
+
+| 변수 | 용도 | 기본값 |
+| --- | --- | --- |
+| `BOT_ENABLED` | Discord 연결 | `true` |
+| `GAHYEON_HEADLESS_ENABLED` | Headless/Desktop HTTP Adapter | `false` |
+| `GAHYEON_CLIENT_TOKEN` | 원격 Client Bearer 인증 | 없음, loopback만 허용 |
+| `GAHYEON_BEHAVIOR_ENABLED` | 자율 행동 coordinator | `false` |
+| `GAHYEON_AGENT_PROVIDER` | `openai` 호환 Agent Adapter | `none` |
+| `AGENT_API_KEY`, `AGENT_BASE_URL`, `AGENT_MODEL` | LLM 공급자 | 공급자별 설정 |
+| `WEATHER_PREFETCH_ENABLED` | 날씨 워밍업과 주기 갱신 | `BOT_ENABLED` 값 |
+| `ASSISTANT_STT_*`, `ASSISTANT_VAD_*` | STT와 발화 검출 | 환경별 설정 |
+| `TTS_PROVIDER` | `voicebox`, `edge`, `custom` | 설정 참조 |
+
+전체 음성 설정은 [Custom Voice TTS](docs/CUSTOM_VOICE_TTS.md)를 참고하세요.
+비밀키, 음성 원본, 모델 파일은 저장소나 컨테이너 이미지에 포함하지 마세요.
+
+## 구조와 코드 위치
+
+- `src/main/java/com/gahyeonbot/core`: 프레임워크·플랫폼 독립 타입과 정책
+- `src/main/java/com/gahyeonbot/application`: Use Case와 orchestration
+- `src/main/java/com/gahyeonbot/adapters`: Discord, Desktop, Headless 및 공급자 경계
+- `desktop/electron`: native lifecycle, 인증된 transport와 좁은 preload bridge
+- `desktop/src/stage`: renderer-neutral 상태와 Three/VRM 표현
+- `desktop/src/audio`: 녹음, 재생과 presentation-only lip sync
+
+Core가 말·기억·감정·행동·이동을 결정하고 Presentation은 이를 표현합니다.
+Core dependency 검사는 JDA, Spring Web 및 공급자 import가 Core로 역류하는
+것을 막습니다.
+
+## 검증
 
 ```bash
 ./gradlew clean test
-./gradlew clean shadowJar
+cd desktop && npm test && npm run build
 ```
-
-GitHub Actions는 PR과 `main` 푸시에서 테스트를 실행하고, 버전 이미지 생성 및 승인된 Blue/Green 배포를 수행합니다. 자세한 절차는 [배포 문서](docs/DEPLOYMENT.md)를 참고하세요.
 
 ## 문서
 
-- [API](docs/API.md)
-- [Core 마이그레이션](docs/GAHYEON_CORE_MIGRATION.md)
-- [Desktop Client](desktop/README.md)
+- [Core 개편과 구현 현황](docs/GAHYEON_CORE_MIGRATION.md)
+- [아키텍처](docs/ARCHITECTURE.md)
+- [Desktop](desktop/README.md)
+- [AIRI 분석](docs/AIRI_DESKTOP_ANALYSIS.md)
 - [VRM 애니메이션](docs/VRM_ANIMATION.md)
 - [Looking Glass](docs/LOOKING_GLASS.md)
-- [아키텍처](docs/ARCHITECTURE.md)
-- [에이전트 런타임](docs/agent-runtime.md)
-- [커스텀 음성 TTS](docs/CUSTOM_VOICE_TTS.md)
+- [API](docs/API.md)
 - [배포](docs/DEPLOYMENT.md)
 
-## 기여 및 라이선스
-
-이슈나 Pull Request를 환영합니다. 프로젝트는 [MIT License](LICENSE)를 따릅니다.
-
-## 문의
-
-- [LEE-Kyungjae](https://github.com/LEE-Kyungjae)
-- ze2@kakao.com
+프로젝트는 [MIT License](LICENSE)를 따릅니다.

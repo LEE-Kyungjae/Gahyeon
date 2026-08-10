@@ -109,6 +109,13 @@ Implemented:
   minimum speech, short-utterance silence, maximum duration, and flush decisions
   live in `StreamingUtteranceAccumulator`; Discord only normalizes JDA PCM and
   supplies the TEN VAD adapter.
+- Desktop presentation strings are separated into Korean and English locale
+  resources. The operating-system language is detected on first launch and a
+  persisted selector can override it without changing Core state.
+- AIRI was reviewed as a presentation architecture reference. Gahyeon adopts
+  the stage/client separation and web rendering approach independently, while
+  explicitly excluding AIRI's duplicate LLM, memory, speech-provider, and
+  database stacks; see `docs/AIRI_DESKTOP_ANALYSIS.md`.
 
 The headless HTTP adapter is disabled by default. With no client token it only
 accepts loopback traffic. Configure the same high-entropy token in Core and a
