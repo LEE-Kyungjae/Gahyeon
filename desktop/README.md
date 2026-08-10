@@ -19,6 +19,12 @@ npm install
 npm run dev
 ```
 
+Build an unpacked native application for the current platform with
+`npm run package`, or create distributable artifacts with `npm run dist`.
+Release output is written to `desktop/release/`. Platform signing and
+notarization credentials are intentionally supplied by the release environment;
+they are not stored in this repository.
+
 Set `GAHYEON_CORE_API_URL` when Core is not available at
 `http://127.0.0.1:8080/api`.
 

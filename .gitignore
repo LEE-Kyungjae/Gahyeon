@@ -4,6 +4,9 @@
 # 로그 파일
 logs/**
 *.log
+
+# Desktop packaging output
+desktop/release/
 *.out
 
 # 디렉터리 및 IDE 설정 파일

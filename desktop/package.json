@@ -1,12 +1,16 @@
 {
   "name": "@gahyeon/desktop",
   "version": "0.1.0",
+  "description": "Desktop presentation client for the Gahyeon embodied AI agent.",
+  "author": "Gahyeon contributors",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "concurrently -k \"vite\" \"tsc -p tsconfig.electron.json --watch --preserveWatchOutput\" \"wait-on tcp:5173 dist-electron/main.js && cross-env GAHYEON_DESKTOP_DEV_URL=http://127.0.0.1:5173 electron .\"",
     "build": "rimraf dist dist-electron && vue-tsc --noEmit && vite build && tsc -p tsconfig.electron.json",
+    "package": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder",
     "start": "electron .",
     "test": "vitest run"
   },
@@ -25,11 +29,44 @@
     "concurrently": "10.0.4",
     "cross-env": "10.1.0",
     "electron": "43.3.0",
+    "electron-builder": "26.15.3",
     "rimraf": "6.1.3",
     "typescript": "5.9.3",
     "vite": "8.2.1",
     "vitest": "4.1.10",
     "vue-tsc": "3.3.9",
     "wait-on": "9.1.0"
+  },
+  "build": {
+    "appId": "ai.gahyeon.desktop",
+    "productName": "Gahyeon",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "linux": {
+      "category": "Utility",
+      "target": [
+        "AppImage"
+      ]
+    }
   }
 }
