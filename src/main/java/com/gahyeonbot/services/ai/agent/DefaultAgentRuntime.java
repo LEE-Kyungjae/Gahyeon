@@ -4,6 +4,8 @@ import com.gahyeonbot.core.identity.ActorId;
 import com.gahyeonbot.core.memory.MemoryRole;
 import com.gahyeonbot.core.memory.MemorySnapshot;
 import com.gahyeonbot.core.memory.MemoryUseCase;
+import com.gahyeonbot.core.tool.ToolDecision;
+import com.gahyeonbot.core.tool.ToolPolicy;
 import com.gahyeonbot.entity.AgentRun;
 import com.gahyeonbot.repository.AgentRunRepository;
 import com.gahyeonbot.services.ai.*;
@@ -37,7 +39,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
     private final AgentRunLedger ledger;
     private final AgentRunRepository runRepository;
     private final AgentApprovalService approvalService;
-    private final AgentToolPolicy toolPolicy;
+    private final ToolPolicy toolPolicy;
     private final AgentPromptProvider promptProvider;
     private final MeterRegistry meterRegistry;
     private final WeatherTools weatherTools;
@@ -159,13 +161,13 @@ public class DefaultAgentRuntime implements AgentRuntime {
                     if (callback == null) {
                         throw new IllegalStateException("등록되지 않은 도구입니다: " + toolCall.name());
                     }
-                    AgentToolDecision decision = toolPolicy.decide(request.gateway(), toolCall.name());
+                    ToolDecision decision = toolPolicy.decide(toolCall.name());
                     ledger.appendToolEvent(run.getId(), AgentEventType.TOOL_CALL_REQUESTED,
                             toolCall.name(), limited(toolCall.arguments()));
-                    if (decision == AgentToolDecision.DENY) {
+                    if (decision == ToolDecision.DENY) {
                         throw new IllegalStateException("정책상 허용되지 않은 도구입니다: " + toolCall.name());
                     }
-                    if (decision == AgentToolDecision.REQUIRE_APPROVAL) {
+                    if (decision == ToolDecision.REQUIRE_APPROVAL) {
                         if (approvalService.consumeIfApproved(
                                 run.getId(), toolCall.name(), toolCall.arguments())) {
                             ledger.appendToolEvent(run.getId(), AgentEventType.APPROVAL_CONSUMED,

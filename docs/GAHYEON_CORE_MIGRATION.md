@@ -35,6 +35,9 @@ Implemented:
 - internal `ActorId` rather than a Discord type in the Core contract;
 - provider-neutral `MemoryUseCase`, `MemorySnapshot`, and role-preserving
   `MemoryMessage`; the JPA conversation history is now its persistence adapter;
+- provider-neutral Tool risk and decision policy in Core. Unknown tools fail
+  closed, write tools require approval, and destructive tools are denied;
+  Spring AI annotations/callback execution remain provider infrastructure;
 - persisted `Principal` and `ExternalIdentity(provider, externalId)` records;
 - `ConversationSessionId`, `ClientSource`, and `ConversationModality`;
 - immutable `ConversationSession` client context;
