@@ -56,7 +56,7 @@ class AssistantProviderReadinessTest {
                         new ActorId(20),
                         ClientSource.DISCORD,
                         ConversationModality.VOICE,
-                        Map.of("discord.guildId", "10")),
+                        Map.of("agent.toolScopeId", "10")),
                 "tester",
                 "날씨 알려줘");
         String answer = new OpenRouterAssistantProvider(properties, conversation).chat(request);

@@ -3,7 +3,7 @@ package com.gahyeonbot.adapters.agent;
 import com.gahyeonbot.core.conversation.ConversationRequest;
 import com.gahyeonbot.core.identity.ActorId;
 import com.gahyeonbot.core.session.*;
-import com.gahyeonbot.services.ai.OpenAiService;
+import com.gahyeonbot.services.ai.ConversationAdmissionService;
 import com.gahyeonbot.services.ai.agent.AgentResult;
 import org.junit.jupiter.api.Test;
 
@@ -14,17 +14,17 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
 
-class LegacyOpenAiConversationAdapterTest {
+class AdmissionControlledConversationAdapterTest {
     @Test
-    void confinesDiscordCompatibilityToTheOutboundAdapter() throws Exception {
-        OpenAiService legacy = mock(OpenAiService.class);
+    void forwardsAnOptionalToolScopeToTheAdmissionService() throws Exception {
+        ConversationAdmissionService legacy = mock(ConversationAdmissionService.class);
         when(legacy.chatResult("message:1", 20L, "tester", 10L, "안녕"))
                 .thenReturn(new AgentResult("run-1", "반가워요.", List.of("weather"), Duration.ofMillis(4)));
-        var adapter = new LegacyOpenAiConversationAdapter(legacy);
+        var adapter = new AdmissionControlledConversationAdapter(legacy);
 
         var response = adapter.execute(request(
                 ClientSource.DISCORD,
-                Map.of("discord.guildId", "10")));
+                Map.of("agent.toolScopeId", "10")));
 
         assertThat(response.runId()).isEqualTo("run-1");
         assertThat(response.tools()).containsExactly("weather");
@@ -33,10 +33,10 @@ class LegacyOpenAiConversationAdapterTest {
 
     @Test
     void supportsAHeadlessClientWithoutDiscordContext() throws Exception {
-        OpenAiService legacy = mock(OpenAiService.class);
+        ConversationAdmissionService legacy = mock(ConversationAdmissionService.class);
         when(legacy.chatResult("message:1", 20L, "tester", null, "안녕"))
                 .thenReturn(new AgentResult("run-2", "반가워요.", List.of(), Duration.ZERO));
-        var adapter = new LegacyOpenAiConversationAdapter(legacy);
+        var adapter = new AdmissionControlledConversationAdapter(legacy);
 
         var response = adapter.execute(request(ClientSource.HEADLESS, Map.of()));
 

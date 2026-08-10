@@ -40,7 +40,7 @@ Implemented:
 - outbound `ConversationAgentPort`;
 - Discord text listener translated into the new Core request;
 - the `/가현아` slash command now translates into the same Core request instead
-  of invoking `OpenAiService` directly;
+  of invoking provider/admission infrastructure directly;
 - an opt-in headless HTTP adapter;
 - compatibility adapter that preserves the existing rate-limit, moderation,
   memory, and `AgentRuntime` behavior;
@@ -139,21 +139,21 @@ Example body:
   value as its prior user ID so existing memory and runtime ownership remain
   readable. Desktop account linking still needs an internal-ID allocator and a
   linking flow before this compatibility rule can be removed.
-- `LegacyOpenAiConversationAdapter` still projects `discord.guildId` into the
-  legacy admission service. Discord compatibility is confined to the adapter,
-  but the legacy runtime ledger still stores `guild_id` and `user_id`.
+- Tool execution receives an optional platform-neutral `agent.toolScopeId`.
+  The legacy runtime ledger still stores this value in its `guild_id` column;
+  a schema migration is needed before that compatibility name disappears.
 - `AgentGateway` currently describes response modality (`TEXT`, `VOICE`,
   `SYSTEM`) rather than client source. It should eventually be renamed or split
   without rewriting the runtime loop.
-- The headless endpoint is request/response only. Authentication and a versioned
-  event stream are required before it becomes the Desktop transport.
+- Headless/Desktop expose request/response plus a versioned event stream, but
+  the transport remains local-only until authenticated account linking exists.
 
 ## Next migration slices
 
 1. Replace the local Desktop installation identity with authenticated account
    linking before exposing the transport outside localhost.
-2. Extract the admission policy from `OpenAiService` so the compatibility
-   adapter and provider name can be removed.
+2. Split rate-limit/moderation policy from `ConversationAdmissionService` so
+   policy decisions can be tested without provider or persistence adapters.
 3. Acquire and validate licensed Gahyeon-specific VRMA assets against the real
    character model; the loader, blending, and procedural fallback are complete.
 4. Replace diagnostic room geometry with production assets and navmesh data.

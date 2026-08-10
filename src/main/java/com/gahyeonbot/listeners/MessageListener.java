@@ -62,7 +62,7 @@ public class MessageListener extends ListenerAdapter {
                             event.getAuthor().getIdLong(), event.getAuthor().getName()),
                     ClientSource.DISCORD,
                     ConversationModality.TEXT,
-                    Map.of("discord.guildId", event.getGuild().getId()));
+                    Map.of("agent.toolScopeId", event.getGuild().getId()));
             String response = conversation.converse(new ConversationRequest(
                     "message:" + event.getMessageId(),
                     session,

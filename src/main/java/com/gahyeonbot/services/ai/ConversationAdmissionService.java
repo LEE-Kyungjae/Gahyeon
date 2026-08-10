@@ -24,8 +24,7 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * OpenAI API 서비스 클래스 (엄격한 Rate Limiting 및 보안 강화).
- * GPT 모델을 사용하여 대화형 AI 응답을 제공합니다.
+ * Provider-independent conversation admission, usage ledger, and agent execution service.
  *
  * 비용 절감 및 보안 전략:
  * 1. OpenAI Moderation API: 프롬프트 인젝션 자동 차단 (최우선 방어선)
@@ -35,13 +34,13 @@ import java.util.concurrent.ConcurrentHashMap;
  * 5. 중복 차단: 10초 내 재요청 차단
  * 6. DB 로깅: 모든 요청 기록 및 비용 추적
  *
- * @author GahyeonBot Team
+ * @author Gahyeon Team
  * @version 2.0
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class OpenAiService {
+public class ConversationAdmissionService {
 
     private final OpenAiUsageRepository usageRepository;
     private final AppCredentialsConfig appCredentialsConfig;
@@ -114,14 +113,14 @@ public class OpenAiService {
      * @param interactionId Discord Interaction ID (중복 방지용)
      * @param userId 사용자 ID
      * @param username 사용자 이름
-     * @param guildId 서버 ID
+     * @param toolScopeId optional numeric scope used by legacy tool adapters
      * @param userMessage 사용자의 질문 또는 메시지
      * @return AI의 응답 텍스트
      * @throws RateLimitException Rate Limit 초과 시
      * @throws AdversarialPromptException 적대적 프롬프트 감지 시
      */
-    public String chat(String interactionId, Long userId, String username, Long guildId, String userMessage) throws RateLimitException, AdversarialPromptException {
-        return chatResult(interactionId, userId, username, guildId, userMessage).content();
+    public String chat(String interactionId, Long userId, String username, Long toolScopeId, String userMessage) throws RateLimitException, AdversarialPromptException {
+        return chatResult(interactionId, userId, username, toolScopeId, userMessage).content();
     }
 
     /**
@@ -132,13 +131,13 @@ public class OpenAiService {
             String interactionId,
             Long userId,
             String username,
-            Long guildId,
+            Long toolScopeId,
             String userMessage) throws RateLimitException, AdversarialPromptException {
         // 사용자별 Lock 획득 (동일 사용자의 동시 요청 방지)
         Lock userLock = userLocks.computeIfAbsent(userId, k -> new ReentrantLock());
         userLock.lock();
         try {
-            return chatInternal(interactionId, userId, username, guildId, userMessage);
+            return chatInternal(interactionId, userId, username, toolScopeId, userMessage);
         } finally {
             userLock.unlock();
         }
@@ -148,7 +147,7 @@ public class OpenAiService {
      * 내부 chat 메서드 (Lock으로 보호됨)
      */
     @Transactional
-    private AgentResult chatInternal(String interactionId, Long userId, String username, Long guildId, String userMessage) throws RateLimitException, AdversarialPromptException {
+    private AgentResult chatInternal(String interactionId, Long userId, String username, Long toolScopeId, String userMessage) throws RateLimitException, AdversarialPromptException {
         if (!isEnabled) {
             throw new RateLimitException("OpenAI 서비스가 비활성화되어 있습니다.");
         }
@@ -169,7 +168,7 @@ public class OpenAiService {
                 boolean isFlagged = checkModeration(userMessage);
                 if (isFlagged) {
                     log.warn("OpenAI Moderation 차단 - 사용자: {}", username);
-                    logUsage(interactionId, userId, username, guildId, userMessage, null, false, "Moderation API 차단");
+                    logUsage(interactionId, userId, username, toolScopeId, userMessage, null, false, "Moderation API 차단");
                     throw new AdversarialPromptException("부적절한 요청이 감지되었습니다.");
                 }
             } catch (AdversarialPromptException e) {
@@ -183,7 +182,7 @@ public class OpenAiService {
         // 3. 키워드 기반 적대적 프롬프트 차단 (보조 필터)
         if (containsAdversarialKeyword(userMessage)) {
             log.warn("키워드 필터 차단 - 사용자: {}, 메시지: {}", username, userMessage);
-            logUsage(interactionId, userId, username, guildId, userMessage, null, false, "키워드 필터 차단");
+            logUsage(interactionId, userId, username, toolScopeId, userMessage, null, false, "키워드 필터 차단");
             throw new AdversarialPromptException("부적절한 요청이 감지되었습니다.");
         }
 
@@ -233,7 +232,7 @@ public class OpenAiService {
                     interactionId,
                     "discord:text:" + userId,
                     AgentGateway.TEXT,
-                    guildId,
+                    toolScopeId,
                     userId,
                     username,
                     userMessage,
@@ -243,7 +242,7 @@ public class OpenAiService {
                     result.runId(), username, result.tools(), result.duration().toMillis());
 
             // 10. 사용량 DB 로깅
-            logUsage(interactionId, userId, username, guildId, userMessage, response, true, null);
+            logUsage(interactionId, userId, username, toolScopeId, userMessage, response, true, null);
 
             return result;
 
@@ -253,7 +252,7 @@ public class OpenAiService {
             throw approvalRequired;
         } catch (Exception e) {
             log.error("OpenAI API 호출 실패 - 사용자: {}, 메시지: {}", username, userMessage, e);
-            logUsage(interactionId, userId, username, guildId, userMessage, null, false, e.getMessage());
+            logUsage(interactionId, userId, username, toolScopeId, userMessage, null, false, e.getMessage());
             throw new ChatProcessingException(ChatProcessingException.ErrorType.OPENAI_API_FAILURE,
                     "AI 응답을 받지 못했습니다. 잠시 후 다시 시도해주세요.", e);
         }
@@ -264,13 +263,13 @@ public class OpenAiService {
      *
      * @throws org.springframework.dao.DataIntegrityViolationException 이미 처리된 interaction_id인 경우
      */
-    private void logUsage(String interactionId, Long userId, String username, Long guildId, String prompt, String response, boolean success, String errorMessage) {
+    private void logUsage(String interactionId, Long userId, String username, Long toolScopeId, String prompt, String response, boolean success, String errorMessage) {
         try {
             OpenAiUsage usage = OpenAiUsage.builder()
                     .interactionId(interactionId)
                     .userId(userId)
                     .username(username)
-                    .guildId(guildId)
+                    .guildId(toolScopeId)
                     .prompt(prompt)
                     .response(response)
                     .model("agent-runtime")

@@ -96,7 +96,7 @@ public class Gahyeona extends AbstractCommand {
             String username = event.getUser().getName();
             Map<String, String> context = event.getGuild() == null
                     ? Map.of()
-                    : Map.of("discord.guildId", event.getGuild().getId());
+                    : Map.of("agent.toolScopeId", event.getGuild().getId());
             var session = new ConversationSession(
                     new ConversationSessionId("discord:slash:" + userId),
                     identityMapper.toActorId(userId, username),

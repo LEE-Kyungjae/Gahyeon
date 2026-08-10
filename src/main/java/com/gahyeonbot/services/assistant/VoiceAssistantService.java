@@ -242,7 +242,7 @@ public class VoiceAssistantService {
                                 identityMapper.toActorId(userId, username),
                                 ClientSource.DISCORD,
                                 ConversationModality.VOICE,
-                                Map.of("discord.guildId", guild.getId()));
+                                Map.of("agent.toolScopeId", guild.getId()));
                         answer = chatProvider.chat(new ConversationRequest(
                                 "voice:" + guild.getId() + ":" + UUID.randomUUID(),
                                 conversationSession,

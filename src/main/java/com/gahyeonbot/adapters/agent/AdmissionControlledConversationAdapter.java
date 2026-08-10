@@ -4,38 +4,37 @@ import com.gahyeonbot.application.conversation.ConversationAgentPort;
 import com.gahyeonbot.core.conversation.ConversationRequest;
 import com.gahyeonbot.core.conversation.ConversationRejectedException;
 import com.gahyeonbot.core.conversation.ConversationResponse;
-import com.gahyeonbot.services.ai.OpenAiService;
+import com.gahyeonbot.services.ai.ConversationAdmissionService;
 import com.gahyeonbot.services.ai.agent.AgentResult;
 import org.springframework.stereotype.Component;
 
 /**
- * Bridges the new Core contract to the existing admission-controlled conversation path.
- * Discord-specific compatibility is deliberately confined to this adapter.
+ * Bridges the Core contract to admission-controlled agent execution.
  */
 @Component
-public class LegacyOpenAiConversationAdapter implements ConversationAgentPort {
-    private final OpenAiService openAiService;
+public class AdmissionControlledConversationAdapter implements ConversationAgentPort {
+    private final ConversationAdmissionService admission;
 
-    public LegacyOpenAiConversationAdapter(OpenAiService openAiService) {
-        this.openAiService = openAiService;
+    public AdmissionControlledConversationAdapter(ConversationAdmissionService admission) {
+        this.admission = admission;
     }
 
     @Override
     public ConversationResponse execute(ConversationRequest request) {
-        Long legacyGuildId = legacyGuildId(request);
+        Long toolScopeId = toolScopeId(request);
         AgentResult result;
         try {
-            result = openAiService.chatResult(
+            result = admission.chatResult(
                     request.requestId(),
                     request.session().actorId().value(),
                     request.displayName(),
-                    legacyGuildId,
+                    toolScopeId,
                     request.message());
-        } catch (OpenAiService.RateLimitException exception) {
+        } catch (ConversationAdmissionService.RateLimitException exception) {
             throw new ConversationRejectedException(
                     ConversationRejectedException.Reason.RATE_LIMITED,
                     exception.getMessage(), exception);
-        } catch (OpenAiService.AdversarialPromptException exception) {
+        } catch (ConversationAdmissionService.AdversarialPromptException exception) {
             throw new ConversationRejectedException(
                     ConversationRejectedException.Reason.UNSAFE_INPUT,
                     exception.getMessage(), exception);
@@ -47,13 +46,13 @@ public class LegacyOpenAiConversationAdapter implements ConversationAgentPort {
                 result.duration());
     }
 
-    private static Long legacyGuildId(ConversationRequest request) {
-        String value = request.session().clientContext().get("discord.guildId");
+    private static Long toolScopeId(ConversationRequest request) {
+        String value = request.session().clientContext().get("agent.toolScopeId");
         if (value == null || value.isBlank()) return null;
         try {
             return Long.parseLong(value);
         } catch (NumberFormatException exception) {
-            throw new IllegalArgumentException("discord.guildId가 올바르지 않습니다.", exception);
+            throw new IllegalArgumentException("agent.toolScopeId가 올바르지 않습니다.", exception);
         }
     }
 }
