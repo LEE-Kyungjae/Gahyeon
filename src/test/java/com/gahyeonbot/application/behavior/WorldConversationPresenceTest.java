@@ -3,6 +3,7 @@ package com.gahyeonbot.application.behavior;
 import com.gahyeonbot.core.identity.ActorId;
 import com.gahyeonbot.core.session.*;
 import com.gahyeonbot.core.world.*;
+import org.mockito.InOrder;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -21,7 +22,8 @@ class WorldConversationPresenceTest {
         when(worlds.current(worldId)).thenReturn(reading, talking);
         when(worlds.changeActivity(worldId, 2, WorldActivity.CONVERSATION, "user:42"))
                 .thenReturn(talking);
-        var presence = new WorldConversationPresence(worlds);
+        WorldActionCoordinator actions = mock(WorldActionCoordinator.class);
+        var presence = new WorldConversationPresence(worlds, actions);
         var session = new ConversationSession(
                 new ConversationSessionId("desktop-session"),
                 new ActorId(42),
@@ -37,6 +39,10 @@ class WorldConversationPresenceTest {
 
         verify(worlds).changeActivity(worldId, 2, WorldActivity.CONVERSATION, "user:42");
         verify(worlds).changeActivity(worldId, 3, WorldActivity.READ, "bookshelf");
+        verify(actions).cancelPending(worldId, "conversation_started");
+        InOrder entryOrder = inOrder(actions, worlds);
+        entryOrder.verify(actions).cancelPending(worldId, "conversation_started");
+        entryOrder.verify(worlds).current(worldId);
     }
 
     private WorldStateSnapshot snapshot(

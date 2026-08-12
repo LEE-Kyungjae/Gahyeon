@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * OpenAI GPT를 사용한 AI 대화 명령어 클래스.
+ * Gahyeon Core의 AI 대화 명령어 클래스.
  * 사용자의 질문에 대해 AI가 응답합니다.
  *
  * @author GahyeonBot Team
@@ -89,7 +89,7 @@ public class Gahyeona extends AbstractCommand {
                 event.getHook().editOriginal("❌ 질문이 너무 깁니다. 1000자 이하로 입력해주세요.").complete();
                 return;
             }
-            log.info("OpenAI 요청 - 사용자: {}, 질문: {}", event.getUser().getName(), question);
+            log.info("Gahyeon AI 요청 - 사용자: {}, 질문: {}", event.getUser().getName(), question);
 
             String interactionId = event.getId();
             long userId = event.getUser().getIdLong();
@@ -124,7 +124,7 @@ public class Gahyeona extends AbstractCommand {
                     EmbedUtil.nomal(response).build()
             ).complete();
 
-            log.info("OpenAI 응답 전송 완료 - 사용자: {}", event.getUser().getName());
+            log.info("Gahyeon AI 응답 전송 완료 - 사용자: {}", event.getUser().getName());
 
         } catch (AgentApprovalRequiredException e) {
             safeEditOriginal(event, "도구 실행 승인이 필요해요.\nrun: `" + e.getRunId()

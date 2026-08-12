@@ -4,7 +4,7 @@ import com.gahyeonbot.commands.util.AbstractCommand;
 import com.gahyeonbot.commands.util.Description;
 import com.gahyeonbot.commands.util.ResponseUtil;
 import com.gahyeonbot.adapters.discord.audio.GuildMusicManager;
-import com.gahyeonbot.services.music.MusicService;
+import com.gahyeonbot.adapters.discord.music.MusicService;
 import com.gahyeonbot.services.tts.TtsService;
 import com.gahyeonbot.services.tts.TtsTrackMetadata;
 import com.sedmelluq.discord.lavaplayer.player.AudioLoadResultHandler;

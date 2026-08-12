@@ -1,5 +1,6 @@
 package com.gahyeonbot.services.ai.agent;
 
+import com.gahyeonbot.core.identity.ActorId;
 import com.gahyeonbot.entity.AgentApproval;
 import com.gahyeonbot.entity.AgentRun;
 import com.gahyeonbot.repository.AgentApprovalRepository;
@@ -49,23 +50,33 @@ public class AgentApprovalService {
     }
 
     @Transactional
-    public AgentApproval decide(String approvalId, long actorUserId, boolean approve) {
-        AgentApproval approval = approvalRepository.findById(approvalId)
+    public AgentApproval decide(String approvalId, ActorId actorId, boolean approve) {
+        // Resolve the run as a scalar so the approval entity does not enter the persistence context
+        // before it is locked. Keep the global order run -> approval for decisions.
+        String runId = approvalRepository.findRunIdById(approvalId)
                 .orElseThrow(() -> new IllegalArgumentException("승인 요청을 찾을 수 없습니다."));
-        assertOwner(approval.getRun(), actorUserId);
+        AgentRun run = runRepository.findByIdForUpdate(runId)
+                .orElseThrow(() -> new IllegalArgumentException("실행을 찾을 수 없습니다."));
+        AgentApproval approval = approvalRepository.findByIdForUpdate(approvalId)
+                .orElseThrow(() -> new IllegalArgumentException("승인 요청을 찾을 수 없습니다."));
+        assertOwner(run, actorId);
+        if (run.getStatus() != AgentRunStatus.WAITING_APPROVAL) {
+            throw new IllegalStateException(
+                    "승인 대기 실행만 결정할 수 있습니다: " + run.getStatus());
+        }
         if (approval.getStatus() != AgentApprovalStatus.PENDING) {
             throw new IllegalStateException("이미 처리된 승인 요청입니다: " + approval.getStatus());
         }
         approval.setStatus(approve ? AgentApprovalStatus.APPROVED : AgentApprovalStatus.REJECTED);
         approval.setDecidedAt(LocalDateTime.now());
-        approval.setDecidedBy(actorUserId);
+        approval.setDecidedBy(actorId.value());
         return approval;
     }
 
     @Transactional
     public boolean consumeIfApproved(String runId, String toolName, String arguments) {
         AgentApproval approval = approvalRepository
-                .findByRunIdAndToolNameAndArgumentHash(runId, toolName, hash(arguments))
+                .findByCallForUpdate(runId, toolName, hash(arguments))
                 .orElse(null);
         if (approval == null || approval.getStatus() != AgentApprovalStatus.APPROVED) return false;
         approval.setStatus(AgentApprovalStatus.CONSUMED);
@@ -80,15 +91,15 @@ public class AgentApprovalService {
     }
 
     @Transactional(readOnly = true)
-    public List<AgentApproval> list(String runId, long actorUserId) {
+    public List<AgentApproval> list(String runId, ActorId actorId) {
         AgentRun run = runRepository.findById(runId)
                 .orElseThrow(() -> new IllegalArgumentException("실행을 찾을 수 없습니다: " + runId));
-        assertOwner(run, actorUserId);
+        assertOwner(run, actorId);
         return approvalRepository.findByRunIdOrderByRequestedAtAsc(runId);
     }
 
-    private static void assertOwner(AgentRun run, long actorUserId) {
-        if (run.getUserId() != actorUserId) {
+    private static void assertOwner(AgentRun run, ActorId actorId) {
+        if (run.getActorId() != actorId.value()) {
             throw new SecurityException("이 실행을 제어할 권한이 없습니다.");
         }
     }

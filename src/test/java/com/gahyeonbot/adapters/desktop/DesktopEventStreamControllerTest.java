@@ -14,10 +14,15 @@ class DesktopEventStreamControllerTest {
         DesktopEventStreamService streams = mock(DesktopEventStreamService.class);
         SseEmitter emitter = new SseEmitter();
         when(streams.subscribe("desktop-session", 17)).thenReturn(emitter);
+        DesktopSessionOwnership ownership = mock(DesktopSessionOwnership.class);
+        DesktopCredentialAuthorization authorization = mock(DesktopCredentialAuthorization.class);
+        jakarta.servlet.http.HttpServletRequest request = mock(jakarta.servlet.http.HttpServletRequest.class);
 
-        var controller = new DesktopEventStreamController(streams);
+        var controller = new DesktopEventStreamController(streams, ownership, authorization);
 
-        assertThat(controller.stream("desktop-session", 17)).isSameAs(emitter);
+        assertThat(controller.stream("desktop-session", "install-1", 17, request)).isSameAs(emitter);
+        verify(authorization).requireInstallation(request, "install-1");
+        verify(ownership).claim("desktop-session", "install-1");
         verify(streams).subscribe("desktop-session", 17);
     }
 }

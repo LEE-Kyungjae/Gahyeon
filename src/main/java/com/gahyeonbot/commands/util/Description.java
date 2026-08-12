@@ -27,7 +27,7 @@ public class Description {
     public static final String GAHYEONA_NAME = "gahyeona";
     public static final String GAHYEONA_NAME_KO = "가현아";
     public static final String GAHYEONA_DESC = "AI에게 질문하고 답변을 받습니다.";
-    public static final String GAHYEONA_DETAIL = "OpenAI GPT를 사용하여 사용자의 질문에 대한 답변을 제공합니다. 질문은 1000자 이하로 입력해주세요.";
+    public static final String GAHYEONA_DETAIL = "Gahyeon AI에게 질문하고 답변을 받습니다. 질문은 1000자 이하로 입력해주세요.";
 
     public static final String WEATHER_NAME = "weather";
     public static final String WEATHER_NAME_KO = "날씨";

@@ -5,7 +5,7 @@ import com.gahyeonbot.commands.util.Description;
 import com.gahyeonbot.commands.util.EmbedUtil;
 import com.gahyeonbot.commands.util.ICommand;
 import com.gahyeonbot.commands.util.ResponseUtil;
-import com.gahyeonbot.services.moderation.BotManagerService;
+import com.gahyeonbot.adapters.discord.moderation.BotManagerService;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Member;

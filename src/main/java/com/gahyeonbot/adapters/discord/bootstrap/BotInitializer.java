@@ -45,7 +45,7 @@ public class BotInitializer {
      */
     public ShardManager initialize() throws IllegalArgumentException {
         String token = config.getToken();
-        if (token == null || token.isEmpty() || token.startsWith("test_") || token.equals("your_discord_bot_token_here")) {
+        if (!isUsableToken(token)) {
             throw new IllegalArgumentException("TOKEN이 설정되지 않았거나 테스트 토큰입니다. Discord 봇이 비활성화됩니다.");
         }
 
@@ -69,6 +69,13 @@ public class BotInitializer {
         } catch (Exception e) {
             throw new RuntimeException("ShardManager 초기화 실패", e);
         }
+    }
+
+    static boolean isUsableToken(String token) {
+        return token != null
+                && !token.isBlank()
+                && !token.startsWith("test_")
+                && !token.equals("your_discord_bot_token_here");
     }
 
 }

@@ -1,6 +1,7 @@
 package com.gahyeonbot.services.ai;
 
 import com.gahyeonbot.core.identity.ActorId;
+import com.gahyeonbot.core.memory.MemoryCompactionPort;
 import com.gahyeonbot.core.memory.MemoryMessage;
 import com.gahyeonbot.core.memory.MemoryRole;
 import com.gahyeonbot.core.memory.MemorySnapshot;
@@ -10,7 +11,6 @@ import com.gahyeonbot.repository.ConversationHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,45 +36,56 @@ public class ConversationHistoryService implements MemoryUseCase {
     private static final int MAX_SUMMARY_CONTEXT_COUNT = 10;
 
     private final ConversationHistoryRepository repository;
-    private final GlmService glmService;
+    private final MemoryCompactionPort memoryCompaction;
 
     /**
      * 대화를 저장합니다.
      *
-     * @param userId 사용자 ID
+     * @param actorId Gahyeon 내부 Actor ID
      * @param userMessage 사용자 메시지
      * @param aiResponse AI 응답
      */
     @Transactional
-    public void saveConversation(Long userId, String userMessage, String aiResponse) {
+    public void saveConversation(ActorId actorId, String userMessage, String aiResponse) {
+        persistConversation(actorId, userMessage, aiResponse);
+    }
+
+    private void persistConversation(ActorId actorId, String userMessage, String aiResponse) {
         ConversationHistory history = ConversationHistory.builder()
-                .userId(userId)
+                .actorId(actorId.value())
                 .userMessage(userMessage)
                 .aiResponse(aiResponse)
                 .createdAt(LocalDateTime.now())
                 .build();
 
         repository.save(history);
-        log.debug("대화 저장 완료 - 사용자: {}", userId);
+        log.debug("대화 저장 완료 - actor: {}", actorId.value());
 
-        // 비동기로 오래된 대화 요약 처리
-        summarizeOldConversationsAsync(userId);
+        // 실제 provider I/O는 트랜잭션 커밋 후 전용 bounded worker에서 수행됩니다.
+        try {
+            memoryCompaction.requestCompaction(actorId);
+        } catch (RuntimeException schedulingFailure) {
+            // Compaction is optional maintenance. Its admission path must never roll back the
+            // durable conversation that has already been accepted by this transaction.
+            log.warn("메모리 압축 예약 실패 - actor: {}; 다음 대화에서 재시도합니다.",
+                    actorId.value(), schedulingFailure);
+        }
     }
 
     /**
      * 대화 컨텍스트를 빌드합니다.
      * 형식: [이전 대화 요약] + [최근 5건 전체 대화]
      *
-     * @param userId 사용자 ID
+     * @param actorId Gahyeon 내부 Actor ID
      * @return 컨텍스트 문자열
      */
     @Transactional(readOnly = true)
-    public String buildContext(Long userId) {
+    public String buildContext(ActorId actorId) {
         StringBuilder context = new StringBuilder();
 
         // 1. 요약된 이전 대화 조회
         List<ConversationHistory> summaries = repository.findLatestSummary(
-                userId, PageRequest.of(0, MAX_SUMMARY_CONTEXT_COUNT));
+                actorId.value(), PageRequest.of(0, MAX_SUMMARY_CONTEXT_COUNT));
 
         if (!summaries.isEmpty()) {
             context.append("[이전 대화 요약]\n");
@@ -90,8 +101,8 @@ public class ConversationHistoryService implements MemoryUseCase {
         }
 
         // 2. 최근 5건 전체 대화 조회
-        List<ConversationHistory> recentConversations = repository.findRecentByUserId(
-                userId, PageRequest.of(0, RECENT_CONVERSATION_COUNT));
+        List<ConversationHistory> recentConversations = repository.findRecentByActorId(
+                actorId.value(), PageRequest.of(0, RECENT_CONVERSATION_COUNT));
 
         if (!recentConversations.isEmpty()) {
             context.append("[최근 대화]\n");
@@ -106,7 +117,7 @@ public class ConversationHistoryService implements MemoryUseCase {
 
         String result = context.toString().trim();
         if (!result.isEmpty()) {
-            log.debug("컨텍스트 빌드 완료 - 사용자: {}, 길이: {}자", userId, result.length());
+            log.debug("컨텍스트 빌드 완료 - actor: {}, 길이: {}자", actorId.value(), result.length());
         }
         return result;
     }
@@ -116,9 +127,9 @@ public class ConversationHistoryService implements MemoryUseCase {
      * 이전 대화를 하나의 사용자 문자열로 합치지 않아 user/assistant 경계가 보존됩니다.
      */
     @Transactional(readOnly = true)
-    public MemorySnapshot buildAgentContext(Long userId) {
+    public MemorySnapshot buildAgentContext(ActorId actorId) {
         List<ConversationHistory> summaries = repository.findLatestSummary(
-                userId, PageRequest.of(0, MAX_SUMMARY_CONTEXT_COUNT));
+                actorId.value(), PageRequest.of(0, MAX_SUMMARY_CONTEXT_COUNT));
         List<ConversationHistory> orderedSummaries = new ArrayList<>(summaries);
         Collections.reverse(orderedSummaries);
         String summary = orderedSummaries.stream()
@@ -127,8 +138,8 @@ public class ConversationHistoryService implements MemoryUseCase {
                 .map(String::trim)
                 .collect(Collectors.joining("\n- ", "- ", ""));
 
-        List<ConversationHistory> recent = repository.findRecentByUserId(
-                userId, PageRequest.of(0, RECENT_CONVERSATION_COUNT));
+        List<ConversationHistory> recent = repository.findRecentByActorId(
+                actorId.value(), PageRequest.of(0, RECENT_CONVERSATION_COUNT));
         List<ConversationHistory> orderedRecent = new ArrayList<>(recent);
         Collections.reverse(orderedRecent);
         List<MemoryMessage> messages = new ArrayList<>(orderedRecent.size() * 2);
@@ -145,64 +156,31 @@ public class ConversationHistoryService implements MemoryUseCase {
 
     @Override
     public MemorySnapshot recall(ActorId actorId) {
-        return buildAgentContext(actorId.value());
+        return buildAgentContext(actorId);
     }
 
     @Override
+    @Transactional
     public void remember(ActorId actorId, String userMessage, String assistantResponse) {
-        saveConversation(actorId.value(), userMessage, assistantResponse);
+        persistConversation(actorId, userMessage, assistantResponse);
     }
 
     @Override
     public void clear(ActorId actorId) {
-        clearHistory(actorId.value());
-    }
-
-    /**
-     * 오래된 대화를 비동기로 요약합니다.
-     *
-     * @param userId 사용자 ID
-     */
-    @Async
-    @Transactional
-    public void summarizeOldConversationsAsync(Long userId) {
-        try {
-            List<ConversationHistory> unsummarized = repository.findUnsummarizedOldConversations(
-                    userId, RECENT_CONVERSATION_COUNT);
-
-            if (unsummarized.isEmpty()) {
-                return;
-            }
-
-            log.debug("요약 대상 대화 {}건 발견 - 사용자: {}", unsummarized.size(), userId);
-
-            for (ConversationHistory conv : unsummarized) {
-                try {
-                    String summary = glmService.summarize(conv.getUserMessage(), conv.getAiResponse());
-                    conv.setSummary(summary);
-                    conv.setSummarized(true);
-                    repository.save(conv);
-                    log.debug("대화 요약 완료 - ID: {}", conv.getId());
-                } catch (Exception e) {
-                    log.error("대화 요약 실패 - ID: {}", conv.getId(), e);
-                }
-            }
-        } catch (Exception e) {
-            log.error("대화 요약 처리 중 오류 - 사용자: {}", userId, e);
-        }
+        clearHistory(actorId);
     }
 
     /**
      * 사용자의 대화 히스토리를 초기화합니다.
      *
-     * @param userId 사용자 ID
+     * @param actorId Gahyeon 내부 Actor ID
      */
     @Transactional
-    public void clearHistory(Long userId) {
-        List<ConversationHistory> histories = repository.findRecentByUserId(
-                userId, PageRequest.of(0, 1000));
+    public void clearHistory(ActorId actorId) {
+        List<ConversationHistory> histories = repository.findRecentByActorId(
+                actorId.value(), PageRequest.of(0, 1000));
         repository.deleteAll(histories);
-        log.info("대화 히스토리 초기화 - 사용자: {}", userId);
+        log.info("대화 히스토리 초기화 - actor: {}", actorId.value());
     }
 
     /**

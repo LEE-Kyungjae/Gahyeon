@@ -12,4 +12,6 @@ public interface ExternalIdentityRepository extends JpaRepository<ExternalIdenti
     Optional<ExternalIdentity> findByProviderAndExternalId(
             IdentityProvider provider,
             String externalId);
+
+    boolean existsByProviderAndPrincipal_Id(IdentityProvider provider, Long principalId);
 }

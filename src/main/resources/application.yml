@@ -1,12 +1,13 @@
 #apllication.yml
 app:
   credentials:
-    application-id: ${APPLICATION_ID}
-    token: ${TOKEN}
-    spotify-client-id: ${SPOTIFY_CLIENT_ID}
-    spotify-client-secret: ${SPOTIFY_CLIENT_SECRET}
-    openai-api-key: ${OPENAI_API_KEY}
-    agent-api-key: ${AGENT_API_KEY:${OPENROUTER_API_KEY:${OPEN_ROUTER:${OPENAI_API_KEY:}}}}
+    # Adapter/provider credentials are optional at Core boot. Each enabled
+    # adapter validates only the credentials it actually consumes.
+    application-id: ${APPLICATION_ID:}
+    token: ${TOKEN:}
+    spotify-client-id: ${SPOTIFY_CLIENT_ID:}
+    spotify-client-secret: ${SPOTIFY_CLIENT_SECRET:}
+    openai-api-key: ${OPENAI_API_KEY:}
     glm-api-key: ${GLM_API_KEY:}
     glm-model: ${GLM_MODEL:glm-4.7-flash}
     glm-connect-timeout-ms: ${GLM_CONNECT_TIMEOUT_MS:5000}
@@ -35,7 +36,7 @@ spring:
       api-key: ${AGENT_API_KEY:${OPENROUTER_API_KEY:${OPEN_ROUTER:${OPENAI_API_KEY:}}}}
       base-url: ${AGENT_BASE_URL:${OPENROUTER_BASE_URL:https://openrouter.ai/api}}
   application:
-    name: gahyeonbot
+    name: gahyeon
   profiles:
     default: dev  # 기본 실행 시 dev 프로필 사용 (운영과 동일한 환경)
   main:
@@ -51,6 +52,25 @@ server:
   shutdown: graceful
 
 gahyeon:
+  memory:
+    compaction:
+      # Provider calls never run on the conversation/TTS path. A single bounded
+      # worker also protects the summarization provider from burst traffic.
+      queue-capacity: ${GAHYEON_MEMORY_COMPACTION_QUEUE_CAPACITY:32}
+      batch-size: ${GAHYEON_MEMORY_COMPACTION_BATCH_SIZE:4}
+  content-safety:
+    provider: ${GAHYEON_CONTENT_SAFETY_PROVIDER:openai}
+    connect-timeout-millis: ${GAHYEON_CONTENT_SAFETY_CONNECT_TIMEOUT_MILLIS:300}
+    read-timeout-millis: ${GAHYEON_CONTENT_SAFETY_READ_TIMEOUT_MILLIS:700}
+    failure-cooldown-millis: ${GAHYEON_CONTENT_SAFETY_FAILURE_COOLDOWN_MILLIS:30000}
+  agent:
+    provider-failure-cooldown-millis: ${GAHYEON_AGENT_PROVIDER_FAILURE_COOLDOWN_MILLIS:5000}
+    streaming:
+      # Enable only after the selected OpenAI-compatible provider/model is verified to never
+      # mix tool calls and speakable content in the same streamed assistant step.
+      tool-text-exclusive-enabled: ${GAHYEON_AGENT_TOOL_SAFE_STREAMING_ENABLED:false}
+      verified-base-url: ${GAHYEON_AGENT_STREAMING_VERIFIED_BASE_URL:}
+      verified-model: ${GAHYEON_AGENT_STREAMING_VERIFIED_MODEL:}
   headless:
     enabled: ${GAHYEON_HEADLESS_ENABLED:false}
   client-auth:
@@ -58,9 +78,62 @@ gahyeon:
     token: ${GAHYEON_CLIENT_TOKEN:}
   desktop:
     event-poll-millis: ${GAHYEON_DESKTOP_EVENT_POLL_MILLIS:250}
+    maximum-event-subscriptions: ${GAHYEON_DESKTOP_MAXIMUM_EVENT_SUBSCRIPTIONS:128}
+    maximum-event-subscriptions-per-session: ${GAHYEON_DESKTOP_MAXIMUM_EVENT_SUBSCRIPTIONS_PER_SESSION:4}
+  identity-link:
+    cleanup-millis: ${GAHYEON_IDENTITY_LINK_CLEANUP_MILLIS:3600000}
+  unreal:
+    runtime:
+      # Bounded pools keep slow cognition/TTS work away from the WebSocket and Game threads.
+      cognition-core-threads: ${GAHYEON_UNREAL_COGNITION_CORE_THREADS:1}
+      cognition-max-threads: ${GAHYEON_UNREAL_COGNITION_MAX_THREADS:2}
+      cognition-queue-capacity: ${GAHYEON_UNREAL_COGNITION_QUEUE_CAPACITY:0}
+      tts-threads: ${GAHYEON_UNREAL_TTS_THREADS:1}
+      tts-queue-capacity: ${GAHYEON_UNREAL_TTS_QUEUE_CAPACITY:8}
+      # Each renderer drains in order on its own bounded queue. A slow light-field
+      # display must not delay Desktop speech or the TTS worker.
+      outbound-threads: ${GAHYEON_UNREAL_OUTBOUND_THREADS:4}
+      outbound-executor-queue-capacity: ${GAHYEON_UNREAL_OUTBOUND_EXECUTOR_QUEUE_CAPACITY:32}
+      outbound-per-renderer-queue-capacity: ${GAHYEON_UNREAL_OUTBOUND_PER_RENDERER_QUEUE_CAPACITY:64}
+      maximum-renderer-connections: ${GAHYEON_UNREAL_MAXIMUM_RENDERER_CONNECTIONS:64}
+      maximum-renderer-connections-per-session: ${GAHYEON_UNREAL_MAXIMUM_RENDERER_CONNECTIONS_PER_SESSION:4}
+      renderer-hello-timeout-seconds: ${GAHYEON_UNREAL_RENDERER_HELLO_TIMEOUT_SECONDS:10}
+      renderer-heartbeat-timeout-seconds: ${GAHYEON_UNREAL_RENDERER_HEARTBEAT_TIMEOUT_SECONDS:30}
+      speech-segment-max-characters: ${GAHYEON_UNREAL_SPEECH_SEGMENT_MAX_CHARACTERS:120}
+    websocket:
+      # Requires headless.enabled as well. Keep disabled until an Unreal client is ready.
+      enabled: ${GAHYEON_UNREAL_WEBSOCKET_ENABLED:false}
+      poll-millis: ${GAHYEON_UNREAL_WEBSOCKET_POLL_MILLIS:100}
+    streaming-stt:
+      # A provider bean is also required. When absent, this endpoint is not registered and
+      # the existing batch-WAV path remains available for the next utterance.
+      enabled: ${GAHYEON_UNREAL_STREAMING_STT_ENABLED:false}
+      initial-start-seconds: ${GAHYEON_UNREAL_STREAMING_STT_INITIAL_START_SECONDS:10}
+      # Hard start-to-terminal deadline. It also reclaims a client that starts capture and
+      # disappears without sending end/cancel while leaving the WebSocket half-open.
+      maximum-stream-seconds: ${GAHYEON_UNREAL_STREAMING_STT_MAXIMUM_STREAM_SECONDS:120}
+      maximum-connections: ${GAHYEON_UNREAL_STREAMING_STT_MAXIMUM_CONNECTIONS:32}
+      outbound-threads: ${GAHYEON_UNREAL_STREAMING_STT_OUTBOUND_THREADS:4}
+      outbound-executor-queue-capacity: ${GAHYEON_UNREAL_STREAMING_STT_OUTBOUND_EXECUTOR_QUEUE_CAPACITY:32}
+      outbound-per-connection-queue-capacity: ${GAHYEON_UNREAL_STREAMING_STT_OUTBOUND_PER_CONNECTION_QUEUE_CAPACITY:64}
+    viseme:
+      enabled: ${GAHYEON_UNREAL_VISEME_ALIGNER_ENABLED:false}
+      endpoint: ${GAHYEON_UNREAL_VISEME_ALIGNER_ENDPOINT:}
+      api-key: ${GAHYEON_UNREAL_VISEME_ALIGNER_API_KEY:}
+      timeout-millis: ${GAHYEON_UNREAL_VISEME_ALIGNER_TIMEOUT_MILLIS:1500}
+      playback-deadline-millis: ${GAHYEON_UNREAL_VISEME_ALIGNER_PLAYBACK_DEADLINE_MILLIS:250}
+      threads: ${GAHYEON_UNREAL_VISEME_ALIGNER_THREADS:2}
+      queue-capacity: ${GAHYEON_UNREAL_VISEME_ALIGNER_QUEUE_CAPACITY:8}
+      max-audio-bytes: ${GAHYEON_UNREAL_VISEME_ALIGNER_MAX_AUDIO_BYTES:2000000}
+      max-response-bytes: ${GAHYEON_UNREAL_VISEME_ALIGNER_MAX_RESPONSE_BYTES:131072}
+    perception-cleanup-millis: ${GAHYEON_UNREAL_PERCEPTION_CLEANUP_MILLIS:5000}
+    audio-cleanup-millis: ${GAHYEON_UNREAL_AUDIO_CLEANUP_MILLIS:30000}
   behavior:
     enabled: ${GAHYEON_BEHAVIOR_ENABLED:false}
     tick-millis: ${GAHYEON_BEHAVIOR_TICK_MILLIS:10000}
+  world-action:
+    execution-tick-millis: ${GAHYEON_WORLD_ACTION_EXECUTION_TICK_MILLIS:250}
+    timeout-scan-millis: ${GAHYEON_WORLD_ACTION_TIMEOUT_SCAN_MILLIS:5000}
 
 bot:
   enabled: ${BOT_ENABLED:true}
@@ -110,6 +183,8 @@ tts:
     endpoint: ${CUSTOM_TTS_ENDPOINT:}
     api-key: ${CUSTOM_TTS_API_KEY:}
     model: ${CUSTOM_TTS_MODEL:}
+    model-sha256: ${CUSTOM_TTS_MODEL_SHA256:}
+    config-sha256: ${CUSTOM_TTS_CONFIG_SHA256:}
     speaker-id: ${CUSTOM_TTS_SPEAKER_ID:}
     format: ${CUSTOM_TTS_FORMAT:wav}
     timeout-seconds: ${CUSTOM_TTS_TIMEOUT_SECONDS:60}
@@ -153,8 +228,16 @@ assistant:
     model: ${ASSISTANT_STT_MODEL:gpt-4o-mini-transcribe}
     language: ${ASSISTANT_STT_LANGUAGE:ko}
     prompt: ${ASSISTANT_STT_PROMPT:GitHub, 깃허브, 레포, 레포지토리, Gahyeon, 가현, 가현봇, 에이전트, OpenRouter, 큐드란트, Qdrant, Piper, Voicebox, Whisper}
-    timeout-seconds: ${ASSISTANT_STT_TIMEOUT_SECONDS:30}
+    timeout-seconds: ${ASSISTANT_STT_TIMEOUT_SECONDS:8}
     api-key-required: ${ASSISTANT_STT_API_KEY_REQUIRED:true}
+    realtime:
+      enabled: ${ASSISTANT_STT_REALTIME_ENABLED:false}
+      url: ${ASSISTANT_STT_REALTIME_URL:wss://api.openai.com/v1/realtime?model=gpt-live-transcribe}
+      model: ${ASSISTANT_STT_REALTIME_MODEL:gpt-live-transcribe}
+      delay: ${ASSISTANT_STT_REALTIME_DELAY:low}
+      target-sample-rate: ${ASSISTANT_STT_REALTIME_TARGET_SAMPLE_RATE:24000}
+      maximum-pending-sends: ${ASSISTANT_STT_REALTIME_MAXIMUM_PENDING_SENDS:16}
+      final-timeout-seconds: ${ASSISTANT_STT_REALTIME_FINAL_TIMEOUT_SECONDS:10}
   openrouter:
     enabled: ${ASSISTANT_OPENROUTER_ENABLED:false}
     api-key: ${OPENROUTER_API_KEY:${OPEN_ROUTER:}}

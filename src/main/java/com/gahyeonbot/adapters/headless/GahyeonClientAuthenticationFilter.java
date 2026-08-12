@@ -1,5 +1,6 @@
 package com.gahyeonbot.adapters.headless;
 
+import com.gahyeonbot.application.identity.IdentityLinkUseCase;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -8,6 +9,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
@@ -18,13 +21,29 @@ import java.security.MessageDigest;
 @Component
 @ConditionalOnProperty(name = "gahyeon.headless.enabled", havingValue = "true")
 public class GahyeonClientAuthenticationFilter extends OncePerRequestFilter {
+    public static final String AUTHENTICATED_ACTOR_ATTRIBUTE =
+            GahyeonClientAuthenticationFilter.class.getName() + ".actor";
+    public static final String ACCOUNT_TOKEN_HEADER = "X-Gahyeon-Account-Token";
     private final byte[] configuredToken;
+    private final IdentityLinkUseCase identityLinks;
 
+    @Autowired
     public GahyeonClientAuthenticationFilter(
-            @Value("${gahyeon.client-auth.token:}") String configuredToken) {
+            @Value("${gahyeon.client-auth.token:}") String configuredToken,
+            ObjectProvider<IdentityLinkUseCase> identityLinks) {
+        this(configuredToken, identityLinks.getIfAvailable());
+    }
+
+    GahyeonClientAuthenticationFilter(
+            String configuredToken, IdentityLinkUseCase identityLinks) {
         this.configuredToken = configuredToken == null
                 ? new byte[0]
                 : configuredToken.getBytes(StandardCharsets.UTF_8);
+        this.identityLinks = identityLinks;
+    }
+
+    GahyeonClientAuthenticationFilter(String configuredToken) {
+        this(configuredToken, (IdentityLinkUseCase) null);
     }
 
     @Override
@@ -38,6 +57,21 @@ public class GahyeonClientAuthenticationFilter extends OncePerRequestFilter {
             HttpServletRequest request,
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
+        String accountCredential = request.getHeader(ACCOUNT_TOKEN_HEADER);
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        if (path.startsWith("/gahyeon/desktop/")
+                && accountCredential != null && !accountCredential.isBlank()) {
+            var actor = identityLinks == null ? null
+                    : identityLinks.authenticateDesktopCredential(accountCredential);
+            if (actor == null) {
+                reject(response, HttpServletResponse.SC_UNAUTHORIZED,
+                        "Invalid Gahyeon account credential");
+                return;
+            }
+            request.setAttribute(AUTHENTICATED_ACTOR_ATTRIBUTE, actor);
+            filterChain.doFilter(request, response);
+            return;
+        }
         if (configuredToken.length == 0) {
             if (isLoopback(request.getRemoteAddr())) {
                 filterChain.doFilter(request, response);

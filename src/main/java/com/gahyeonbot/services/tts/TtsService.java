@@ -57,6 +57,9 @@ public class TtsService {
             try {
                 return selected.synthesize(text);
             } catch (Exception e) {
+                if (interrupted(e) || identityMismatch(e)) {
+                    throw e;
+                }
                 if (!"edge".equals(selected.name()) && props.isFallbackToEdge()) {
                     log.warn("커스텀 TTS 실패, Edge TTS로 폴백합니다: {}", e.getMessage());
                     return findProvider("edge").synthesize(text);
@@ -69,6 +72,24 @@ public class TtsService {
             return findProvider("edge").synthesize(text);
         }
         throw new IllegalStateException("TTS 제공자 '" + selected.name() + "' 설정이 준비되지 않았습니다.");
+    }
+
+    private static boolean interrupted(Throwable failure) {
+        if (Thread.currentThread().isInterrupted()) return true;
+        for (Throwable current = failure; current != null; current = current.getCause()) {
+            if (current instanceof InterruptedException
+                    || current instanceof java.util.concurrent.CancellationException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean identityMismatch(Throwable failure) {
+        for (Throwable current = failure; current != null; current = current.getCause()) {
+            if (current instanceof TtsIdentityMismatchException) return true;
+        }
+        return false;
     }
 
     private TtsProvider findProvider(String name) {

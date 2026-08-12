@@ -34,4 +34,30 @@ class ConversationSessionTest {
         assertThatThrownBy(() -> new ConversationSessionId(" "))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void namespacesExternalSessionIdsByClientSourceWithoutDoublePrefixing() {
+        assertThat(ConversationSessionId.fromExternal(ClientSource.DESKTOP, " room-1 ").value())
+                .isEqualTo("desktop:room-1");
+        assertThat(ConversationSessionId.fromExternal(ClientSource.UNREAL, "room-1").value())
+                .isEqualTo("unreal:room-1");
+        assertThat(ConversationSessionId.fromExternal(ClientSource.DESKTOP, "desktop:room-1").value())
+                .isEqualTo("desktop:room-1");
+    }
+
+    @Test
+    void boundsExternalSessionIdsWhileKeepingNamespacingIdempotent() {
+        String maximumExternalId = "s".repeat(ConversationSessionId.MAXIMUM_EXTERNAL_ID_CHARACTERS);
+        ConversationSessionId namespaced = ConversationSessionId.fromExternal(
+                ClientSource.DESKTOP, maximumExternalId);
+
+        assertThat(namespaced.value()).isEqualTo("desktop:" + maximumExternalId);
+        assertThat(ConversationSessionId.fromExternal(ClientSource.DESKTOP, namespaced.value()))
+                .isEqualTo(namespaced);
+        assertThatThrownBy(() -> ConversationSessionId.fromExternal(
+                ClientSource.DESKTOP,
+                "s".repeat(ConversationSessionId.MAXIMUM_EXTERNAL_ID_CHARACTERS + 1)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("external sessionId");
+    }
 }

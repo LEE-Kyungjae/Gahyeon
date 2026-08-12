@@ -21,7 +21,7 @@ public interface AgentRunRepository extends JpaRepository<AgentRun, String> {
     @Query("select r from AgentRun r join fetch r.session where r.id = :id")
     Optional<AgentRun> findByIdWithSession(@Param("id") String id);
 
-    Optional<AgentRun> findFirstByUserIdOrderByCreatedAtDesc(Long userId);
+    Optional<AgentRun> findFirstByActorIdOrderByCreatedAtDesc(Long actorId);
 
     List<AgentRun> findByStatusIn(
             List<com.gahyeonbot.services.ai.agent.AgentRunStatus> statuses);
@@ -29,4 +29,20 @@ public interface AgentRunRepository extends JpaRepository<AgentRun, String> {
     List<AgentRun> findByStatusAndUpdatedAtBefore(
             com.gahyeonbot.services.ai.agent.AgentRunStatus status,
             LocalDateTime cutoff);
+
+    // Strict time ordering protects an idempotent retry of an older request from cancelling
+    // newer work. Equal DB timestamps remain intentionally unordered; full multi-instance
+    // linearization needs an actor-scoped DB lease/admission ordinal.
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            select r from AgentRun r
+            where r.actorId = :actorId
+              and r.createdAt < :createdAt
+              and r.status in :statuses
+            order by r.createdAt asc
+            """)
+    List<AgentRun> findSupersededForUpdate(
+            @Param("actorId") Long actorId,
+            @Param("createdAt") LocalDateTime createdAt,
+            @Param("statuses") List<com.gahyeonbot.services.ai.agent.AgentRunStatus> statuses);
 }

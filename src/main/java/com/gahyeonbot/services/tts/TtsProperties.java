@@ -60,6 +60,10 @@ public class TtsProperties {
         private String apiKey;
         /** Server-side model name or mounted model path alias. */
         private String model;
+        /** Optional immutable runtime model digest. When set, the response must echo it. */
+        private String modelSha256;
+        /** Optional immutable runtime config digest. When set, the response must echo it. */
+        private String configSha256;
         /** Voice/speaker identifier expected by the inference engine. */
         private String speakerId;
         /** wav or mp3. */

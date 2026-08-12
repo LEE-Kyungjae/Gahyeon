@@ -28,6 +28,7 @@ public class EdgeTtsProvider implements TtsProvider {
         Path dir = Path.of(System.getProperty("java.io.tmpdir"), "gahyeonbot-tts");
         Files.createDirectories(dir);
         Path audio = Files.createTempFile(dir, "tts_edge_", ".mp3");
+        Process process = null;
         try {
             var edge = properties.getEdge();
             if (edge.getEndpoint() != null && !edge.getEndpoint().isBlank()) {
@@ -67,10 +68,11 @@ public class EdgeTtsProvider implements TtsProvider {
             command.add("--write-media");
             command.add(audio.toString());
 
-            Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            process = new ProcessBuilder(command).redirectErrorStream(true).start();
+            final Process runningProcess = process;
             ByteArrayOutputStream output = new ByteArrayOutputStream();
             Thread reader = Thread.ofVirtual().start(() -> {
-                try { process.getInputStream().transferTo(output); } catch (Exception ignored) {}
+                try { runningProcess.getInputStream().transferTo(output); } catch (Exception ignored) {}
             });
             boolean complete = process.waitFor(properties.getTimeoutSeconds(), TimeUnit.SECONDS);
             if (!complete) {
@@ -84,6 +86,7 @@ public class EdgeTtsProvider implements TtsProvider {
             if (Files.size(audio) < 256) throw new IllegalStateException("Edge TTS produced empty audio");
             return audio;
         } catch (Exception e) {
+            if (process != null && process.isAlive()) process.destroyForcibly();
             Files.deleteIfExists(audio);
             throw e;
         }

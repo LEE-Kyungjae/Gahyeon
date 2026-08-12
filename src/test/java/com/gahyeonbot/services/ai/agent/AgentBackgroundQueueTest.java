@@ -46,9 +46,9 @@ class AgentBackgroundQueueTest {
         AgentRun run = ledger.create(new AgentRunRequest(
                 requestId,
                 "text:1",
-                AgentGateway.TEXT,
+                AgentModality.TEXT,
                 10L,
-                1L,
+                new com.gahyeonbot.core.identity.ActorId(1L),
                 "tester",
                 "긴 작업",
                 8));

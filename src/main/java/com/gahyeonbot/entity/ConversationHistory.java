@@ -32,11 +32,9 @@ public class ConversationHistory {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * Discord 사용자 ID
-     */
+    /** Gahyeon 내부 Actor ID. */
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private Long actorId;
 
     /**
      * 사용자 메시지 (질문)

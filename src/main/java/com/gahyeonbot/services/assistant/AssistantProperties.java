@@ -35,11 +35,24 @@ public class AssistantProperties {
         private String model = "gpt-4o-mini-transcribe";
         private String language = "ko";
         private String prompt = "";
-        private int timeoutSeconds = 30;
+        private int timeoutSeconds = 8;
         private boolean apiKeyRequired = true;
         private String fallbackBaseUrl = "";
         private String fallbackEndpoint = "/transcribe";
         private String fallbackModel = "sensevoice-small-int8";
+        private final Realtime realtime = new Realtime();
+    }
+
+    @Getter
+    @Setter
+    public static class Realtime {
+        private boolean enabled;
+        private String url = "wss://api.openai.com/v1/realtime?model=gpt-live-transcribe";
+        private String model = "gpt-live-transcribe";
+        private String delay = "low";
+        private int targetSampleRate = 24_000;
+        private int maximumPendingSends = 16;
+        private int finalTimeoutSeconds = 10;
     }
 
     @Getter

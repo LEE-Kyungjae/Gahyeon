@@ -9,7 +9,7 @@ import com.gahyeonbot.core.session.ConversationModality;
 import com.gahyeonbot.core.session.ConversationSession;
 import com.gahyeonbot.core.session.ConversationSessionId;
 import com.gahyeonbot.services.ai.agent.AgentApprovalRequiredException;
-import com.gahyeonbot.services.assistant.GuildAssistantChannelsService;
+import com.gahyeonbot.adapters.discord.config.GuildAssistantChannelsService;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;

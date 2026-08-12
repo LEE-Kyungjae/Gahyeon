@@ -136,11 +136,7 @@ public class CommandManager extends ListenerAdapter {
      */
     @Override
     public void onSlashCommandInteraction(@NotNull SlashCommandInteractionEvent event) {
-        ICommand command = commandMap.get(event.getName());
-        // 기본 이름으로 찾지 못한 경우 localized name으로 조회
-        if (command == null) {
-            command = localizedNameMap.get(event.getName());
-        }
+        ICommand command = resolveCommand(event.getName());
         logger.info("명령어 '{}' 실행 요청 - 사용자: {} - 옵션: {}",
                 event.getName(),
                 event.getUser().getAsTag(),
@@ -163,6 +159,12 @@ public class CommandManager extends ListenerAdapter {
         } else {
             event.reply("알 수 없는 명령어입니다.").setEphemeral(true).queue();
         }
+    }
+
+    public ICommand resolveCommand(String interactionName) {
+        if (interactionName == null || interactionName.isBlank()) return null;
+        ICommand command = commandMap.get(interactionName);
+        return command != null ? command : localizedNameMap.get(interactionName);
     }
 
     /**
@@ -190,5 +192,10 @@ public class CommandManager extends ListenerAdapter {
      */
     public void addCommands(List<ICommand> commands) {
         commands.forEach(this::addCommand);
+    }
+
+    /** Immutable diagnostic surface used to prove Registry→Discord assembly completeness. */
+    public Set<String> registeredStableNames() {
+        return Set.copyOf(commandMap.keySet());
     }
 }
