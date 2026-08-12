@@ -1,0 +1,932 @@
+{
+  "schemaVersion": 1,
+  "characterId": "gahyeon",
+  "gate": "G1",
+  "revision": "g1-mpfb-v10",
+  "status": "draft-for-human-review",
+  "model": {
+    "uri": "gahyeon-g1-mpfb-v10.blend",
+    "bytes": 75371467,
+    "sha256": "d84aa6b616a690cb54b45ea3f054291e091f1bc17b30ac8ba1b2cef853e958c8",
+    "meshObjects": 24,
+    "meshVertices": 28086,
+    "meshPolygons": 26616,
+    "curveObjects": 1,
+    "hairGuideCurves": 252,
+    "hairGuidePoints": 4032,
+    "armatures": 1,
+    "bones": 53,
+    "heightCm": 172.0
+  },
+  "sourceManifests": [
+    {
+      "role": "identity",
+      "uri": "identity-reference.json",
+      "sha256": "41653f14ce045ad86bcf703a806cd61a416ce284a3c831917bac899c901b0179"
+    },
+    {
+      "role": "modeling-input",
+      "uri": "modeling-input.json",
+      "sha256": "914628a1597a0deb30fc172f5023e2bb2674ad9b141d404b0ca342f13544e29f"
+    }
+  ],
+  "identityAnchors": {
+    "masterNeutralFace": 3,
+    "faceDepthAndProfiles": [
+      6,
+      7,
+      8
+    ],
+    "primaryBody": [
+      16,
+      19,
+      20
+    ]
+  },
+  "base": {
+    "generator": "MPFB",
+    "tag": "v2.0.17",
+    "commit": "80919fa4682335c41847f761a4d79dcad4124732",
+    "repository": "https://github.com/makehumancommunity/mpfb2",
+    "codeLicense": "GPL-3.0-or-later",
+    "coreAssetLicense": "CC0-1.0",
+    "baseMeshSha256": "8e761e6624b8f54536409135d1636da63b32486a90d4897f84e121d144f6fb4c",
+    "systemAssetArchive": "https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip",
+    "systemAssetArchiveSha256": "b542127a8e25547c7c29c19f2d1d2adb9a664c80396ecd694095dbc8028a0107",
+    "assets": [
+      {
+        "role": "Eyes",
+        "source": "eyes/high-poly/high-poly.mhclo",
+        "bytes": 72490,
+        "sha256": "b183cfe37120ab726f9b3f2ea6cd3a64c44ce7b4bd91a77c841cf70c04f83a0d",
+        "license": "CC0-1.0"
+      },
+      {
+        "role": "Eyebrows",
+        "source": "eyebrows/eyebrow001/eyebrow001.mhclo",
+        "bytes": 9141,
+        "sha256": "54c8892c2ba577f4152d779ce1f20f7cd323beb8cbd9cb701796165c221b4f5b",
+        "license": "CC0-1.0"
+      },
+      {
+        "role": "Eyelashes",
+        "source": "eyelashes/eyelashes01/eyelashes01.mhclo",
+        "bytes": 2265,
+        "sha256": "5a86b29c15649273d723084954b7fa7bf199112571d4f58539b46734d397ee6b",
+        "license": "CC0-1.0"
+      },
+      {
+        "role": "Tongue",
+        "source": "tongue/tongue01/tongue01.mhclo",
+        "bytes": 2113,
+        "sha256": "61d825899cd78ff3146fa1324118060cb44b095fae1427d408c199ade74e3c9e",
+        "license": "CC0-1.0"
+      },
+      {
+        "role": "Teeth",
+        "source": "teeth/teeth_base/teeth_base.mhclo",
+        "bytes": 263220,
+        "sha256": "9edc3deff3bb97a95c791878064dd069a74a38f95ea6d9707a9ba68d888b3b5c",
+        "license": "CC0-1.0"
+      },
+      {
+        "role": "Clothes",
+        "source": "clothes/female_casualsuit02/female_casualsuit02.mhclo",
+        "bytes": 196616,
+        "sha256": "dbbce782dcb95f2dc9d9b70fe66629c9a177fe0a8d14fd546961ed01eeb556c8",
+        "license": "CC0-1.0"
+      },
+      {
+        "role": "HairGroomTemplate",
+        "source": "hair.blend",
+        "sourceUrl": "https://files2.makehumancommunity.org/functional/haireditor.zip",
+        "sourceArchiveSha256": "39420056faba6aaa0726a5168c9c41f2d01e278a12e216c0385e8f13d4d98ab7",
+        "bytes": 19608264,
+        "sha256": "93aedaef061dc14618a0fcfad33c3df816fa755e8093381cbdfd0fd4c34527f5",
+        "license": "CC0-1.0",
+        "licenseAuthority": "https://static.makehumancommunity.org/assets/assetpacks.html",
+        "templateObject": "straight_hair_to_shoulder",
+        "guideCurves": 252,
+        "guidePoints": 4032,
+        "lengthScale": {
+          "base": 1.62,
+          "variation": 0.08
+        },
+        "coordinateScale": 97.05906229591434,
+        "surfaceObject": "Gahyeon_G1_BodyFace_CC0",
+        "surfaceUvMap": "UVMap",
+        "scaledDistanceInputs": [
+          {
+            "modifier": "Set Hair Curve Profile",
+            "input": "Radius",
+            "identifier": "Input_3",
+            "sourceMeters": 9.999999747378752e-05,
+            "authoredCentimeters": 0.009705905802547932
+          },
+          {
+            "modifier": "Curl Hair Curves",
+            "input": "Guide Distance",
+            "identifier": "Input_4",
+            "sourceMeters": 0.009999999776482582,
+            "authoredCentimeters": 0.9705905914306641
+          },
+          {
+            "modifier": "Curl Hair Curves",
+            "input": "Radius",
+            "identifier": "Input_7",
+            "sourceMeters": 0.0020000000949949026,
+            "authoredCentimeters": 0.19411812722682953
+          },
+          {
+            "modifier": "Hair Curves Noise",
+            "input": "Distance",
+            "identifier": "Input_14",
+            "sourceMeters": 0.0010000000474974513,
+            "authoredCentimeters": 0.09705906361341476
+          },
+          {
+            "modifier": "Frizz Hair Curves",
+            "input": "Distance",
+            "identifier": "Input_11",
+            "sourceMeters": 0.009999999776482582,
+            "authoredCentimeters": 0.9705905914306641
+          },
+          {
+            "modifier": "Roll Hair Curves",
+            "input": "Roll Length",
+            "identifier": "Input_2",
+            "sourceMeters": 0.004999999888241291,
+            "authoredCentimeters": 0.48529529571533203
+          },
+          {
+            "modifier": "Roll Hair Curves",
+            "input": "Roll Radius",
+            "identifier": "Input_3",
+            "sourceMeters": 0.0005000000237487257,
+            "authoredCentimeters": 0.04852953180670738
+          },
+          {
+            "modifier": "Roll Hair Curves",
+            "input": "Roll Depth",
+            "identifier": "Input_9",
+            "sourceMeters": 0.0,
+            "authoredCentimeters": 0.0
+          },
+          {
+            "modifier": "Clump Hair Curves",
+            "input": "Guide Distance",
+            "identifier": "Input_9",
+            "sourceMeters": 0.010999999940395355,
+            "authoredCentimeters": 1.0676497220993042
+          },
+          {
+            "modifier": "Clump Hair Curves",
+            "input": "Clump Offset",
+            "identifier": "Input_13",
+            "sourceMeters": 0.0,
+            "authoredCentimeters": 0.0
+          },
+          {
+            "modifier": "Clump Hair Curves",
+            "input": "Distance Falloff",
+            "identifier": "Input_12",
+            "sourceMeters": 0.0,
+            "authoredCentimeters": 0.0
+          },
+          {
+            "modifier": "Clump Hair Curves",
+            "input": "Distance Threshold",
+            "identifier": "Input_11",
+            "sourceMeters": 0.0,
+            "authoredCentimeters": 0.0
+          }
+        ],
+        "interpolation": {
+          "nodeGroup": "Duplicate Hair Curves",
+          "sourceMeters": 0.009999999776482582,
+          "authoredCentimeters": 0.9705905914306641,
+          "amount": 200,
+          "viewportAmount": 1.0
+        },
+        "material": {
+          "Color 1": [
+            0.02,
+            0.012,
+            0.017,
+            1.0
+          ],
+          "Color 2": [
+            0.055,
+            0.032,
+            0.038,
+            1.0
+          ],
+          "Darken root": 0.78,
+          "Root color length": 0.3,
+          "Random color": 0.32,
+          "Noise Scale": 22.0
+        },
+        "evaluatedCurves": 10191,
+        "evaluatedPoints": 621651
+      }
+    ]
+  },
+  "authoring": {
+    "scriptSha256": "27830147f10d6bced2d361b64ecd9eb64c2a7d95e01015c6c32c9016f414d041",
+    "scenePlanSha256": "6f5dbd0e895f90341c586417c9b60f22bb1b08f53c824c477f78fa055627bba7",
+    "macroDetails": {
+      "gender": 0.0,
+      "age": 0.5,
+      "muscle": 0.2,
+      "weight": 0.28,
+      "proportions": 0.58,
+      "height": 0.58,
+      "cupsize": 0.24,
+      "firmness": 0.68,
+      "race": {
+        "african": 0.01,
+        "asian": 0.98,
+        "caucasian": 0.01
+      }
+    },
+    "microTargets": {
+      "head/head-oval.target.gz": 0.38,
+      "head/head-invertedtriangular.target.gz": 0.2,
+      "head/head-round.target.gz": 0.06,
+      "head/head-scale-horiz-incr.target.gz": 0.05,
+      "head/head-scale-depth-decr.target.gz": 0.04,
+      "head/head-scale-vert-decr.target.gz": 0.04,
+      "forehead/forehead-temple-incr.target.gz": 0.08,
+      "forehead/forehead-trans-backward.target.gz": 0.02,
+      "eyebrows/eyebrows-trans-up.target.gz": 0.05,
+      "eyes/l-eye-scale-incr.target.gz": 0.4,
+      "eyes/r-eye-scale-incr.target.gz": 0.4,
+      "eyes/l-eye-trans-in.target.gz": 0.08,
+      "eyes/r-eye-trans-in.target.gz": 0.08,
+      "eyes/l-eye-height1-incr.target.gz": 0.11,
+      "eyes/r-eye-height1-incr.target.gz": 0.11,
+      "eyes/l-eye-height2-incr.target.gz": 0.13,
+      "eyes/r-eye-height2-incr.target.gz": 0.13,
+      "eyes/l-eye-height3-incr.target.gz": 0.05,
+      "eyes/r-eye-height3-incr.target.gz": 0.05,
+      "eyes/l-eye-epicanthus-in.target.gz": 0.28,
+      "eyes/r-eye-epicanthus-in.target.gz": 0.28,
+      "eyes/l-eye-corner1-up.target.gz": 0.03,
+      "eyes/r-eye-corner1-up.target.gz": 0.03,
+      "eyes/l-eye-push1-out.target.gz": 0.08,
+      "eyes/r-eye-push1-out.target.gz": 0.08,
+      "nose/nose-volume-decr.target.gz": 0.24,
+      "nose/nose-scale-depth-decr.target.gz": 0.2,
+      "nose/nose-scale-vert-decr.target.gz": 0.1,
+      "nose/nose-width1-decr.target.gz": 0.08,
+      "nose/nose-width2-decr.target.gz": 0.11,
+      "nose/nose-width3-decr.target.gz": 0.07,
+      "nose/nose-point-width-decr.target.gz": 0.05,
+      "nose/nose-nostrils-width-decr.target.gz": 0.05,
+      "nose/nose-curve-concave.target.gz": 0.06,
+      "nose/nose-greek-decr.target.gz": 0.08,
+      "nose/nose-hump-decr.target.gz": 0.05,
+      "nose/nose-base-up.target.gz": 0.02,
+      "mouth/mouth-scale-horiz-incr.target.gz": 0.08,
+      "mouth/mouth-scale-depth-decr.target.gz": 0.08,
+      "mouth/mouth-trans-up.target.gz": 0.04,
+      "mouth/mouth-upperlip-volume-incr.target.gz": 0.1,
+      "mouth/mouth-lowerlip-volume-incr.target.gz": 0.12,
+      "mouth/mouth-cupidsbow-incr.target.gz": 0.08,
+      "mouth/mouth-upperlip-middle-down.target.gz": 0.025,
+      "mouth/mouth-lowerlip-middle-up.target.gz": 0.025,
+      "chin/chin-width-decr.target.gz": 0.1,
+      "chin/chin-triangle.target.gz": 0.08,
+      "chin/chin-height-decr.target.gz": 0.08,
+      "chin/chin-prominent-decr.target.gz": 0.03,
+      "cheek/l-cheek-volume-incr.target.gz": 0.23,
+      "cheek/r-cheek-volume-incr.target.gz": 0.23,
+      "cheek/l-cheek-inner-incr.target.gz": 0.1,
+      "cheek/r-cheek-inner-incr.target.gz": 0.1,
+      "cheek/l-cheek-bones-incr.target.gz": 0.03,
+      "cheek/r-cheek-bones-incr.target.gz": 0.03,
+      "neck/neck-scale-horiz-decr.target.gz": 0.12,
+      "neck/measure-neck-height-incr.target.gz": 0.04,
+      "torso/measure-shoulder-dist-decr.target.gz": 0.1,
+      "torso/torso-scale-depth-decr.target.gz": 0.08,
+      "torso/torso-scale-vert-decr.target.gz": 0.05,
+      "torso/measure-waist-circ-decr.target.gz": 0.12,
+      "torso/measure-hips-circ-decr.target.gz": 0.05,
+      "legs/upperlegs-height-incr.target.gz": 0.05,
+      "legs/lowerlegs-height-incr.target.gz": 0.03,
+      "legs/measure-thigh-circ-decr.target.gz": 0.06,
+      "legs/measure-calf-circ-decr.target.gz": 0.05,
+      "arms/measure-upperarm-circ-decr.target.gz": 0.1,
+      "hands/l-hand-scale-decr.target.gz": 0.12,
+      "hands/r-hand-scale-decr.target.gz": 0.12,
+      "hands/l-hand-fingers-diameter-decr.target.gz": 0.1,
+      "hands/r-hand-fingers-diameter-decr.target.gz": 0.1
+    },
+    "identitySculpt": {
+      "lowerFaceWidthScale": 0.95,
+      "lowerFaceHeightScale": 0.78,
+      "midFaceWidthScale": 1.0,
+      "foreheadWidthScale": 1.03,
+      "eyeWidthScale": 0.96,
+      "eyeHeightScale": 1.1,
+      "eyeCenterInwardCm": 0.18,
+      "eyeSurfaceForwardCm": 0.04,
+      "outerEyeCornerLiftCm": 0.06,
+      "browRidgeBackwardCm": 0.1,
+      "mouthWidthScale": 0.9,
+      "mouthHeightScale": 0.86,
+      "mouthSurfaceBackwardCm": 0.03,
+      "noseWidthScale": 0.9,
+      "noseSurfaceBackwardCm": 0.32,
+      "cheekSurfaceForwardCm": 0.14,
+      "changedVertices": 3111,
+      "symmetric": true,
+      "authority": "canonical-references-003-006-007-008"
+    },
+    "skinMaterial": {
+      "materials": [
+        "body",
+        "ears",
+        "fingernails",
+        "genitals",
+        "lips",
+        "nipple",
+        "toenails"
+      ],
+      "method": "mpfb-packed-shader-parameter-tuning"
+    },
+    "eyeMaterial": {
+      "roughness": 0.22,
+      "coatWeight": 0.38,
+      "coatRoughness": 0.08
+    },
+    "hairGroom": {
+      "role": "HairGroomTemplate",
+      "source": "hair.blend",
+      "sourceUrl": "https://files2.makehumancommunity.org/functional/haireditor.zip",
+      "sourceArchiveSha256": "39420056faba6aaa0726a5168c9c41f2d01e278a12e216c0385e8f13d4d98ab7",
+      "bytes": 19608264,
+      "sha256": "93aedaef061dc14618a0fcfad33c3df816fa755e8093381cbdfd0fd4c34527f5",
+      "license": "CC0-1.0",
+      "licenseAuthority": "https://static.makehumancommunity.org/assets/assetpacks.html",
+      "templateObject": "straight_hair_to_shoulder",
+      "guideCurves": 252,
+      "guidePoints": 4032,
+      "lengthScale": {
+        "base": 1.62,
+        "variation": 0.08
+      },
+      "coordinateScale": 97.05906229591434,
+      "surfaceObject": "Gahyeon_G1_BodyFace_CC0",
+      "surfaceUvMap": "UVMap",
+      "scaledDistanceInputs": [
+        {
+          "modifier": "Set Hair Curve Profile",
+          "input": "Radius",
+          "identifier": "Input_3",
+          "sourceMeters": 9.999999747378752e-05,
+          "authoredCentimeters": 0.009705905802547932
+        },
+        {
+          "modifier": "Curl Hair Curves",
+          "input": "Guide Distance",
+          "identifier": "Input_4",
+          "sourceMeters": 0.009999999776482582,
+          "authoredCentimeters": 0.9705905914306641
+        },
+        {
+          "modifier": "Curl Hair Curves",
+          "input": "Radius",
+          "identifier": "Input_7",
+          "sourceMeters": 0.0020000000949949026,
+          "authoredCentimeters": 0.19411812722682953
+        },
+        {
+          "modifier": "Hair Curves Noise",
+          "input": "Distance",
+          "identifier": "Input_14",
+          "sourceMeters": 0.0010000000474974513,
+          "authoredCentimeters": 0.09705906361341476
+        },
+        {
+          "modifier": "Frizz Hair Curves",
+          "input": "Distance",
+          "identifier": "Input_11",
+          "sourceMeters": 0.009999999776482582,
+          "authoredCentimeters": 0.9705905914306641
+        },
+        {
+          "modifier": "Roll Hair Curves",
+          "input": "Roll Length",
+          "identifier": "Input_2",
+          "sourceMeters": 0.004999999888241291,
+          "authoredCentimeters": 0.48529529571533203
+        },
+        {
+          "modifier": "Roll Hair Curves",
+          "input": "Roll Radius",
+          "identifier": "Input_3",
+          "sourceMeters": 0.0005000000237487257,
+          "authoredCentimeters": 0.04852953180670738
+        },
+        {
+          "modifier": "Roll Hair Curves",
+          "input": "Roll Depth",
+          "identifier": "Input_9",
+          "sourceMeters": 0.0,
+          "authoredCentimeters": 0.0
+        },
+        {
+          "modifier": "Clump Hair Curves",
+          "input": "Guide Distance",
+          "identifier": "Input_9",
+          "sourceMeters": 0.010999999940395355,
+          "authoredCentimeters": 1.0676497220993042
+        },
+        {
+          "modifier": "Clump Hair Curves",
+          "input": "Clump Offset",
+          "identifier": "Input_13",
+          "sourceMeters": 0.0,
+          "authoredCentimeters": 0.0
+        },
+        {
+          "modifier": "Clump Hair Curves",
+          "input": "Distance Falloff",
+          "identifier": "Input_12",
+          "sourceMeters": 0.0,
+          "authoredCentimeters": 0.0
+        },
+        {
+          "modifier": "Clump Hair Curves",
+          "input": "Distance Threshold",
+          "identifier": "Input_11",
+          "sourceMeters": 0.0,
+          "authoredCentimeters": 0.0
+        }
+      ],
+      "interpolation": {
+        "nodeGroup": "Duplicate Hair Curves",
+        "sourceMeters": 0.009999999776482582,
+        "authoredCentimeters": 0.9705905914306641,
+        "amount": 200,
+        "viewportAmount": 1.0
+      },
+      "material": {
+        "Color 1": [
+          0.02,
+          0.012,
+          0.017,
+          1.0
+        ],
+        "Color 2": [
+          0.055,
+          0.032,
+          0.038,
+          1.0
+        ],
+        "Darken root": 0.78,
+        "Root color length": 0.3,
+        "Random color": 0.32,
+        "Noise Scale": 22.0
+      },
+      "evaluatedCurves": 10191,
+      "evaluatedPoints": 621651
+    },
+    "hairRestPosition": {
+      "attribute": "rest_position",
+      "domain": "POINT",
+      "dataType": "FLOAT_VECTOR",
+      "vertices": 19158
+    },
+    "detailHairStrands": 10191,
+    "neutralPose": "A-pose",
+    "workingUnits": "centimeters",
+    "artistAuthoredRegions": [
+      "rear-body",
+      "rear-hair",
+      "top-hair",
+      "rear-outfit"
+    ],
+    "knownLimits": [
+      "Exact real-world height is not observable from the canonical images; 172 cm is a G1 proportion assumption.",
+      "The jacket uses closed G1 blockout panels and must be retopologized and weighted at G2/G3.",
+      "Rear and top hair construction remain artist-authored completion pending additional reference.",
+      "Exact pore-level likeness and final production groom require the G2/G3 sculpt and groom passes.",
+      "The grounded G1 sneakers are closed-mesh proportion blockouts and require G2/G3 retopology and weighting."
+    ],
+    "invariants": {
+      "sneakerGroundCm": 0.0
+    },
+    "objectWorldBounds": [
+      {
+        "name": "Gahyeon_G1_BodyFace_CC0",
+        "boundsCm": {
+          "x": [
+            -51.762,
+            51.762
+          ],
+          "y": [
+            -31.085,
+            4.586
+          ],
+          "z": [
+            0.0,
+            172.0
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Clothes_female_casualsuit02",
+        "boundsCm": {
+          "x": [
+            -28.148,
+            27.795
+          ],
+          "y": [
+            -15.828,
+            9.49
+          ],
+          "z": [
+            73.976,
+            146.327
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Eyebrows_eyebrow001",
+        "boundsCm": {
+          "x": [
+            -6.104,
+            6.104
+          ],
+          "y": [
+            -14.547,
+            -12.072
+          ],
+          "z": [
+            161.044,
+            162.115
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Eyelashes_eyelashes01",
+        "boundsCm": {
+          "x": [
+            -5.058,
+            5.058
+          ],
+          "y": [
+            -14.626,
+            -13.245
+          ],
+          "z": [
+            159.744,
+            161.34
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Eyes_high-poly",
+        "boundsCm": {
+          "x": [
+            -4.736,
+            4.736
+          ],
+          "y": [
+            -13.94,
+            -11.712
+          ],
+          "z": [
+            159.13,
+            162.106
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Jacket_Body_L",
+        "boundsCm": {
+          "x": [
+            -18.688,
+            -2.472
+          ],
+          "y": [
+            -19.293,
+            6.194
+          ],
+          "z": [
+            96.833,
+            142.28
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Jacket_Body_R",
+        "boundsCm": {
+          "x": [
+            2.472,
+            18.688
+          ],
+          "y": [
+            -19.293,
+            6.194
+          ],
+          "z": [
+            96.833,
+            142.28
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Jacket_Cuff_L",
+        "boundsCm": {
+          "x": [
+            -51.627,
+            -36.813
+          ],
+          "y": [
+            -23.727,
+            -9.001
+          ],
+          "z": [
+            100.323,
+            112.049
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Jacket_Cuff_R",
+        "boundsCm": {
+          "x": [
+            36.813,
+            51.627
+          ],
+          "y": [
+            -23.727,
+            -9.001
+          ],
+          "z": [
+            100.323,
+            112.049
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Jacket_Hem",
+        "boundsCm": {
+          "x": [
+            -19.222,
+            19.222
+          ],
+          "y": [
+            -19.613,
+            6.514
+          ],
+          "z": [
+            95.765,
+            100.571
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Jacket_LowerSleeve_L",
+        "boundsCm": {
+          "x": [
+            -49.561,
+            -26.681
+          ],
+          "y": [
+            -20.998,
+            3.459
+          ],
+          "z": [
+            102.771,
+            122.944
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Jacket_LowerSleeve_R",
+        "boundsCm": {
+          "x": [
+            26.681,
+            49.561
+          ],
+          "y": [
+            -20.998,
+            3.459
+          ],
+          "z": [
+            102.771,
+            122.944
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Jacket_UpperSleeve_L",
+        "boundsCm": {
+          "x": [
+            -38.496,
+            -10.918
+          ],
+          "y": [
+            -9.661,
+            4.708
+          ],
+          "z": [
+            113.589,
+            141.468
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Jacket_UpperSleeve_R",
+        "boundsCm": {
+          "x": [
+            10.918,
+            38.496
+          ],
+          "y": [
+            -9.661,
+            4.708
+          ],
+          "z": [
+            113.589,
+            141.468
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Jacket_Zipper_L",
+        "boundsCm": {
+          "x": [
+            -3.524,
+            -2.883
+          ],
+          "y": [
+            -19.933,
+            -19.399
+          ],
+          "z": [
+            100.037,
+            141.212
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Jacket_Zipper_R",
+        "boundsCm": {
+          "x": [
+            2.883,
+            3.524
+          ],
+          "y": [
+            -19.933,
+            -19.399
+          ],
+          "z": [
+            100.037,
+            141.212
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Sneaker_Accent_L",
+        "boundsCm": {
+          "x": [
+            15.096,
+            21.256
+          ],
+          "y": [
+            1.623,
+            3.073
+          ],
+          "z": [
+            2.1,
+            5.2
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Sneaker_Accent_R",
+        "boundsCm": {
+          "x": [
+            -21.256,
+            -15.096
+          ],
+          "y": [
+            1.623,
+            3.073
+          ],
+          "z": [
+            2.1,
+            5.2
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Sneaker_Sole_L",
+        "boundsCm": {
+          "x": [
+            11.875,
+            24.476
+          ],
+          "y": [
+            -23.734,
+            3.123
+          ],
+          "z": [
+            0.0,
+            1.8
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Sneaker_Sole_R",
+        "boundsCm": {
+          "x": [
+            -24.476,
+            -11.875
+          ],
+          "y": [
+            -23.734,
+            3.123
+          ],
+          "z": [
+            0.0,
+            1.8
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Sneaker_Upper_L",
+        "boundsCm": {
+          "x": [
+            12.706,
+            23.645
+          ],
+          "y": [
+            -22.719,
+            2.564
+          ],
+          "z": [
+            1.5,
+            6.943
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Sneaker_Upper_R",
+        "boundsCm": {
+          "x": [
+            -23.645,
+            -12.706
+          ],
+          "y": [
+            -22.719,
+            2.564
+          ],
+          "z": [
+            1.5,
+            6.943
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Teeth_teeth_base",
+        "boundsCm": {
+          "x": [
+            -3.296,
+            3.296
+          ],
+          "y": [
+            -13.943,
+            -6.861
+          ],
+          "z": [
+            150.534,
+            155.657
+          ]
+        }
+      },
+      {
+        "name": "Gahyeon_G1_Tongue_tongue01",
+        "boundsCm": {
+          "x": [
+            -2.251,
+            2.251
+          ],
+          "y": [
+            -12.993,
+            -6.048
+          ],
+          "z": [
+            152.208,
+            154.843
+          ]
+        }
+      }
+    ]
+  }
+}
