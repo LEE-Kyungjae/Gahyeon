@@ -1,0 +1,38 @@
+name: README i18n
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "README.md"
+      - "README.en.md"
+      - "README.ja.md"
+      - "scripts/verify_readme_i18n.py"
+      - "scripts/test_verify_readme_i18n.py"
+      - ".github/workflows/readme-i18n.yml"
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "README.md"
+      - "README.en.md"
+      - "README.ja.md"
+      - "scripts/verify_readme_i18n.py"
+      - "scripts/test_verify_readme_i18n.py"
+      - ".github/workflows/readme-i18n.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: readme-i18n-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest scripts/test_verify_readme_i18n.py
+      - run: python3 scripts/verify_readme_i18n.py
