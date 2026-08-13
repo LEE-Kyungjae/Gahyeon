@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import hashlib
 import logging
 import os
 import threading
@@ -26,8 +27,27 @@ CONFIG_PATH = Path(os.getenv("PIPER_CONFIG_PATH", f"{MODEL_PATH}.json"))
 MODEL_ALIAS = os.getenv("PIPER_MODEL_ALIAS", "ze9-fp32-step5884")
 API_KEY = os.getenv("PIPER_API_KEY", "")
 MAX_CHARS = int(os.getenv("PIPER_MAX_CHARS", "500"))
-SYNTHESIS_LOCK = threading.Lock()
+USE_CUDA = os.getenv("PIPER_USE_CUDA", "false").lower() in {"1", "true", "yes"}
+ADMISSION_TIMEOUT_SECONDS = float(os.getenv("PIPER_ADMISSION_TIMEOUT_SECONDS", "0.05"))
+MODEL_SHA256 = os.getenv("PIPER_MODEL_SHA256", "")
+CONFIG_SHA256 = os.getenv("PIPER_CONFIG_SHA256", "")
+SYNTHESIS_SLOT = threading.BoundedSemaphore(1)
 voice: PiperVoice | None = None
+
+
+def file_sha256(path: Path) -> str:
+    value = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            value.update(chunk)
+    return value.hexdigest()
+
+
+def verify_runtime_identity() -> None:
+    if len(MODEL_SHA256) != 64 or file_sha256(MODEL_PATH) != MODEL_SHA256:
+        raise RuntimeError("Piper model digest does not match the deployment identity")
+    if len(CONFIG_SHA256) != 64 or file_sha256(CONFIG_PATH) != CONFIG_SHA256:
+        raise RuntimeError("Piper config digest does not match the deployment identity")
 
 
 class SynthesisRequest(BaseModel):
@@ -42,9 +62,11 @@ async def lifespan(_: FastAPI):
     global voice
     if not MODEL_PATH.is_file() or not CONFIG_PATH.is_file():
         raise RuntimeError(f"Piper model is missing: {MODEL_PATH} / {CONFIG_PATH}")
+    verify_runtime_identity()
     started = time.perf_counter()
-    voice = PiperVoice.load(MODEL_PATH, CONFIG_PATH, use_cuda=False)
-    log.info("model_loaded alias=%s seconds=%.3f", MODEL_ALIAS, time.perf_counter() - started)
+    voice = PiperVoice.load(MODEL_PATH, CONFIG_PATH, use_cuda=USE_CUDA)
+    log.info("model_loaded alias=%s cuda=%s seconds=%.3f", MODEL_ALIAS, USE_CUDA,
+             time.perf_counter() - started)
     yield
     voice = None
 
@@ -58,6 +80,9 @@ def health() -> dict[str, object]:
         "status": "healthy" if voice is not None else "loading",
         "provider": "piper",
         "model": MODEL_ALIAS,
+        "modelSha256": MODEL_SHA256,
+        "configSha256": CONFIG_SHA256,
+        "cuda": USE_CUDA,
         "ready": voice is not None,
     }
 
@@ -83,9 +108,14 @@ def synthesize(
 
     started = time.perf_counter()
     output = io.BytesIO()
-    with SYNTHESIS_LOCK:
+    admitted = SYNTHESIS_SLOT.acquire(timeout=max(0.0, ADMISSION_TIMEOUT_SECONDS))
+    if not admitted:
+        raise HTTPException(status_code=429, detail="synthesis is busy")
+    try:
         with wave.open(output, "wb") as wav_file:
             voice.synthesize_wav(text, wav_file)
+    finally:
+        SYNTHESIS_SLOT.release()
     elapsed = time.perf_counter() - started
     payload = output.getvalue()
     with wave.open(io.BytesIO(payload), "rb") as wav_file:
@@ -100,6 +130,8 @@ def synthesize(
         media_type="audio/wav",
         headers={
             "X-Piper-Model": MODEL_ALIAS,
+            "X-Piper-Model-SHA256": MODEL_SHA256,
+            "X-Piper-Config-SHA256": CONFIG_SHA256,
             "X-Generation-Seconds": f"{elapsed:.4f}",
             "X-Audio-Seconds": f"{duration:.4f}",
             "X-Realtime-Factor": f"{rtf:.4f}",

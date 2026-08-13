@@ -1,7 +1,7 @@
 package com.gahyeonbot.listeners;
 
-import com.gahyeonbot.services.assistant.GuildAssistantChannelsService;
-import com.gahyeonbot.services.assistant.VoiceAssistantService;
+import com.gahyeonbot.adapters.discord.config.GuildAssistantChannelsService;
+import com.gahyeonbot.adapters.discord.voice.VoiceAssistantService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.dv8tion.jda.api.entities.channel.middleman.AudioChannel;

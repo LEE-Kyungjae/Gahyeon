@@ -2,7 +2,7 @@ package com.gahyeonbot.commands.general;
 
 import com.gahyeonbot.commands.util.AbstractCommand;
 import com.gahyeonbot.commands.util.ResponseUtil;
-import com.gahyeonbot.services.assistant.GuildAssistantChannelsService;
+import com.gahyeonbot.adapters.discord.config.GuildAssistantChannelsService;
 import lombok.RequiredArgsConstructor;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
@@ -28,7 +28,7 @@ public class Setup extends AbstractCommand {
 
     @Override public String getName() { return "setup"; }
     @Override public Map<DiscordLocale, String> getNameLocalizations() { return localizeKorean("설정"); }
-    @Override public String getDescription() { return "가현봇 전용 채팅·음성 채널을 설정합니다."; }
+    @Override public String getDescription() { return "Gahyeon 전용 채팅·음성 채널을 설정합니다."; }
     @Override public String getDetailedDescription() { return "/설정"; }
     @Override public List<OptionData> getOptions() { return List.of(); }
 

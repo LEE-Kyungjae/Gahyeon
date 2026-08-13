@@ -1,6 +1,6 @@
 package com.gahyeonbot.entity;
 
-import com.gahyeonbot.services.ai.agent.AgentGateway;
+import com.gahyeonbot.services.ai.agent.AgentModality;
 import com.gahyeonbot.services.ai.agent.AgentRunStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -27,17 +27,17 @@ public class AgentRun {
     private AgentSession session;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private AgentGateway gateway;
+    @Column(name = "gateway", nullable = false, length = 20)
+    private AgentModality modality;
 
     @Column(name = "guild_id")
-    private Long guildId;
+    private Long toolScopeId;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private Long actorId;
 
-    @Column(nullable = false, length = 100)
-    private String username;
+    @Column(name = "username", nullable = false, length = 100)
+    private String actorDisplayName;
 
     @Column(name = "input_text", nullable = false, columnDefinition = "TEXT")
     private String inputText;

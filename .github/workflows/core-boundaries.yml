@@ -1,0 +1,107 @@
+name: Core Boundaries
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "src/main/java/**/*.java"
+      - "src/main/resources/application*.yml"
+      - "src/main/resources/db/migration/**"
+      - "build.gradle"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "scripts/verify_core_platform_boundaries.py"
+      - "scripts/test_verify_core_platform_boundaries.py"
+      - "scripts/verify_api_documentation.py"
+      - "scripts/test_verify_api_documentation.py"
+      - "scripts/verify_architecture_documentation.py"
+      - "scripts/test_verify_architecture_documentation.py"
+      - "scripts/verify_deployment_migration_blocker.py"
+      - "scripts/test_verify_deployment_migration_blocker.py"
+      - "scripts/verify_build_image_workflow.py"
+      - "scripts/test_verify_build_image_workflow.py"
+      - "scripts/fixtures/flyway-v24.sha256"
+      - "scripts/materialize_flyway_v24_fixture.py"
+      - "scripts/test_materialize_flyway_v24_fixture.py"
+      - "scripts/preflight_postgres_migrations.sh"
+      - "scripts/verify_postgres_migration_preflight.py"
+      - "scripts/test_verify_postgres_migration_preflight.py"
+      - "scripts/smoke_headless_core.sh"
+      - "scripts/test_smoke_headless_core.sh"
+      - "scripts/smoke_headless_container.sh"
+      - "scripts/test_smoke_headless_container.sh"
+      - "docs/ARCHITECTURE.md"
+      - "docs/API.md"
+      - "docs/DEPLOYMENT.md"
+      - "docs/DEPLOYMENT_MIGRATION_BLOCKER.md"
+      - "docs/unreal/PROTOCOL_V1.md"
+      - "docs/contracts/gahyeon-unreal-protocol-v1.schema.json"
+      - ".github/workflows/core-boundaries.yml"
+      - ".github/workflows/build-image.yml"
+      - ".github/workflows/postgres-migration-preflight.yml"
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "src/main/java/**/*.java"
+      - "src/main/resources/application*.yml"
+      - "src/main/resources/db/migration/**"
+      - "build.gradle"
+      - "Dockerfile"
+      - ".dockerignore"
+      - "scripts/verify_core_platform_boundaries.py"
+      - "scripts/test_verify_core_platform_boundaries.py"
+      - "scripts/verify_api_documentation.py"
+      - "scripts/test_verify_api_documentation.py"
+      - "scripts/verify_architecture_documentation.py"
+      - "scripts/test_verify_architecture_documentation.py"
+      - "scripts/verify_deployment_migration_blocker.py"
+      - "scripts/test_verify_deployment_migration_blocker.py"
+      - "scripts/verify_build_image_workflow.py"
+      - "scripts/test_verify_build_image_workflow.py"
+      - "scripts/fixtures/flyway-v24.sha256"
+      - "scripts/materialize_flyway_v24_fixture.py"
+      - "scripts/test_materialize_flyway_v24_fixture.py"
+      - "scripts/preflight_postgres_migrations.sh"
+      - "scripts/verify_postgres_migration_preflight.py"
+      - "scripts/test_verify_postgres_migration_preflight.py"
+      - "scripts/smoke_headless_core.sh"
+      - "scripts/test_smoke_headless_core.sh"
+      - "scripts/smoke_headless_container.sh"
+      - "scripts/test_smoke_headless_container.sh"
+      - "docs/ARCHITECTURE.md"
+      - "docs/API.md"
+      - "docs/DEPLOYMENT.md"
+      - "docs/DEPLOYMENT_MIGRATION_BLOCKER.md"
+      - "docs/unreal/PROTOCOL_V1.md"
+      - "docs/contracts/gahyeon-unreal-protocol-v1.schema.json"
+      - ".github/workflows/core-boundaries.yml"
+      - ".github/workflows/build-image.yml"
+      - ".github/workflows/postgres-migration-preflight.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: python3 scripts/test_verify_core_platform_boundaries.py
+      - run: python3 scripts/verify_core_platform_boundaries.py
+      - run: python3 scripts/test_verify_api_documentation.py
+      - run: python3 scripts/verify_api_documentation.py
+      - run: python3 scripts/test_verify_architecture_documentation.py
+      - run: python3 scripts/verify_architecture_documentation.py
+      - run: python3 scripts/test_verify_deployment_migration_blocker.py
+      - run: python3 scripts/verify_deployment_migration_blocker.py
+      - run: python3 scripts/test_verify_build_image_workflow.py
+      - run: python3 scripts/verify_build_image_workflow.py
+      - run: python3 scripts/test_materialize_flyway_v24_fixture.py
+      - run: python3 scripts/test_verify_postgres_migration_preflight.py
+      - run: python3 scripts/verify_postgres_migration_preflight.py
+      - run: ./scripts/test_smoke_headless_core.sh
+      - run: ./scripts/test_smoke_headless_container.sh

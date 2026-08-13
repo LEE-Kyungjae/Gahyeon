@@ -1,11 +1,12 @@
 package com.gahyeonbot.adapters.agent;
 
-import com.gahyeonbot.application.conversation.ConversationAgentPort;
+import com.gahyeonbot.application.conversation.ConversationStreamObserver;
+import com.gahyeonbot.application.conversation.StreamingConversationAgentPort;
 import com.gahyeonbot.core.conversation.ConversationRequest;
 import com.gahyeonbot.core.conversation.ConversationRejectedException;
 import com.gahyeonbot.core.conversation.ConversationResponse;
 import com.gahyeonbot.services.ai.ConversationAdmissionService;
-import com.gahyeonbot.services.ai.agent.AgentGateway;
+import com.gahyeonbot.services.ai.agent.AgentModality;
 import com.gahyeonbot.services.ai.agent.AgentResult;
 import org.springframework.stereotype.Component;
 
@@ -13,7 +14,7 @@ import org.springframework.stereotype.Component;
  * Bridges the Core contract to admission-controlled agent execution.
  */
 @Component
-public class AdmissionControlledConversationAdapter implements ConversationAgentPort {
+public class AdmissionControlledConversationAdapter implements StreamingConversationAgentPort {
     private final ConversationAdmissionService admission;
 
     public AdmissionControlledConversationAdapter(ConversationAdmissionService admission) {
@@ -22,17 +23,46 @@ public class AdmissionControlledConversationAdapter implements ConversationAgent
 
     @Override
     public ConversationResponse execute(ConversationRequest request) {
+        return execute(request, null);
+    }
+
+    @Override
+    public ConversationResponse executeStreaming(
+            ConversationRequest request,
+            ConversationStreamObserver observer) {
+        if (observer == null) throw new IllegalArgumentException("stream observer가 필요합니다.");
+        return execute(request, observer);
+    }
+
+    private ConversationResponse execute(
+            ConversationRequest request,
+            ConversationStreamObserver observer) {
         Long toolScopeId = toolScopeId(request);
         AgentResult result;
         try {
-            result = admission.chatResult(
-                    request.requestId(),
-                    request.session().id().value(),
-                    AgentGateway.valueOf(request.session().modality().name()),
-                    request.session().actorId().value(),
-                    request.displayName(),
-                    toolScopeId,
-                    request.message());
+            if (observer == null) {
+                result = admission.chatResult(
+                        request.requestId(), request.session().id().value(),
+                        AgentModality.valueOf(request.session().modality().name()),
+                        request.session().actorId(), request.displayName(),
+                        toolScopeId, request.message());
+            } else {
+                result = admission.chatResultStreaming(
+                        request.requestId(), request.session().id().value(),
+                        AgentModality.valueOf(request.session().modality().name()),
+                        request.session().actorId(), request.displayName(),
+                        toolScopeId, request.message(), new com.gahyeonbot.services.ai.agent.AgentStreamObserver() {
+                            @Override
+                            public void onTextDelta(String delta) {
+                                observer.onTextDelta(delta);
+                            }
+
+                            @Override
+                            public boolean isCancelled() {
+                                return observer.isCancelled();
+                            }
+                        });
+            }
         } catch (ConversationAdmissionService.RateLimitException exception) {
             throw new ConversationRejectedException(
                     ConversationRejectedException.Reason.RATE_LIMITED,

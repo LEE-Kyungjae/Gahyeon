@@ -1,0 +1,35 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.6",
+  "Category": "AI Character",
+  "Description": "Low-latency Unreal presentation client for Gahyeon Core",
+  "Modules": [
+    {
+      "Name": "GahyeonStage",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    }
+  ],
+	"Plugins": [
+		{
+			"Name": "AudioCapture",
+			"Enabled": true
+		},
+    {
+      "Name": "WebSockets",
+      "Enabled": true
+    },
+    {
+      "Name": "ControlRig",
+      "Enabled": true
+    },
+    {
+      "Name": "FullBodyIK",
+      "Enabled": true
+    },
+    {
+      "Name": "EnhancedInput",
+      "Enabled": true
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "cognition-completed-12",
+  "type": "cognition.response.completed",
+  "sentAt": "2026-08-11T03:00:02Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "unreal:g12:client-message-1",
+  "delivery": "durable",
+  "sequence": 20,
+  "payload": {
+    "generation": 12,
+    "runId": "run-12",
+    "content": "그건 꽤 흥미로운데요.",
+    "tools": [],
+    "durationMillis": 640
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "cognition-cancelled-11",
+  "type": "cognition.request.cancelled",
+  "sentAt": "2026-08-11T03:00:02Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "unreal:g11:client-message-0",
+  "delivery": "durable",
+  "sequence": 21,
+  "payload": {
+    "generation": 11,
+    "errorType": "CancellationException",
+    "message": "superseded by generation 12"
+  }
+}

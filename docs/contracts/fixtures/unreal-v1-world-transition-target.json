@@ -1,0 +1,21 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "event-world-target-18",
+  "type": "world.transition.target",
+  "sentAt": "2026-08-11T03:00:01Z",
+  "sessionId": "desktop:local-user",
+  "correlationId": "world-action:action-desk-18",
+  "delivery": "durable",
+  "sequence": 18,
+  "payload": {
+    "actionId": "action-desk-18",
+    "worldId": "gahyeon-home",
+    "expectedRevision": 17,
+    "room": "workspace",
+    "position": {"x": 7.0, "y": 0.0, "z": -2.0},
+    "activity": "work",
+    "interactionTarget": "desk",
+    "timeoutMs": 60000
+  }
+}

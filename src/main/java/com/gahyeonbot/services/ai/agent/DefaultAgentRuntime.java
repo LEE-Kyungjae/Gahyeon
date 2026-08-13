@@ -22,11 +22,13 @@ import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.method.MethodToolCallbackProvider;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.ZoneId;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 @ConditionalOnProperty(name = "spring.ai.model.chat", havingValue = "openai")
@@ -48,12 +50,77 @@ public class DefaultAgentRuntime implements AgentRuntime {
     private final GitHubKnowledgeTools gitHubKnowledgeTools;
     private final PaperKnowledgeTools paperKnowledgeTools;
     private final KnowledgeFreshnessTools knowledgeFreshnessTools;
+    private final AgentRuntimeAvailability availability;
+
+    @Value("${gahyeon.agent.streaming.tool-text-exclusive-enabled:false}")
+    private boolean toolTextExclusiveStreamingEnabled;
+    @Value("${spring.ai.openai.base-url:}")
+    private String configuredBaseUrl;
+    @Value("${spring.ai.openai.chat.options.model:}")
+    private String configuredModel;
+    @Value("${gahyeon.agent.streaming.verified-base-url:}")
+    private String verifiedStreamingBaseUrl;
+    @Value("${gahyeon.agent.streaming.verified-model:}")
+    private String verifiedStreamingModel;
+    private final AtomicBoolean streamingContractHealthy = new AtomicBoolean(true);
+
+    @Override
+    public boolean isReady() {
+        return availability.isReady();
+    }
 
     @Override
     public AgentResult execute(AgentRequest request) {
+        return execute(request, null, AgentExecutionControl.NONE);
+    }
+
+    @Override
+    public AgentResult execute(AgentRequest request, AgentExecutionControl control) {
+        return execute(request, null, Objects.requireNonNull(control, "execution control"));
+    }
+
+    @Override
+    public AgentResult executeStreaming(AgentRequest request, AgentStreamObserver observer) {
+        return execute(
+                request,
+                Objects.requireNonNull(observer, "stream observer"),
+                AgentExecutionControl.NONE);
+    }
+
+    @Override
+    public AgentResult executeStreaming(
+            AgentRequest request,
+            AgentStreamObserver observer,
+            AgentExecutionControl control) {
+        AgentStreamObserver delegate = Objects.requireNonNull(observer, "stream observer");
+        AgentExecutionControl executionControl = Objects.requireNonNull(control, "execution control");
+        AgentStreamObserver guarded = new AgentStreamObserver() {
+            @Override
+            public void onTextDelta(String delta) {
+                if (isCancelled()) throw new AgentStreamCancelledException();
+                delegate.onTextDelta(delta);
+            }
+
+            @Override
+            public boolean isCancelled() {
+                return executionControl.isCancelled() || delegate.isCancelled();
+            }
+        };
+        return execute(
+                request,
+                guarded,
+                executionControl);
+    }
+
+    private AgentResult execute(
+            AgentRequest request,
+            AgentStreamObserver observer,
+            AgentExecutionControl control) {
         long startedNanos = System.nanoTime();
+        ensureNotCancelled(observer, control);
         AgentRun run = ledger.create(request.toRunRequest());
         if (run.getStatus() == AgentRunStatus.SUCCEEDED) {
+            ensureNotCancelled(observer, control);
             return new AgentResult(run.getId(), run.getOutputText(), List.of(), Duration.ZERO);
         }
         if (run.getStatus() != AgentRunStatus.QUEUED) {
@@ -62,15 +129,20 @@ public class DefaultAgentRuntime implements AgentRuntime {
                     "이미 처리 중이거나 종료된 요청입니다: " + run.getStatus(), null);
         }
 
-        ledger.transition(run.getId(), AgentRunStatus.RUNNING, AgentEventType.RUN_STARTED, null);
-        return runLoop(request, run, startedNanos, null);
+        ledger.startInteractiveRun(
+                run.getId(), request.actorId(), "client_generation_changed");
+        control.onRunStarted(
+                run.getId(),
+                () -> cancelRun(run.getId(), request.actorId(), "client_generation_changed"));
+        ensureNotCancelled(observer, control);
+        return runLoop(request, run, startedNanos, null, observer, control);
     }
 
     @Override
-    public AgentResult resume(String runId, long actorUserId) {
+    public AgentResult resume(String runId, ActorId actorId) {
         AgentRun run = runRepository.findByIdWithSession(runId)
                 .orElseThrow(() -> new IllegalArgumentException("실행을 찾을 수 없습니다: " + runId));
-        if (run.getUserId() != actorUserId) {
+        if (run.getActorId() != actorId.value()) {
             throw new SecurityException("이 실행을 재개할 권한이 없습니다.");
         }
         if (run.getStatus() != AgentRunStatus.WAITING_APPROVAL) {
@@ -82,14 +154,19 @@ public class DefaultAgentRuntime implements AgentRuntime {
         AgentRequest request = new AgentRequest(
                 run.getRequestId(),
                 run.getSession().getSessionKey(),
-                run.getGateway(),
-                run.getGuildId(),
-                run.getUserId(),
-                run.getUsername(),
+                run.getModality(),
+                run.getToolScopeId(),
+                new ActorId(run.getActorId()),
+                run.getActorDisplayName(),
                 run.getInputText(),
                 run.getMaxSteps());
-        ledger.transition(runId, AgentRunStatus.RUNNING, AgentEventType.RUN_RESUMED, "approval");
-        return runLoop(request, run, System.nanoTime(), null);
+        ledger.claimResume(
+                runId,
+                AgentRunStatus.WAITING_APPROVAL,
+                AgentEventType.RUN_RESUMED,
+                "approval");
+        return runLoop(
+                request, run, System.nanoTime(), null, null, AgentExecutionControl.NONE);
     }
 
     @Override
@@ -102,25 +179,32 @@ public class DefaultAgentRuntime implements AgentRuntime {
         AgentRequest request = new AgentRequest(
                 run.getRequestId(),
                 run.getSession().getSessionKey(),
-                run.getGateway(),
-                run.getGuildId(),
-                run.getUserId(),
-                run.getUsername(),
+                run.getModality(),
+                run.getToolScopeId(),
+                new ActorId(run.getActorId()),
+                run.getActorDisplayName(),
                 run.getInputText(),
                 run.getMaxSteps());
-        ledger.transition(runId, AgentRunStatus.RUNNING,
-                AgentEventType.BACKGROUND_RESULT_RECEIVED, limited(backgroundResult));
-        return runLoop(request, run, System.nanoTime(), backgroundResult);
+        ledger.claimResume(
+                runId,
+                AgentRunStatus.WAITING_BACKGROUND,
+                AgentEventType.BACKGROUND_RESULT_RECEIVED,
+                limited(backgroundResult));
+        return runLoop(
+                request, run, System.nanoTime(), backgroundResult, null,
+                AgentExecutionControl.NONE);
     }
 
     private AgentResult runLoop(
             AgentRequest request,
             AgentRun run,
             long startedNanos,
-            String backgroundResult) {
+            String backgroundResult,
+            AgentStreamObserver streamObserver,
+            AgentExecutionControl control) {
         List<String> usedTools = new ArrayList<>();
         try {
-            MemorySnapshot memory = loadMemory(request.userId());
+            MemorySnapshot memory = loadMemory(request.actorId());
             List<Message> messages = initialMessages(request, memory, backgroundResult);
             ToolCallback[] callbacks = MethodToolCallbackProvider.builder()
                     .toolObjects(weatherTools, gitHubKnowledgeTools, paperKnowledgeTools, knowledgeFreshnessTools)
@@ -137,9 +221,46 @@ public class DefaultAgentRuntime implements AgentRuntime {
             AgentLoopGuard loopGuard = new AgentLoopGuard(REPEATED_TOOL_CALL_LIMIT);
 
             while (true) {
+                ensureNotCancelled(streamObserver, control);
                 AgentRun stepped = ledger.advanceStep(
                         run.getId(), AgentEventType.MODEL_CALL_STARTED, null);
-                ChatResponse response = chatModel.call(new Prompt(messages, options));
+                if (!availability.tryAcquireProviderCall()) {
+                    meterRegistry.counter("gahyeonbot.agent.provider.circuit.rejections").increment();
+                    throw new AgentProviderUnavailableException();
+                }
+                ChatResponse response;
+                try {
+                    response = new ToolSafeChatStreamer(
+                            chatModel,
+                            StreamingModelVerification.allows(
+                                    toolTextExclusiveStreamingEnabled,
+                                    configuredBaseUrl,
+                                    configuredModel,
+                                    verifiedStreamingBaseUrl,
+                                    verifiedStreamingModel)
+                                    && streamingContractHealthy.get())
+                            .call(new Prompt(messages, options), streamObserver);
+                } catch (ToolStreamingContractViolationException violation) {
+                    availability.recordProviderSuccess();
+                    streamingContractHealthy.set(false);
+                    meterRegistry.counter("gahyeonbot.agent.streaming.contract.violations").increment();
+                    log.error("모델 streaming tool/text 배타 계약 위반; 이후 요청은 동기 fallback 사용", violation);
+                    throw violation;
+                } catch (ModelProviderException providerFailure) {
+                    if (cancelled(streamObserver, control)) {
+                        availability.recordProviderSuccess();
+                        throw new AgentStreamCancelledException(providerFailure);
+                    }
+                    availability.recordProviderFailure();
+                    meterRegistry.counter("gahyeonbot.agent.provider.failures").increment();
+                    throw providerFailure;
+                } catch (AgentStreamCancelledException
+                         | AgentStreamObserverDeliveryException nonProviderFailure) {
+                    availability.recordProviderSuccess();
+                    throw nonProviderFailure;
+                }
+                availability.recordProviderSuccess();
+                ensureNotCancelled(streamObserver, control);
                 AssistantMessage assistant = response.getResult().getOutput();
                 ledger.appendToolEvent(
                         run.getId(), AgentEventType.MODEL_CALL_COMPLETED, null,
@@ -149,15 +270,20 @@ public class DefaultAgentRuntime implements AgentRuntime {
                 if (!assistant.hasToolCalls()) {
                     String content = sanitizeFinalResponse(assistant.getText());
                     if (content.isBlank()) throw new IllegalStateException("모델의 최종 응답이 비어 있습니다.");
-                    ledger.succeed(run.getId(), content);
-                    memoryUseCase.remember(new ActorId(request.userId()), request.message(), content);
+                    boolean committed = control.commitIfActive(() -> {
+                        ensureNotCancelled(streamObserver, control);
+                        ledger.succeed(run.getId(), content);
+                        memoryUseCase.remember(request.actorId(), request.message(), content);
+                    });
+                    if (!committed) throw new AgentStreamCancelledException();
                     Duration duration = Duration.ofNanos(System.nanoTime() - startedNanos);
-                    recordMetrics(request.gateway(), "succeeded", duration);
+                    recordMetrics(request.modality(), "succeeded", duration);
                     return new AgentResult(run.getId(), content, usedTools, duration);
                 }
 
                 List<ToolResponseMessage.ToolResponse> toolResponses = new ArrayList<>();
                 for (AssistantMessage.ToolCall toolCall : assistant.getToolCalls()) {
+                    ensureNotCancelled(streamObserver, control);
                     loopGuard.recordToolCall(toolCall.name(), toolCall.arguments());
                     ToolCallback callback = callbackByName.get(toolCall.name());
                     if (callback == null) {
@@ -184,6 +310,9 @@ public class DefaultAgentRuntime implements AgentRuntime {
                         }
                     }
 
+                    if (!control.tryStartSideEffect()) {
+                        throw new AgentStreamCancelledException();
+                    }
                     ledger.appendToolEvent(
                             run.getId(), AgentEventType.TOOL_CALL_STARTED, toolCall.name(), null);
                     String toolResult;
@@ -194,6 +323,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
                                 toolCall.name(), limited(toolFailure.getMessage()));
                         throw toolFailure;
                     }
+                    ensureNotCancelled(streamObserver, control);
                     ledger.appendToolEvent(run.getId(), AgentEventType.TOOL_CALL_COMPLETED,
                             toolCall.name(), limited(toolResult));
                     usedTools.add(toolCall.name());
@@ -207,10 +337,23 @@ public class DefaultAgentRuntime implements AgentRuntime {
                 }
             }
         } catch (AgentApprovalRequiredException approval) {
-            recordMetrics(request.gateway(), "waiting_approval",
+            if (cancelled(streamObserver, control)) {
+                cancelRun(run.getId(), request.actorId(), "client_generation_changed");
+                recordMetrics(request.modality(), "cancelled",
+                        Duration.ofNanos(System.nanoTime() - startedNanos));
+                throw new AgentStreamCancelledException(approval);
+            }
+            recordMetrics(request.modality(), "waiting_approval",
                     Duration.ofNanos(System.nanoTime() - startedNanos));
             throw approval;
         } catch (Exception failure) {
+            if (cancelled(streamObserver, control)) {
+                cancelRun(run.getId(), request.actorId(), "client_generation_changed");
+                Duration duration = Duration.ofNanos(System.nanoTime() - startedNanos);
+                recordMetrics(request.modality(), "cancelled", duration);
+                if (failure instanceof AgentStreamCancelledException cancelled) throw cancelled;
+                throw new AgentStreamCancelledException(failure);
+            }
             String errorCode = failure instanceof AgentRunLedger.StepLimitExceededException
                     ? "STEP_LIMIT_EXCEEDED"
                     : "AGENT_EXECUTION_FAILED";
@@ -220,17 +363,39 @@ public class DefaultAgentRuntime implements AgentRuntime {
                 log.error("에이전트 실패 원장 기록 실패 run={}", run.getId(), ledgerFailure);
             }
             Duration duration = Duration.ofNanos(System.nanoTime() - startedNanos);
-            recordMetrics(request.gateway(), "failed", duration);
+            recordMetrics(request.modality(), "failed", duration);
             throw new AgentExecutionException(
                     run.getId(), errorCode, "에이전트 실행에 실패했습니다.", failure);
         }
     }
 
-    private MemorySnapshot loadMemory(Long userId) {
+    private void ensureNotCancelled(
+            AgentStreamObserver observer,
+            AgentExecutionControl control) {
+        if (cancelled(observer, control)) throw new AgentStreamCancelledException();
+    }
+
+    private boolean cancelled(
+            AgentStreamObserver observer,
+            AgentExecutionControl control) {
+        return control.isCancelled()
+                || observer != null
+                && (observer.isCancelled() || Thread.currentThread().isInterrupted());
+    }
+
+    private void cancelRun(String runId, ActorId actorId, String reason) {
         try {
-            return memoryUseCase.recall(new ActorId(userId));
+            ledger.cancel(runId, actorId, reason);
+        } catch (Exception ledgerFailure) {
+            log.error("에이전트 취소 원장 기록 실패 run={}", runId, ledgerFailure);
+        }
+    }
+
+    private MemorySnapshot loadMemory(ActorId actorId) {
+        try {
+            return memoryUseCase.recall(actorId);
         } catch (Exception e) {
-            log.warn("에이전트 메모리 로드 실패 user={}", userId, e);
+            log.warn("에이전트 메모리 로드 실패 actor={}", actorId.value(), e);
             return MemorySnapshot.EMPTY;
         }
     }
@@ -246,7 +411,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
                         ? new UserMessage(message.content())
                         : new AssistantMessage(message.content())));
         messages.add(new UserMessage("""
-                [gateway]
+                [modality]
                 %s
 
                 [응답 매체 지침]
@@ -258,8 +423,8 @@ public class DefaultAgentRuntime implements AgentRuntime {
                 [현재 질문]
                 %s
                 """.formatted(
-                request.gateway(),
-                gatewayGuidance(request.gateway()),
+                request.modality(),
+                modalityGuidance(request.modality()),
                 ZonedDateTime.now(ZoneId.of("Asia/Seoul")),
                 request.message())));
         if (backgroundResult != null && !backgroundResult.isBlank()) {
@@ -273,8 +438,8 @@ public class DefaultAgentRuntime implements AgentRuntime {
         return messages;
     }
 
-    private static String gatewayGuidance(AgentGateway gateway) {
-        return switch (gateway) {
+    private static String modalityGuidance(AgentModality modality) {
+        return switch (modality) {
             case VOICE -> """
                     음성으로 듣기 편한 문장으로 답한다. 기본은 핵심부터 2~4문장으로 말하되,
                     사용자가 설명·비교·방법·논문 내용을 요구하면 이해에 필요한 만큼 충분히 설명한다.
@@ -288,12 +453,12 @@ public class DefaultAgentRuntime implements AgentRuntime {
         };
     }
 
-    private void recordMetrics(AgentGateway gateway, String status, Duration duration) {
+    private void recordMetrics(AgentModality modality, String status, Duration duration) {
         meterRegistry.counter("gahyeonbot.agent.runs",
-                "gateway", gateway.name().toLowerCase(Locale.ROOT),
+                "modality", modality.name().toLowerCase(Locale.ROOT),
                 "status", status).increment();
         Timer.builder("gahyeonbot.agent.run.duration")
-                .tag("gateway", gateway.name().toLowerCase(Locale.ROOT))
+                .tag("modality", modality.name().toLowerCase(Locale.ROOT))
                 .tag("status", status)
                 .register(meterRegistry)
                 .record(duration);

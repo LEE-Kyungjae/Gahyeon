@@ -13,8 +13,9 @@ import {
 import type { CharacterRenderer } from './character-renderer'
 import { PlaceholderCharacterRenderer } from './placeholder-character'
 import { buildNavigationPath } from './navigation-path'
-import type { StageState } from './stage-state'
+import type { PendingWorldAction, StageState, Vector3State } from './stage-state'
 import { GahyeonHomeEnvironment, type WorldEnvironment } from './world-environment'
+import { WorldActionInteractionGate } from './world-action-interaction'
 
 export class ThreeStage {
   private readonly scene = new Scene()
@@ -25,13 +26,21 @@ export class ThreeStage {
   private environment: WorldEnvironment = new GahyeonHomeEnvironment()
   private character: CharacterRenderer = new PlaceholderCharacterRenderer()
   private state: StageState
-  private room: string
+  private currentRoom: string
+  private navigationTargetRoom: string
   private navigationPath: Vector3[] = []
+  private notifiedWorldActionId?: string
+  private readonly worldActionInteraction = new WorldActionInteractionGate()
   private lookingGlassInitialized = false
 
-  constructor(private readonly host: HTMLElement, initialState: StageState) {
+  constructor(
+    private readonly host: HTMLElement,
+    initialState: StageState,
+    private readonly onWorldActionArrived?: (action: PendingWorldAction) => void,
+  ) {
     this.state = initialState
-    this.room = initialState.room
+    this.currentRoom = initialState.room
+    this.navigationTargetRoom = initialState.room
     this.scene.background = new Color('#171924')
     this.scene.fog = new Fog('#171924', 9, 24)
     this.renderer = new WebGLRenderer({ antialias: true, alpha: false })
@@ -48,6 +57,14 @@ export class ThreeStage {
     const grid = new GridHelper(24, 24, '#5d596b', '#302f3c')
     grid.position.y = 0.002
     this.scene.add(ambient, key, grid, this.environment.object, this.character.object)
+    this.character.object.position.set(
+      initialState.position.x,
+      initialState.position.y,
+      initialState.position.z,
+    )
+    this.navigationPath = initialNavigationPath(initialState)
+      .map(point => new Vector3(point.x, point.y, point.z))
+    this.navigationTargetRoom = stageDestination(initialState).room
     this.camera.position.set(0, 2.15, 6.7)
 
     this.observer = new ResizeObserver(() => this.resize())
@@ -57,22 +74,31 @@ export class ThreeStage {
   }
 
   setState(state: StageState) {
-    const destinationChanged = state.position.x !== this.state.position.x
-      || state.position.y !== this.state.position.y
-      || state.position.z !== this.state.position.z
-      || state.room !== this.state.room
+    const previousDestination = stageDestination(this.state)
+    const destination = stageDestination(state)
+    const actionChanged = state.pendingWorldAction?.actionId
+      !== this.state.pendingWorldAction?.actionId
+    const destinationChanged = !samePosition(destination.position, previousDestination.position)
+      || destination.room !== previousDestination.room
     if (destinationChanged) {
-      this.navigationPath = buildNavigationPath(this.room, state.room, state.position)
+      this.navigationPath = buildNavigationPath(
+        this.currentRoom,
+        destination.room,
+        destination.position,
+      )
         .map(point => new Vector3(point.x, point.y, point.z))
-      this.room = state.room
+      this.navigationTargetRoom = destination.room
     }
+    if (destinationChanged || actionChanged) this.notifiedWorldActionId = undefined
     this.state = state
   }
 
   setCharacter(character: CharacterRenderer) {
+    const position = this.character.object.position.clone()
     this.scene.remove(this.character.object)
     this.character.dispose()
     this.character = character
+    this.character.object.position.copy(position)
     this.scene.add(character.object)
   }
 
@@ -125,18 +151,18 @@ export class ThreeStage {
   private readonly render = (frameTime: number) => {
     const delta = Math.min((frameTime - this.lastFrameTime) / 1_000, 0.05)
     this.lastFrameTime = frameTime
-    this.advanceNavigation(delta)
+    const reflexOwnsPresentation = isImmediateActivity(this.state.activity)
+    if (!reflexOwnsPresentation) this.advanceNavigation(delta)
     const characterPosition = this.character.object.position.clone()
     const desiredCamera = characterPosition.clone().add(new Vector3(0, 2.15, 6.7))
     this.camera.position.lerp(desiredCamera, Math.min(1, delta * 2.8))
     this.camera.lookAt(characterPosition.clone().add(new Vector3(0, 1.35, 0)))
     this.character.update(
-      this.navigationPath.length > 0
-        ? { ...this.state, activity: 'walk' }
-        : this.state,
+      presentationState(this.state, this.navigationPath.length > 0, reflexOwnsPresentation),
       delta,
     )
     this.renderer.render(this.scene, this.camera)
+    this.notifyWorldActionArrival(delta, reflexOwnsPresentation)
   }
 
   private advanceNavigation(deltaSeconds: number) {
@@ -148,9 +174,23 @@ export class ThreeStage {
     if (remaining <= step) {
       position.copy(target)
       this.navigationPath.shift()
+      if (this.navigationPath.length === 0) {
+        this.currentRoom = this.navigationTargetRoom
+      }
       return
     }
     position.addScaledVector(target.clone().sub(position).normalize(), step)
+  }
+
+  private notifyWorldActionArrival(deltaSeconds: number, paused: boolean) {
+    const action = this.state.pendingWorldAction
+    if (action?.actionId === this.notifiedWorldActionId) return
+    const destination = stageDestination(this.state)
+    const arrived = destination.room === this.currentRoom
+      && samePosition(destination.position, vectorState(this.character.object.position), 0.025)
+    if (!this.worldActionInteraction.advance(action, arrived, deltaSeconds, paused) || !action) return
+    this.notifiedWorldActionId = action.actionId
+    this.onWorldActionArrived?.(action)
   }
 
   private resize() {
@@ -160,4 +200,47 @@ export class ThreeStage {
     this.camera.aspect = width / height
     this.camera.updateProjectionMatrix()
   }
+}
+
+export function stageDestination(state: StageState) {
+  return state.pendingWorldAction
+    ? { room: state.pendingWorldAction.room, position: state.pendingWorldAction.position }
+    : { room: state.room, position: state.position }
+}
+
+/** Rehydrates a Core target that may have arrived before the async stage mounted. */
+export function initialNavigationPath(state: StageState) {
+  const action = state.pendingWorldAction
+  return action
+    ? buildNavigationPath(state.room, action.room, action.position)
+    : []
+}
+
+export function presentationState(
+  state: StageState,
+  navigating: boolean,
+  reflexOwnsPresentation = isImmediateActivity(state.activity),
+): StageState {
+  if (reflexOwnsPresentation) return state
+  if (navigating) return { ...state, activity: 'walk' }
+  return state.pendingWorldAction
+    ? { ...state, activity: state.pendingWorldAction.activity }
+    : state
+}
+
+function isImmediateActivity(activity: string) {
+  return activity === 'attention'
+    || activity === 'listening'
+    || activity === 'thinking'
+    || activity === 'conversation'
+}
+
+function vectorState(position: Vector3): Vector3State {
+  return { x: position.x, y: position.y, z: position.z }
+}
+
+function samePosition(left: Vector3State, right: Vector3State, epsilon = 0) {
+  return Math.abs(left.x - right.x) <= epsilon
+    && Math.abs(left.y - right.y) <= epsilon
+    && Math.abs(left.z - right.z) <= epsilon
 }

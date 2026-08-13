@@ -1,5 +1,6 @@
 package com.gahyeonbot.services.ai.agent;
 
+import com.gahyeonbot.core.identity.ActorId;
 import com.gahyeonbot.entity.AgentRun;
 import com.gahyeonbot.entity.AgentRunEvent;
 import com.gahyeonbot.entity.AgentSession;
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -37,10 +39,10 @@ public class AgentRunLedger {
                 .id(UUID.randomUUID().toString())
                 .requestId(request.requestId())
                 .session(session)
-                .gateway(request.gateway())
-                .guildId(request.guildId())
-                .userId(request.userId())
-                .username(request.username())
+                .modality(request.modality())
+                .toolScopeId(request.toolScopeId())
+                .actorId(request.actorId().value())
+                .actorDisplayName(request.actorDisplayName())
                 .inputText(request.input())
                 .status(AgentRunStatus.QUEUED)
                 .currentStep(0)
@@ -101,7 +103,63 @@ public class AgentRunLedger {
             String toolName,
             String payload) {
         AgentRun run = locked(runId);
+        if (run.getStatus().terminal()) {
+            throw new IllegalStateException(
+                    "종료된 agent run에는 이벤트를 추가할 수 없습니다: " + run.getStatus());
+        }
         appendLocked(run, eventType, toolName, payload);
+    }
+
+    /**
+     * Cancels older interactive work for the same actor after a replacement run is persisted.
+     * Background continuations deliberately remain independent.
+     */
+    @Transactional
+    public AgentRun startInteractiveRun(
+            String runId,
+            ActorId actorId,
+            String reason) {
+        AgentRun current = locked(runId);
+        if (current.getActorId() != actorId.value()) {
+            throw new SecurityException("이 실행을 대체할 권한이 없습니다.");
+        }
+        if (current.getStatus() != AgentRunStatus.QUEUED) {
+            throw new IllegalStateException(
+                    "QUEUED 상태의 agent run만 시작할 수 있습니다: " + current.getStatus());
+        }
+        List<AgentRun> superseded = runRepository.findSupersededForUpdate(
+                actorId.value(),
+                current.getId(),
+                current.getCreatedAt(),
+                List.of(
+                        AgentRunStatus.QUEUED,
+                        AgentRunStatus.RUNNING,
+                        AgentRunStatus.WAITING_APPROVAL));
+        superseded.forEach(run -> transitionLocked(
+                run, AgentRunStatus.CANCELLED, AgentEventType.RUN_CANCELLED, reason));
+        return transitionLocked(
+                current, AgentRunStatus.RUNNING, AgentEventType.RUN_STARTED, null);
+    }
+
+    /**
+     * Atomically claims a paused run for one resumer.
+     *
+     * <p>This deliberately differs from the idempotent general transition method: only the caller
+     * that observes {@code expected} while holding the run row lock may enter the resumed loop.</p>
+     */
+    @Transactional
+    public AgentRun claimResume(
+            String runId,
+            AgentRunStatus expected,
+            AgentEventType eventType,
+            String payload) {
+        AgentRun run = locked(runId);
+        if (run.getStatus() != expected) {
+            throw new IllegalStateException(
+                    "재개할 수 없는 agent run 상태입니다: expected=" + expected
+                            + ", actual=" + run.getStatus());
+        }
+        return transitionLocked(run, AgentRunStatus.RUNNING, eventType, payload);
     }
 
     @Transactional
@@ -120,9 +178,9 @@ public class AgentRunLedger {
     }
 
     @Transactional
-    public AgentRun cancel(String runId, long actorUserId, String reason) {
+    public AgentRun cancel(String runId, ActorId actorId, String reason) {
         AgentRun run = locked(runId);
-        if (run.getUserId() != actorUserId) {
+        if (run.getActorId() != actorId.value()) {
             throw new SecurityException("이 실행을 취소할 권한이 없습니다.");
         }
         if (run.getStatus().terminal()) return run;
@@ -151,9 +209,9 @@ public class AgentRunLedger {
             AgentSession created = AgentSession.builder()
                     .id(UUID.randomUUID().toString())
                     .sessionKey(request.sessionKey())
-                    .gateway(request.gateway())
-                    .guildId(request.guildId())
-                    .userId(request.userId())
+                    .modality(request.modality())
+                    .toolScopeId(request.toolScopeId())
+                    .actorId(request.actorId().value())
                     .createdAt(now)
                     .updatedAt(now)
                     .build();

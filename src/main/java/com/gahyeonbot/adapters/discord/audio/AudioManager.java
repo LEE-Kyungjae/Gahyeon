@@ -45,12 +45,15 @@ public class AudioManager {
         AudioSourceManagers.registerRemoteSources(playerManager);
         AudioSourceManagers.registerLocalSource(playerManager);
 
-        spotifyApi = new SpotifyApi.Builder()
-                .setClientId(config.getSpotifyClientId())
-                .setClientSecret(config.getSpotifyClientSecret())
-                .build();
-
-        authenticateSpotify();
+        if (hasText(config.getSpotifyClientId()) && hasText(config.getSpotifyClientSecret())) {
+            spotifyApi = new SpotifyApi.Builder()
+                    .setClientId(config.getSpotifyClientId())
+                    .setClientSecret(config.getSpotifyClientSecret())
+                    .build();
+            authenticateSpotify();
+        } else {
+            logger.info("Spotify credential이 없어 LavaPlayer 전용 모드로 시작합니다.");
+        }
     }
 
     /**
@@ -90,6 +93,10 @@ public class AudioManager {
      * @return SoundCloud 검색 쿼리 문자열
      */
     public String getSoundCloudTrackFromSpotify(String spotifyQuery) {
+        if (spotifyApi == null) {
+            logger.debug("Spotify 연동이 비활성화되어 있습니다.");
+            return null;
+        }
         if (spotifyQuery == null || spotifyQuery.trim().isEmpty()) {
             logger.warn("유효하지 않은 Spotify 쿼리");
             return null;
@@ -107,6 +114,10 @@ public class AudioManager {
             logger.error("Spotify API 오류", e);
             return null;
         }
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     /**

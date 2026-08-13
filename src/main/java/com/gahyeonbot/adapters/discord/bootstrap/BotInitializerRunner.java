@@ -32,6 +32,33 @@ import java.sql.Statement;
 @RequiredArgsConstructor
 public class BotInitializerRunner implements CommandLineRunner {
 
+    public enum ActivationState {
+        STARTING(false),
+        READY(true),
+        STANDBY(true),
+        DISABLED(true),
+        FAILED(false);
+
+        private final boolean deploymentReady;
+
+        ActivationState(boolean deploymentReady) {
+            this.deploymentReady = deploymentReady;
+        }
+
+        public boolean isDeploymentReady() {
+            return deploymentReady;
+        }
+    }
+
+    private enum LeadershipOutcome {
+        ACQUIRED,
+        STANDBY,
+        FAILED
+    }
+
+    private record LeadershipAttempt(LeadershipOutcome outcome, String reason) {
+    }
+
     private static final Logger logger = LoggerFactory.getLogger(BotInitializerRunner.class);
     private static final long DEFAULT_LOCK_KEY = 1220338955082399845L;
 
@@ -49,7 +76,8 @@ public class BotInitializerRunner implements CommandLineRunner {
     private long leaderLockKey;
 
     private ShardManager shardManager;
-    private volatile boolean ready = false;
+    private volatile String activationReason = "Discord activation has not started";
+    private volatile ActivationState activationState = ActivationState.STARTING;
     private Connection leaderLockConnection;
     private volatile boolean hasLeadership = false;
 
@@ -63,11 +91,10 @@ public class BotInitializerRunner implements CommandLineRunner {
     public void run(String... args) throws Exception {
         if (!botEnabled) {
             logger.info("bot.enabled=false 설정으로 Discord 봇 초기화를 건너뜁니다.");
-            ready = true;
+            transitionTo(ActivationState.DISABLED, "bot.enabled=false");
             return;
         }
         tryActivateBot("startup");
-        ready = true;
     }
 
     @Scheduled(fixedDelayString = "${bot.leader-lock.retry-ms:30000}")
@@ -82,17 +109,38 @@ public class BotInitializerRunner implements CommandLineRunner {
         if (shardManager != null) {
             return;
         }
-        if (!acquireLeadershipIfNeeded()) {
-            logger.info("리더십 락 미획득({}) - 봇 초기화를 대기합니다.", reason);
+        if (!BotInitializer.isUsableToken(config.getToken())) {
+            transitionTo(ActivationState.FAILED, "Discord token is missing or invalid");
+            logger.warn("Discord token이 없거나 placeholder여서 readiness를 DOWN으로 유지합니다.");
             return;
         }
+        LeadershipAttempt leadership = acquireLeadershipIfNeeded();
+        if (leadership.outcome() == LeadershipOutcome.STANDBY) {
+            transitionTo(ActivationState.STANDBY, leadership.reason());
+            logger.info("리더십 락 미획득({}) - 정상 standby로 봇 초기화를 대기합니다.", reason);
+            return;
+        }
+        if (leadership.outcome() == LeadershipOutcome.FAILED) {
+            transitionTo(ActivationState.FAILED, leadership.reason());
+            return;
+        }
+        transitionTo(ActivationState.STARTING,
+                "Discord leadership acquired; initializing (" + reason + ")");
         try {
             startBot();
+            if (shardManager == null) {
+                throw new IllegalStateException("Discord initialization returned no ShardManager");
+            }
+            transitionTo(ActivationState.READY, "Discord shards connected");
         } catch (IllegalArgumentException e) {
-            logger.warn("Discord 봇 초기화 실패: {}. 애플리케이션은 계속 실행됩니다.", e.getMessage());
+            logger.warn("Discord 봇 초기화 실패: {}. readiness를 DOWN으로 유지합니다.", e.getMessage());
+            transitionTo(ActivationState.FAILED, "Discord token is missing or invalid");
+            resetFailedShardManager();
             releaseLeadership();
         } catch (Exception e) {
             logger.error("Discord 봇 초기화 중 예기치 않은 오류 발생", e);
+            transitionTo(ActivationState.FAILED, "Discord initialization failed");
+            resetFailedShardManager();
             releaseLeadership();
         }
     }
@@ -108,9 +156,7 @@ public class BotInitializerRunner implements CommandLineRunner {
         logger.info("JDA 준비 완료. 총 {}개 길드 감지됨.", shardManager.getGuilds().size());
         EmbedUtil.init(shardManager.getShards().get(0).getSelfUser().getEffectiveAvatarUrl());
 
-        CommandManager commandManager = new CommandManager();
-        commandManager.addCommands(commandRegistry.getCommands());
-        commandManager.setShardManager(shardManager);
+        CommandManager commandManager = assembleCommandManager(commandRegistry, shardManager);
         commandManager.synchronizeCommands().join();
 
         ListenerManager listenerManager = new ListenerManager(
@@ -121,48 +167,97 @@ public class BotInitializerRunner implements CommandLineRunner {
         logger.info("모든 명령어 등록 및 서비스 기동이 완료되었습니다.");
     }
 
-    private boolean acquireLeadershipIfNeeded() {
+    static CommandManager assembleCommandManager(
+            CommandRegistry registry, ShardManager shardManager) {
+        CommandManager manager = new CommandManager();
+        manager.addCommands(registry.getCommands());
+        manager.setShardManager(shardManager);
+        if (!manager.registeredStableNames().equals(
+                registry.getCommands().stream().map(command -> command.getName())
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet()))) {
+            throw new IllegalStateException("Discord command assembly lost a registry command");
+        }
+        return manager;
+    }
+
+    private LeadershipAttempt acquireLeadershipIfNeeded() {
         if (!leaderLockEnabled) {
             hasLeadership = true;
-            return true;
+            return new LeadershipAttempt(
+                    LeadershipOutcome.ACQUIRED, "Discord leader lock disabled");
         }
         if (hasLeadership) {
-            return true;
+            return new LeadershipAttempt(
+                    LeadershipOutcome.ACQUIRED, "Discord leadership already held");
         }
 
+        Connection connection = null;
         try {
-            Connection connection = dataSource.getConnection();
+            connection = dataSource.getConnection();
             if (!isPostgres(connection)) {
                 logger.warn("PostgreSQL이 아니어서 리더십 락을 건너뜁니다. 단일 인스턴스 운영을 권장합니다.");
-                leaderLockConnection = connection;
+                connection.close();
+                connection = null;
                 hasLeadership = true;
-                return true;
+                return new LeadershipAttempt(
+                        LeadershipOutcome.ACQUIRED,
+                        "Leader lock unsupported by the configured database");
             }
 
             try (Statement stmt = connection.createStatement();
                  ResultSet rs = stmt.executeQuery("SELECT pg_try_advisory_lock(" + leaderLockKey + ")")) {
                 if (rs.next() && rs.getBoolean(1)) {
                     leaderLockConnection = connection;
+                    connection = null;
                     hasLeadership = true;
                     logger.info("PostgreSQL advisory lock 획득 성공. key={}", leaderLockKey);
-                    return true;
+                    return new LeadershipAttempt(
+                            LeadershipOutcome.ACQUIRED, "PostgreSQL advisory lock acquired");
                 }
             }
-            connection.close();
-            return false;
+            return new LeadershipAttempt(
+                    LeadershipOutcome.STANDBY,
+                    "PostgreSQL advisory lock is held by the active Discord instance");
         } catch (Exception e) {
             logger.error("리더십 락 획득 시도 중 오류", e);
-            return false;
+            return new LeadershipAttempt(
+                    LeadershipOutcome.FAILED, "Discord leader lock acquisition failed");
+        } finally {
+            closeQuietly(connection);
         }
     }
 
-    private boolean isPostgres(Connection connection) {
-        try {
-            String name = connection.getMetaData().getDatabaseProductName();
-            return name != null && name.toLowerCase().contains("postgres");
-        } catch (Exception e) {
-            return false;
+    private void resetFailedShardManager() {
+        ShardManager failedManager = shardManager;
+        shardManager = null;
+        if (failedManager != null) {
+            try {
+                failedManager.shutdown();
+            } catch (RuntimeException cleanupFailure) {
+                logger.warn("실패한 ShardManager 정리 중 오류: {}", cleanupFailure.getMessage());
+            }
         }
+    }
+
+    private static void closeQuietly(Connection connection) {
+        if (connection == null) {
+            return;
+        }
+        try {
+            connection.close();
+        } catch (Exception ignored) {
+            // The activation outcome has already been decided; cleanup must not replace it.
+        }
+    }
+
+    private void transitionTo(ActivationState state, String reason) {
+        activationReason = reason;
+        activationState = state;
+    }
+
+    private boolean isPostgres(Connection connection) throws java.sql.SQLException {
+        String name = connection.getMetaData().getDatabaseProductName();
+        return name != null && name.toLowerCase().contains("postgres");
     }
 
     private synchronized void releaseLeadership() {
@@ -179,7 +274,15 @@ public class BotInitializerRunner implements CommandLineRunner {
     }
 
     public boolean isReady() {
-        return ready;
+        return activationState.isDeploymentReady();
+    }
+
+    public ActivationState getActivationState() {
+        return activationState;
+    }
+
+    public String getActivationReason() {
+        return activationReason;
     }
 
     public boolean isBotEnabled() {

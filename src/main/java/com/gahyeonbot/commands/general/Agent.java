@@ -1,5 +1,6 @@
 package com.gahyeonbot.commands.general;
 
+import com.gahyeonbot.adapters.discord.DiscordIdentityMapper;
 import com.gahyeonbot.commands.util.AbstractCommand;
 import com.gahyeonbot.commands.util.ResponseUtil;
 import com.gahyeonbot.services.ai.agent.AgentControlService;
@@ -19,6 +20,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class Agent extends AbstractCommand {
     private final AgentControlService controlService;
+    private final DiscordIdentityMapper identityMapper;
 
     @Override public String getName() { return "agent"; }
     @Override public Map<DiscordLocale, String> getNameLocalizations() { return localizeKorean("에이전트"); }
@@ -42,31 +44,32 @@ public class Agent extends AbstractCommand {
 
     @Override
     public void execute(SlashCommandInteractionEvent event) {
-        long userId = event.getUser().getIdLong();
+        var actorId = identityMapper.toActorId(
+                event.getUser().getIdLong(), event.getUser().getName());
         String action = event.getOption("action").getAsString();
         String id = event.getOption("id") == null ? null : event.getOption("id").getAsString();
         try {
             switch (action) {
                 case "status" -> {
                     AgentRunView view = id == null
-                            ? controlService.latest(userId)
-                            : controlService.get(id, userId);
+                            ? controlService.latest(actorId)
+                            : controlService.get(id, actorId);
                     ResponseUtil.replySuccess(event, format(view));
                 }
                 case "approve" -> {
                     requireId(id, "승인 ID");
                     event.deferReply(true).queue();
-                    AgentResult result = controlService.approveAndResume(id, userId);
+                    AgentResult result = controlService.approveAndResume(id, actorId);
                     event.getHook().editOriginal("승인 후 실행 완료\nrun: `" + result.runId()
                             + "`\n\n" + limited(result.content())).queue();
                 }
                 case "reject" -> {
                     requireId(id, "승인 ID");
-                    ResponseUtil.replySuccess(event, format(controlService.reject(id, userId)));
+                    ResponseUtil.replySuccess(event, format(controlService.reject(id, actorId)));
                 }
                 case "cancel" -> {
                     requireId(id, "실행 ID");
-                    ResponseUtil.replySuccess(event, format(controlService.cancel(id, userId)));
+                    ResponseUtil.replySuccess(event, format(controlService.cancel(id, actorId)));
                 }
                 default -> ResponseUtil.replyError(event, "지원하지 않는 동작입니다.");
             }

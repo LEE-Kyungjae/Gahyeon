@@ -1,3 +1,11 @@
+import { GahyeonClientError } from '../client-error'
+import { VoiceActivityDetector } from '../runtime/voice-activity-detector'
+
+export interface RecordingActivityListener {
+  onVoiceStarted?(): void
+  onVoiceEnded?(): void
+}
+
 export class WavRecorder {
   private context?: AudioContext
   private stream?: MediaStream
@@ -10,7 +18,7 @@ export class WavRecorder {
     return this.stream !== undefined
   }
 
-  async start() {
+  async start(listener: RecordingActivityListener = {}) {
     if (this.active) return
     this.samples.length = 0
     this.stream = await navigator.mediaDevices.getUserMedia({
@@ -25,9 +33,25 @@ export class WavRecorder {
     await this.context.resume()
     this.sampleRate = this.context.sampleRate
     this.source = this.context.createMediaStreamSource(this.stream)
-    this.processor = this.context.createScriptProcessor(4096, 1, 1)
+    const vad = new VoiceActivityDetector({
+      startThreshold: 0.04,
+      stopThreshold: 0.02,
+      attackMs: 60,
+      releaseMs: 450,
+    })
+    const preRollFrames = Math.ceil(this.sampleRate * 0.25 / 2048)
+    this.processor = this.context.createScriptProcessor(2048, 1, 1)
     this.processor.onaudioprocess = (event) => {
-      this.samples.push(new Float32Array(event.inputBuffer.getChannelData(0)))
+      const frame = new Float32Array(event.inputBuffer.getChannelData(0))
+      this.samples.push(frame)
+      const activity = vad.observe(rmsLevel(frame), this.context!.currentTime * 1_000)
+      if (activity === 'started') {
+        if (this.samples.length > preRollFrames) {
+          this.samples.splice(0, this.samples.length - preRollFrames)
+        }
+        listener.onVoiceStarted?.()
+      }
+      if (activity === 'ended') listener.onVoiceEnded?.()
       event.outputBuffer.getChannelData(0).fill(0)
     }
     this.source.connect(this.processor)
@@ -61,6 +85,13 @@ export class WavRecorder {
     this.source = undefined
     this.processor = undefined
   }
+}
+
+export function rmsLevel(samples: Float32Array) {
+  if (samples.length === 0) return 0
+  let energy = 0
+  for (const sample of samples) energy += sample * sample
+  return Math.min(1, Math.sqrt(energy / samples.length))
 }
 
 function merge(chunks: Float32Array[]) {
@@ -102,4 +133,3 @@ function writeAscii(view: DataView, offset: number, value: string) {
     view.setUint8(offset + index, value.charCodeAt(index))
   }
 }
-import { GahyeonClientError } from '../client-error'

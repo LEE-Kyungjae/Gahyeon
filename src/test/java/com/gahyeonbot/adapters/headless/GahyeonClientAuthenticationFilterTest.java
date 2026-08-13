@@ -6,6 +6,10 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+import com.gahyeonbot.application.identity.IdentityLinkUseCase;
+import com.gahyeonbot.core.identity.ActorId;
 
 class GahyeonClientAuthenticationFilterTest {
     @Test
@@ -46,6 +50,36 @@ class GahyeonClientAuthenticationFilterTest {
         var chain = new MockFilterChain();
         filter.doFilter(request, new MockHttpServletResponse(), chain);
         assertThat(chain.getRequest()).isNotNull();
+    }
+
+    @Test
+    void accountCredentialAuthenticatesRemoteRequestAndBindsActor() throws Exception {
+        IdentityLinkUseCase links = mock(IdentityLinkUseCase.class);
+        when(links.authenticateDesktopCredential("account-secret")).thenReturn(new ActorId(42));
+        var filter = new GahyeonClientAuthenticationFilter("deployment-secret", links);
+        var accepted = request("192.0.2.1");
+        accepted.addHeader(GahyeonClientAuthenticationFilter.ACCOUNT_TOKEN_HEADER, "account-secret");
+        var chain = new MockFilterChain();
+        filter.doFilter(accepted, new MockHttpServletResponse(), chain);
+
+        assertThat(chain.getRequest()).isNotNull();
+        assertThat(chain.getRequest().getAttribute(
+                GahyeonClientAuthenticationFilter.AUTHENTICATED_ACTOR_ATTRIBUTE))
+                .isEqualTo(new ActorId(42));
+
+        var denied = request("192.0.2.1");
+        denied.addHeader(GahyeonClientAuthenticationFilter.ACCOUNT_TOKEN_HEADER, "wrong");
+        var response = new MockHttpServletResponse();
+        filter.doFilter(denied, response, new MockFilterChain());
+        assertThat(response.getStatus()).isEqualTo(401);
+
+        var headless = new MockHttpServletRequest("POST", "/api/gahyeon/headless/conversations");
+        headless.setContextPath("/api");
+        headless.setRemoteAddr("192.0.2.1");
+        headless.addHeader(GahyeonClientAuthenticationFilter.ACCOUNT_TOKEN_HEADER, "account-secret");
+        var headlessResponse = new MockHttpServletResponse();
+        filter.doFilter(headless, headlessResponse, new MockFilterChain());
+        assertThat(headlessResponse.getStatus()).isEqualTo(401);
     }
 
     private static MockHttpServletRequest request(String remoteAddress) {

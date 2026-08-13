@@ -1,0 +1,14 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "generation-advanced-1",
+  "type": "interaction.generation.advanced",
+  "sentAt": "2026-08-11T03:00:04Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "timeout:g13",
+  "delivery": "ephemeral",
+  "payload": {
+    "generation": 13,
+    "reason": "cognition_timeout"
+  }
+}

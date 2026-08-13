@@ -1,0 +1,15 @@
+[Unit]
+Description=Reverse tunnel for Gahyeon Piper TTS
+After=network-online.target ssh.service gahyeon-piper.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Environment=AUTOSSH_GATETIME=0
+ExecStart=/usr/bin/ssh -NT -o BatchMode=yes -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -R 127.0.0.1:18767:127.0.0.1:18767 zeze
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

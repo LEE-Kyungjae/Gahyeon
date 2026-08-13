@@ -13,6 +13,8 @@ import java.util.List;
 
 @Component
 public class TtsServiceSynthesisAdapter implements SpeechSynthesisPort {
+    static final long MAX_SYNTHESIZED_AUDIO_BYTES = 16L * 1024 * 1024;
+
     private final TtsService ttsService;
     private final AssistantProperties assistantProperties;
 
@@ -51,6 +53,11 @@ public class TtsServiceSynthesisAdapter implements SpeechSynthesisPort {
                     ? ttsService.synthesizeSegmentToAudio(
                             segment.text(), assistantProperties.getTtsProvider())
                     : ttsService.synthesizeSegmentToAudio(segment.text());
+            long audioBytes = Files.size(audio);
+            if (audioBytes == 0 || audioBytes > MAX_SYNTHESIZED_AUDIO_BYTES) {
+                throw new IllegalStateException(
+                        "합성 음성 크기가 허용 범위를 벗어났습니다: " + audioBytes);
+            }
             String extension = extension(audio);
             return new AudioOutput(
                     Files.readAllBytes(audio), mediaType(extension), extension);

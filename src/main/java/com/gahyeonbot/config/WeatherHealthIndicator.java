@@ -4,6 +4,7 @@ import com.gahyeonbot.services.weather.WeatherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
  * This should not take the whole app down in normal cases; we expose freshness details instead.
  */
 @Component
+@ConditionalOnProperty(name = "weather.prefetch.enabled", havingValue = "true", matchIfMissing = true)
 @RequiredArgsConstructor
 public class WeatherHealthIndicator implements HealthIndicator {
 
@@ -34,14 +36,14 @@ public class WeatherHealthIndicator implements HealthIndicator {
         boolean forecastFresh = hasForecast && forecastOkAt.isAfter(now.minus(FORECAST_STALE_AFTER));
 
         Health.Builder b = Health.up()
-                .withDetail("currentLastAttemptAt", weatherService.getLastCurrentAttemptAt())
-                .withDetail("currentLastSuccessAt", currentOkAt)
+                .withDetail("currentLastAttemptAt", detail(weatherService.getLastCurrentAttemptAt()))
+                .withDetail("currentLastSuccessAt", detail(currentOkAt))
                 .withDetail("currentFresh", currentFresh)
-                .withDetail("currentLastError", weatherService.getLastCurrentError())
-                .withDetail("forecastLastAttemptAt", weatherService.getLastForecastAttemptAt())
-                .withDetail("forecastLastSuccessAt", forecastOkAt)
+                .withDetail("currentLastError", detail(weatherService.getLastCurrentError()))
+                .withDetail("forecastLastAttemptAt", detail(weatherService.getLastForecastAttemptAt()))
+                .withDetail("forecastLastSuccessAt", detail(forecastOkAt))
                 .withDetail("forecastFresh", forecastFresh)
-                .withDetail("forecastLastError", weatherService.getLastForecastError());
+                .withDetail("forecastLastError", detail(weatherService.getLastForecastError()));
 
         // If we've never succeeded since boot, call it DOWN to surface setup issues.
         if (!hasCurrent && !hasForecast) {
@@ -54,5 +56,8 @@ public class WeatherHealthIndicator implements HealthIndicator {
         // Otherwise keep UP; freshness is indicated via details to avoid false alarms.
         return b.build();
     }
-}
 
+    private static Object detail(Object value) {
+        return value == null ? "not-yet-recorded" : value;
+    }
+}

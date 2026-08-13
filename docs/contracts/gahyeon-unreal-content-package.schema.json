@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gahyeon.local/schemas/gahyeon-unreal-content-package.schema.json",
+  "title": "Gahyeon Unreal Content Package Inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "characterId", "mountRoot", "engineVersion", "entryAsset", "runtimeClass", "runtimeContract", "files"],
+  "properties": {
+    "schemaVersion": {"const": 2},
+    "characterId": {"const": "gahyeon"},
+    "mountRoot": {"const": "Content/GahyeonGenerated"},
+    "engineVersion": {"const": "5.6"},
+    "entryAsset": {"const": "/Game/GahyeonGenerated/Characters/Gahyeon.Gahyeon"},
+    "runtimeClass": {"const": "/Game/GahyeonGenerated/Characters/Gahyeon.Gahyeon_C"},
+    "runtimeContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pawnBaseClass", "animInstanceBaseClass", "requiresBodySkeletalMesh", "requiresPresentationProfile"],
+      "properties": {
+        "pawnBaseClass": {"const": "/Script/GahyeonStage.GahyeonCharacterPawn"},
+        "animInstanceBaseClass": {"const": "/Script/GahyeonStage.GahyeonCharacterAnimInstance"},
+        "requiresBodySkeletalMesh": {"const": true},
+        "requiresPresentationProfile": {"const": true}
+      }
+    },
+    "files": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "bytes", "sha256"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^Content/GahyeonGenerated/[A-Za-z0-9_./-]+$"},
+          "bytes": {"type": "integer", "minimum": 1, "maximum": 8589934592},
+          "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+        }
+      }
+    }
+  }
+}

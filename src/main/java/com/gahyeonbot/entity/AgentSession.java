@@ -1,6 +1,6 @@
 package com.gahyeonbot.entity;
 
-import com.gahyeonbot.services.ai.agent.AgentGateway;
+import com.gahyeonbot.services.ai.agent.AgentModality;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,14 +22,14 @@ public class AgentSession {
     private String sessionKey;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private AgentGateway gateway;
+    @Column(name = "gateway", nullable = false, length = 20)
+    private AgentModality modality;
 
     @Column(name = "guild_id")
-    private Long guildId;
+    private Long toolScopeId;
 
     @Column(name = "user_id", nullable = false)
-    private Long userId;
+    private Long actorId;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;

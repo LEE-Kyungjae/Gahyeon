@@ -38,6 +38,28 @@ public class GahyeonWorldStateService implements WorldStateUseCase {
 
     @Override
     @Transactional
+    public WorldStateSnapshot recoverAfterRestart(WorldId worldId) {
+        WorldStateSnapshot before = current(worldId);
+        if (before.activity() != WorldActivity.CONVERSATION
+                && before.activity() != WorldActivity.ATTENTION) {
+            return before;
+        }
+        Instant now = clock.instant();
+        WorldStateSnapshot recovered = store.save(new WorldStateSnapshot(
+                before.worldId(), before.revision() + 1,
+                before.currentRoom(), before.position(),
+                WorldActivity.IDLE, now, before.outfit(), now,
+                before.emotion(), before.emotionIntensity(), null, now));
+        publish(recovered, "behavior.activity.changed", Map.of(
+                "revision", recovered.revision(),
+                "activity", "idle",
+                "recoveryReason", "backend_restart_transient_activity"));
+        publishSnapshot(recovered, "world.state.restored");
+        return recovered;
+    }
+
+    @Override
+    @Transactional
     public WorldStateSnapshot move(
             WorldId worldId,
             long expectedRevision,
@@ -56,6 +78,7 @@ public class GahyeonWorldStateService implements WorldStateUseCase {
                 "revision", saved.revision(),
                 "room", saved.currentRoom(),
                 "position", positionPayload(saved.position())));
+        publishSnapshot(saved);
         return saved;
     }
 
@@ -77,6 +100,7 @@ public class GahyeonWorldStateService implements WorldStateUseCase {
                 "revision", saved.revision(),
                 "activity", saved.activity().name().toLowerCase(),
                 "interactionTarget", saved.interactionTarget()));
+        publishSnapshot(saved);
         return saved;
     }
 
@@ -106,6 +130,7 @@ public class GahyeonWorldStateService implements WorldStateUseCase {
                 "revision", saved.revision(),
                 "activity", saved.activity().name().toLowerCase(),
                 "interactionTarget", saved.interactionTarget()));
+        publishSnapshot(saved);
         return saved;
     }
 
@@ -131,6 +156,7 @@ public class GahyeonWorldStateService implements WorldStateUseCase {
                 "revision", saved.revision(),
                 "expression", saved.emotion(),
                 "intensity", saved.emotionIntensity()));
+        publishSnapshot(saved);
         return saved;
     }
 
@@ -148,6 +174,30 @@ public class GahyeonWorldStateService implements WorldStateUseCase {
                 state.worldId().value(),
                 "world:" + state.worldId().value() + ":" + state.revision() + ":" + UUID.randomUUID(),
                 payload));
+    }
+
+    private void publishSnapshot(WorldStateSnapshot state) {
+        publishSnapshot(state, "world.state.changed");
+    }
+
+    private void publishSnapshot(WorldStateSnapshot state, String eventType) {
+        var payload = new java.util.LinkedHashMap<String, Object>();
+        payload.put("worldId", state.worldId().value());
+        payload.put("revision", state.revision());
+        payload.put("currentRoom", state.currentRoom());
+        payload.put("position", positionPayload(state.position()));
+        payload.put("activity", state.activity().name().toLowerCase());
+        payload.put("activityStartedAt", state.activityStartedAt());
+        payload.put("outfit", state.outfit());
+        payload.put("worldTime", state.worldTime());
+        payload.put("emotion", Map.of(
+                "name", state.emotion(), "intensity", state.emotionIntensity()));
+        if (state.interactionTarget() != null) {
+            payload.put("interactionTarget", state.interactionTarget());
+        }
+        payload.put("updatedAt", state.updatedAt());
+        payload.put("capturedAt", clock.instant());
+        publish(state, eventType, Map.copyOf(payload));
     }
 
     private Map<String, Object> positionPayload(WorldPosition position) {

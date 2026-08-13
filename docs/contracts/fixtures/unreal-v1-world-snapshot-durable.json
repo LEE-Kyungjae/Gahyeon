@@ -1,0 +1,24 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "event-world-snapshot-20",
+  "type": "world.snapshot",
+  "sentAt": "2026-08-11T03:00:09Z",
+  "correlationId": "world:gahyeon-home:18:snapshot",
+  "delivery": "durable",
+  "sequence": 20,
+  "payload": {
+    "worldId": "gahyeon-home",
+    "revision": 18,
+    "currentRoom": "workspace",
+    "position": {"x": 7.0, "y": 0.0, "z": -2.0},
+    "activity": "work",
+    "activityStartedAt": "2026-08-11T03:00:08Z",
+    "outfit": "casual",
+    "worldTime": "2026-08-11T03:00:08Z",
+    "emotion": {"name": "focused", "intensity": 0.65},
+    "interactionTarget": "desk",
+    "updatedAt": "2026-08-11T03:00:08Z",
+    "capturedAt": "2026-08-11T03:00:08Z"
+  }
+}

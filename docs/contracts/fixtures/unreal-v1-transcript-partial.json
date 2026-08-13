@@ -1,0 +1,15 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "partial-voice-44",
+  "type": "perception.transcript.partial",
+  "sentAt": "2026-08-11T03:00:01.250Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "conversation-43",
+  "delivery": "ephemeral",
+  "payload": {
+    "generation": 12,
+    "text": "가현아 잠깐",
+    "stability": 0.75
+  }
+}

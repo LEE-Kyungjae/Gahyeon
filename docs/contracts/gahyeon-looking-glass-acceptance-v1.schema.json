@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gahyeon.local/contracts/looking-glass-acceptance-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["uri", "bytes", "sha256"],
+      "properties": {
+        "uri": {"type": "string", "minLength": 1},
+        "bytes": {"type": "integer", "minimum": 24},
+        "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "presentationAttestation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "source", "pluginRelease", "runtimeModule", "measurementRunId", "mode", "deviceClass", "views", "quiltWidth", "quiltHeight", "playerActive", "physicalDeviceActive", "captureComponentActive", "quiltFrameObserved", "captureEvidence"],
+      "properties": {
+        "schemaVersion": {"const": 1},
+        "source": {"const": "GahyeonLookingGlassAdapter"},
+        "pluginRelease": {"const": "2.1.1"},
+        "runtimeModule": {"const": "LookingGlassRuntime"},
+        "measurementRunId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{7,63}$"},
+        "mode": {"enum": ["Realtime", "RealtimeAdaptive", "NonRealtime"]},
+        "deviceClass": {"const": "Looking Glass Go"},
+        "views": {"type": "integer", "minimum": 2, "maximum": 100},
+        "quiltWidth": {"type": "integer", "minimum": 512},
+        "quiltHeight": {"type": "integer", "minimum": 512},
+        "playerActive": {"const": true},
+        "physicalDeviceActive": {"const": true},
+        "captureComponentActive": {"const": true},
+        "quiltFrameObserved": {"const": true},
+        "captureEvidence": {"$ref": "#/$defs/evidence"}
+      }
+    }
+  },
+  "required": ["schemaVersion", "latencyBoundary", "measurementRunId", "status", "platform", "display", "software", "profiles", "evidence"],
+  "properties": {
+    "schemaVersion": {"const": 1},
+    "latencyBoundary": {"const": "physical-presentation-v1"},
+    "measurementRunId": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{7,63}$"},
+    "status": {"enum": ["draft", "measured", "passed", "failed"]},
+    "platform": {
+      "type": "object", "additionalProperties": false,
+      "required": ["os", "gpu", "driver"],
+      "properties": {
+        "os": {"const": "Win64"},
+        "gpu": {"type": "string", "minLength": 1},
+        "driver": {"type": "string", "minLength": 1}
+      }
+    },
+    "display": {
+      "type": "object", "additionalProperties": false,
+      "required": ["model", "serialHash"],
+      "properties": {
+        "model": {"const": "Looking Glass Go"},
+        "serialHash": {"type": "string", "pattern": "^[a-f0-9]{64}$"}
+      }
+    },
+    "software": {
+      "type": "object", "additionalProperties": false,
+      "required": ["unreal", "plugin", "bridge"],
+      "properties": {
+        "unreal": {"const": "5.6"},
+        "plugin": {"const": "2.1.1"},
+        "bridge": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}
+      }
+    },
+    "profiles": {
+      "type": "array", "minItems": 3,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "mode", "views", "quiltWidth", "quiltHeight", "scenarios"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "mode": {"enum": ["Realtime", "RealtimeAdaptive", "NonRealtime"]},
+          "views": {"type": "integer", "minimum": 2, "maximum": 100},
+          "quiltWidth": {"type": "integer", "minimum": 512},
+          "quiltHeight": {"type": "integer", "minimum": 512},
+          "scenarios": {
+            "type": "array", "minItems": 4, "maxItems": 4,
+            "items": {
+              "type": "object", "additionalProperties": false,
+              "required": ["name", "durationSeconds", "frames", "p95FrameMs", "p99FrameMs", "droppedFrameRate", "vadToListeningP95Ms", "bargeInToAudioStopP95Ms", "audioToVisemeP95Ms", "presentationAttestation"],
+              "properties": {
+                "name": {"enum": ["idle", "listening", "thinking", "speaking"]},
+                "durationSeconds": {"type": "number", "minimum": 60},
+                "frames": {"type": "integer", "minimum": 1},
+                "p95FrameMs": {"type": "number", "minimum": 0},
+                "p99FrameMs": {"type": "number", "minimum": 0},
+                "droppedFrameRate": {"type": "number", "minimum": 0, "maximum": 1},
+                "vadToListeningP95Ms": {"type": "number", "minimum": 0},
+                "bargeInToAudioStopP95Ms": {"type": "number", "minimum": 0},
+                "audioToVisemeP95Ms": {"type": "number", "minimum": 0},
+                "presentationAttestation": {"$ref": "#/$defs/presentationAttestation"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "array", "minItems": 13,
+      "items": {"$ref": "#/$defs/evidence"}
+    }
+  }
+}

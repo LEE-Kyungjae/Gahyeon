@@ -1,6 +1,6 @@
 package com.gahyeonbot.adapters.discord;
 
-import com.gahyeonbot.application.identity.IdentityResolutionService;
+import com.gahyeonbot.application.identity.IdentityResolutionUseCase;
 import com.gahyeonbot.core.identity.ActorId;
 import com.gahyeonbot.core.identity.IdentityProvider;
 import org.springframework.stereotype.Component;
@@ -8,9 +8,9 @@ import org.springframework.stereotype.Component;
 /** The temporary identity boundary until external identities are persisted separately. */
 @Component
 public class DiscordIdentityMapper {
-    private final IdentityResolutionService identities;
+    private final IdentityResolutionUseCase identities;
 
-    public DiscordIdentityMapper(IdentityResolutionService identities) {
+    public DiscordIdentityMapper(IdentityResolutionUseCase identities) {
         this.identities = identities;
     }
 

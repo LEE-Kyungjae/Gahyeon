@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       push_image:
-        description: "Push image to GHCR"
+        description: "Push image to GHCR (main ref only)"
         required: false
         default: false
         type: boolean
@@ -59,7 +59,7 @@ jobs:
           echo "sha_tag=sha-${SHORT_SHA}" >> "${GITHUB_OUTPUT}"
 
       - name: Log in to GHCR
-        if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.push_image == true)
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push_image == true))
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -74,18 +74,26 @@ jobs:
         with:
           context: .
           push: false
-          platforms: linux/amd64,linux/arm64
+          load: true
           tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      - name: Smoke test Headless container
+        env:
+          GAHYEON_HEADLESS_CONTAINER_IMAGE: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}
+          GAHYEON_HEADLESS_CONTAINER_SKIP_BUILD: "true"
+        run: ./scripts/smoke_headless_container.sh
+
       - name: Build and push image
-        if: github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.push_image == true)
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push_image == true))
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          platforms: linux/amd64,linux/arm64
+          # libdave is currently packaged only as natives-linux-x86-64. Do not add arm64
+          # until an arm64 native artifact and BOT_ENABLED=true activation smoke exist.
+          platforms: linux/amd64
           tags: |
             ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}
             ${{ steps.meta.outputs.image }}:latest
@@ -93,7 +101,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Check out infra repo
-        if: (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.push_image == true)) && env.HAS_INFRA_REPO_TOKEN == 'true'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push_image == true)) && env.HAS_INFRA_REPO_TOKEN == 'true'
         uses: actions/checkout@v4
         with:
           repository: ${{ env.INFRA_REPO }}
@@ -101,14 +109,14 @@ jobs:
           path: infra-repo
 
       - name: Update infra image tag
-        if: (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.push_image == true)) && env.HAS_INFRA_REPO_TOKEN == 'true'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push_image == true)) && env.HAS_INFRA_REPO_TOKEN == 'true'
         run: |
           set -euo pipefail
           FILE="infra-repo/k8s/apps/gahyeonbot/deployment.yaml"
           perl -0pi -e 's#image: \Q${{ steps.meta.outputs.image }}\E:[^\s]+#image: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}#g' "$FILE"
 
       - name: Commit infra image update
-        if: (github.ref == 'refs/heads/main' || (github.event_name == 'workflow_dispatch' && inputs.push_image == true)) && env.HAS_INFRA_REPO_TOKEN == 'true'
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.push_image == true)) && env.HAS_INFRA_REPO_TOKEN == 'true'
         run: |
           set -euo pipefail
           if git -C infra-repo diff --quiet -- k8s/apps/gahyeonbot/deployment.yaml; then

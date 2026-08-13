@@ -1,0 +1,13 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "server-pong-1",
+  "type": "server.pong",
+  "sentAt": "2026-08-12T03:15:00Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "heartbeat-client-ping-1",
+  "delivery": "ephemeral",
+  "payload": {
+    "clientSentAt": "2026-08-12T03:14:59Z"
+  }
+}

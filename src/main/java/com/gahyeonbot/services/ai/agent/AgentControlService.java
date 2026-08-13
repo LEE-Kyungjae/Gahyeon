@@ -1,5 +1,6 @@
 package com.gahyeonbot.services.ai.agent;
 
+import com.gahyeonbot.core.identity.ActorId;
 import com.gahyeonbot.entity.AgentRun;
 import com.gahyeonbot.repository.AgentRunRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,49 +16,49 @@ public class AgentControlService {
     private final AgentRuntime runtime;
 
     @Transactional(readOnly = true)
-    public AgentRunView latest(long actorUserId) {
-        AgentRun run = runRepository.findFirstByUserIdOrderByCreatedAtDesc(actorUserId)
+    public AgentRunView latest(ActorId actorId) {
+        AgentRun run = runRepository.findFirstByActorIdOrderByCreatedAtDesc(actorId.value())
                 .orElseThrow(() -> new IllegalArgumentException("에이전트 실행 기록이 없습니다."));
-        return view(run, actorUserId);
+        return view(run, actorId);
     }
 
     @Transactional(readOnly = true)
-    public AgentRunView get(String runId, long actorUserId) {
-        AgentRun run = owned(runId, actorUserId);
-        return view(run, actorUserId);
+    public AgentRunView get(String runId, ActorId actorId) {
+        AgentRun run = owned(runId, actorId);
+        return view(run, actorId);
     }
 
-    public AgentResult approveAndResume(String approvalId, long actorUserId) {
-        var approval = approvalService.decide(approvalId, actorUserId, true);
+    public AgentResult approveAndResume(String approvalId, ActorId actorId) {
+        var approval = approvalService.decide(approvalId, actorId, true);
         ledger.appendToolEvent(approval.getRun().getId(), AgentEventType.APPROVAL_RESOLVED,
-                approval.getToolName(), "approved by " + actorUserId);
-        return runtime.resume(approval.getRun().getId(), actorUserId);
+                approval.getToolName(), "approved by " + actorId.value());
+        return runtime.resume(approval.getRun().getId(), actorId);
     }
 
-    public AgentRunView reject(String approvalId, long actorUserId) {
-        var approval = approvalService.decide(approvalId, actorUserId, false);
+    public AgentRunView reject(String approvalId, ActorId actorId) {
+        var approval = approvalService.decide(approvalId, actorId, false);
         String runId = approval.getRun().getId();
         ledger.appendToolEvent(runId, AgentEventType.APPROVAL_RESOLVED,
-                approval.getToolName(), "rejected by " + actorUserId);
-        AgentRun cancelled = ledger.cancel(runId, actorUserId, "approval rejected");
-        return view(cancelled, actorUserId);
+                approval.getToolName(), "rejected by " + actorId.value());
+        AgentRun cancelled = ledger.cancel(runId, actorId, "approval rejected");
+        return view(cancelled, actorId);
     }
 
-    public AgentRunView cancel(String runId, long actorUserId) {
-        return view(ledger.cancel(runId, actorUserId, "cancelled by user"), actorUserId);
+    public AgentRunView cancel(String runId, ActorId actorId) {
+        return view(ledger.cancel(runId, actorId, "cancelled by user"), actorId);
     }
 
-    private AgentRun owned(String runId, long actorUserId) {
+    private AgentRun owned(String runId, ActorId actorId) {
         AgentRun run = runRepository.findById(runId)
                 .orElseThrow(() -> new IllegalArgumentException("실행을 찾을 수 없습니다: " + runId));
-        if (run.getUserId() != actorUserId) {
+        if (run.getActorId() != actorId.value()) {
             throw new SecurityException("이 실행을 조회할 권한이 없습니다.");
         }
         return run;
     }
 
-    private AgentRunView view(AgentRun run, long actorUserId) {
-        var approvals = approvalService.list(run.getId(), actorUserId).stream()
+    private AgentRunView view(AgentRun run, ActorId actorId) {
+        var approvals = approvalService.list(run.getId(), actorId).stream()
                 .map(value -> new AgentRunView.ApprovalView(
                         value.getId(), value.getToolName(), value.getStatus()))
                 .toList();

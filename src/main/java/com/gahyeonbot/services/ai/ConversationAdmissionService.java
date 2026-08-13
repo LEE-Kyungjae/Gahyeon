@@ -1,36 +1,37 @@
 package com.gahyeonbot.services.ai;
 
-import com.gahyeonbot.config.AppCredentialsConfig;
+import com.gahyeonbot.core.identity.ActorId;
+import com.gahyeonbot.application.conversation.ContentSafetyPort;
 import com.gahyeonbot.core.conversation.AdmissionDecision;
 import com.gahyeonbot.core.conversation.AdmissionFacts;
 import com.gahyeonbot.core.conversation.ConversationAdmissionPolicy;
-import com.gahyeonbot.entity.OpenAiUsage;
-import com.gahyeonbot.repository.OpenAiUsageRepository;
-import com.gahyeonbot.services.ai.agent.AgentGateway;
+import com.gahyeonbot.core.conversation.ConversationReadiness;
+import com.gahyeonbot.entity.ModelUsage;
+import com.gahyeonbot.repository.ModelUsageRepository;
+import com.gahyeonbot.services.ai.agent.AgentModality;
 import com.gahyeonbot.services.ai.agent.AgentApprovalRequiredException;
 import com.gahyeonbot.services.ai.agent.AgentRequest;
 import com.gahyeonbot.services.ai.agent.AgentResult;
 import com.gahyeonbot.services.ai.agent.AgentRuntime;
-import jakarta.annotation.PostConstruct;
+import com.gahyeonbot.services.ai.agent.AgentStreamObserver;
+import com.gahyeonbot.services.ai.agent.AgentStreamCancelledException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.core.ParameterizedTypeReference;
-import org.springframework.http.*;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.*;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
 
 /**
  * Provider-independent conversation admission, usage ledger, and agent execution service.
  *
  * 비용 절감 및 보안 전략:
- * 1. OpenAI Moderation API: 프롬프트 인젝션 자동 차단 (최우선 방어선)
+ * 1. ContentSafetyPort: 교체 가능한 외부 입력 안전성 검사
  * 2. 키워드 필터: 공백/특수문자 우회 방지 (보조 방어선)
  * 3. Rate Limiting: 사용자당 1시간 10회, 하루 30회 제한
  * 4. 봇 전체 제한: 하루 50회, 월 100회
@@ -43,46 +44,22 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ConversationAdmissionService {
+public class ConversationAdmissionService implements ConversationReadiness {
 
-    private final OpenAiUsageRepository usageRepository;
-    private final AppCredentialsConfig appCredentialsConfig;
+    private final ModelUsageRepository usageRepository;
     private final AgentRuntime agentRuntime;
     private final ConversationAdmissionPolicy admissionPolicy;
+    private final ContentSafetyPort contentSafety;
+    private final MeterRegistry meterRegistry;
 
-    private String apiKey;
-    private String agentApiKey;
-    private boolean isEnabled = false;
-    private RestTemplate restTemplate;
-
-    // 사용자별 Lock: 동일 사용자의 동시 요청 방지 (ShardManager 동시성 제어)
-    private final Map<Long, Lock> userLocks = new ConcurrentHashMap<>();
+    // Admission DB checks/reservation only. Provider I/O must never run under this lock.
+    private final ActorLockRegistry actorLocks = new ActorLockRegistry(256);
+    private final ConcurrentHashMap<Long, ConversationExecutionLease> activeExecutions =
+            new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, Long> latestAttempts = new ConcurrentHashMap<>();
+    private final AtomicLong nextAttempt = new AtomicLong();
 
     private static final int DUPLICATE_CHECK_SECONDS = 10;    // 중복 요청 차단 시간
-
-    @PostConstruct
-    public void initialize() {
-        // AppCredentialsConfig에서 API 키 가져오기
-        this.apiKey = appCredentialsConfig.getOpenaiApiKey();
-        this.agentApiKey = appCredentialsConfig.getAgentApiKey();
-
-        if (agentApiKey == null || agentApiKey.isBlank() || agentApiKey.startsWith("your_")) {
-            log.warn("AgentRuntime API 키가 설정되지 않았습니다. AI 기능이 비활성화됩니다.");
-            this.isEnabled = false;
-            return;
-        }
-
-        try {
-            // RestTemplate 초기화
-            this.restTemplate = new RestTemplate();
-
-            this.isEnabled = true;
-            log.info("AI 게이트웨이가 활성화되었습니다. AgentRuntime + Rate Limiting + Moderation API 적용");
-        } catch (Exception e) {
-            log.error("OpenAI 초기화 실패. OpenAI 기능이 비활성화됩니다.", e);
-            this.isEnabled = false;
-        }
-    }
 
     /**
      * 사용자 질문에 대해 AI 응답을 생성합니다.
@@ -92,15 +69,14 @@ public class ConversationAdmissionService {
      * - Interaction ID 기반 중복 방지 (여러 봇 인스턴스 병렬 실행 시)
      * - DB UNIQUE 제약조건으로 첫 번째 인스턴스만 처리
      *
-     * ShardManager 동시성 제어:
-     * - 동일 사용자의 요청은 Lock으로 순차 처리 (Race Condition 방지)
-     * - 다른 사용자의 요청은 병렬 처리 (성능 유지)
+     * 동일 actor의 quota/idempotency 예약은 짧은 임계구역에서 직렬화한다. 실제 모델 호출은
+     * 임계구역 밖에서 실행되며, 더 최신 요청은 이전 실행을 cooperative cancellation 상태로 만든다.
      *
-     * @param interactionId client request ID (중복 방지용)
+     * @param requestId client request ID (중복 방지용)
      * @param sessionId platform-neutral conversation session ID
-     * @param gateway conversation modality used by the agent runtime
-     * @param userId 사용자 ID
-     * @param username 사용자 이름
+     * @param modality conversation modality used by the agent runtime
+     * @param actorId Gahyeon 내부 Actor ID
+     * @param actorDisplayName Actor 표시 이름
      * @param toolScopeId optional numeric scope used by legacy tool adapters
      * @param userMessage 사용자의 질문 또는 메시지
      * @return AI의 응답 텍스트
@@ -108,119 +84,282 @@ public class ConversationAdmissionService {
      * @throws AdversarialPromptException 적대적 프롬프트 감지 시
      */
     public AgentResult chatResult(
-            String interactionId,
+            String requestId,
             String sessionId,
-            AgentGateway gateway,
-            Long userId,
-            String username,
+            AgentModality modality,
+            ActorId actorId,
+            String actorDisplayName,
             Long toolScopeId,
             String userMessage) throws RateLimitException, AdversarialPromptException {
-        // 사용자별 Lock 획득 (동일 사용자의 동시 요청 방지)
-        Lock userLock = userLocks.computeIfAbsent(userId, k -> new ReentrantLock());
-        userLock.lock();
-        try {
-            return chatInternal(interactionId, sessionId, gateway, userId, username, toolScopeId, userMessage);
-        } finally {
-            userLock.unlock();
-        }
+        return chatInternal(
+                requestId, sessionId, modality, actorId, actorDisplayName,
+                toolScopeId, userMessage, null);
     }
 
-    /**
-     * 내부 chat 메서드 (Lock으로 보호됨)
-     */
-    @Transactional
-    private AgentResult chatInternal(
-            String interactionId,
+    public AgentResult chatResultStreaming(
+            String requestId,
             String sessionId,
-            AgentGateway gateway,
-            Long userId,
-            String username,
+            AgentModality modality,
+            ActorId actorId,
+            String actorDisplayName,
             Long toolScopeId,
-            String userMessage) throws RateLimitException, AdversarialPromptException {
-        if (!isEnabled) {
-            throw new RateLimitException("OpenAI 서비스가 비활성화되어 있습니다.");
+            String userMessage,
+            AgentStreamObserver observer) throws RateLimitException, AdversarialPromptException {
+        Objects.requireNonNull(observer, "stream observer");
+        return chatInternal(
+                requestId, sessionId, modality, actorId, actorDisplayName,
+                toolScopeId, userMessage, observer);
+    }
+
+    private AgentResult chatInternal(
+            String requestId,
+            String sessionId,
+            AgentModality modality,
+            ActorId actorId,
+            String actorDisplayName,
+            Long toolScopeId,
+            String userMessage,
+            AgentStreamObserver observer) throws RateLimitException, AdversarialPromptException {
+        long attempt = beginAttempt(actorId);
+        if (!isReady()) {
+            latestAttempts.remove(actorId.value(), attempt);
+            throw new RateLimitException("Gahyeon AI 서비스가 비활성화되어 있습니다.");
         }
 
         boolean moderationFlagged = false;
-        if (apiKey != null && !apiKey.isBlank() && !apiKey.startsWith("your_")) {
-            try {
-                moderationFlagged = checkModeration(userMessage);
-            } catch (Exception e) {
-                log.error("Moderation API 호출 실패 - 키워드 필터로 대체", e);
-            }
+        Timer.Sample safetyTimer = Timer.start(meterRegistry);
+        String safetyOutcome = "unavailable";
+        try {
+            ContentSafetyPort.Decision safety = contentSafety.evaluate(userMessage);
+            moderationFlagged = safety == ContentSafetyPort.Decision.UNSAFE;
+            safetyOutcome = safety.name().toLowerCase(Locale.ROOT);
+        } catch (RuntimeException unavailable) {
+            safetyOutcome = "failure";
+            log.warn("Content safety provider 실패 - 결정론적 local policy로 대체: {}",
+                    unavailable.getMessage());
+        } finally {
+            safetyTimer.stop(meterRegistry.timer(
+                    "gahyeonbot.content.safety.latency", "outcome", safetyOutcome));
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime since = LocalDateTime.now().minusSeconds(DUPLICATE_CHECK_SECONDS);
-        LocalDateTime oneHourAgo = now.minusHours(1);
-        LocalDateTime oneDayAgo = now.minusDays(1);
-        LocalDateTime monthStart = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
-        boolean duplicate = userMessage != null && !userMessage.isBlank()
-                && !usageRepository.findDuplicatePrompt(userId, userMessage, since).isEmpty();
-        long hourlyUsage = usageRepository.countByUserIdAndCreatedAtAfter(userId, oneHourAgo);
-        long dailyUsage = usageRepository.countByUserIdAndCreatedAtAfter(userId, oneDayAgo);
-        long totalDailyUsage = usageRepository.countByCreatedAtAfter(oneDayAgo);
-        long monthlyUsage = usageRepository.countMonthlyUsage(monthStart);
-        AdmissionDecision decision = admissionPolicy.decide(userMessage, new AdmissionFacts(
-                moderationFlagged, duplicate, hourlyUsage, dailyUsage, totalDailyUsage, monthlyUsage));
-        if (!decision.accepted()) {
-            log.warn("대화 admission 거절 user={} reason={}", username, decision.reason());
-            if (decision.reason() == AdmissionDecision.Reason.INVALID_INPUT) {
-                throw new IllegalArgumentException(decision.message());
-            }
-            if (decision.reason() == AdmissionDecision.Reason.UNSAFE_INPUT) {
-                logUsage(interactionId, userId, username, toolScopeId, userMessage, null, false,
-                        decision.reason().name());
-                throw new AdversarialPromptException(decision.message());
-            }
-            throw new RateLimitException(decision.message());
+        ExecutionAdmission execution;
+        try {
+            execution = reserveExecution(
+                    requestId, actorId, actorDisplayName, toolScopeId, userMessage,
+                    moderationFlagged, observer, attempt);
+        } catch (RuntimeException | RateLimitException | AdversarialPromptException failure) {
+            latestAttempts.remove(actorId.value(), attempt);
+            throw failure;
         }
+        ConversationExecutionLease lease = execution.lease();
+        Thread runner = Thread.currentThread();
+        lease.bindRunner(runner);
 
         // 공통 에이전트 런타임 호출
         try {
-            log.info("에이전트 요청 시작 - 사용자: {}, 메시지 길이: {} 문자", username, userMessage.length());
-            AgentResult result = agentRuntime.execute(new AgentRequest(
-                    interactionId,
+            log.info("에이전트 요청 시작 - actor: {}, 메시지 길이: {} 문자", actorDisplayName, userMessage.length());
+            AgentRequest agentRequest = new AgentRequest(
+                    requestId,
                     sessionId,
-                    gateway,
+                    modality,
                     toolScopeId,
-                    userId,
-                    username,
+                    actorId,
+                    actorDisplayName,
                     userMessage,
-                    8));
+                    8);
+            AgentResult result = observer == null
+                    ? agentRuntime.execute(agentRequest, lease)
+                    : agentRuntime.executeStreaming(
+                            agentRequest, lease.streamingObserver(), lease);
             String response = result.content();
             log.info("에이전트 응답 성공 - run={}, 사용자={}, 도구={}, {}ms",
-                    result.runId(), username, result.tools(), result.duration().toMillis());
+                    result.runId(), actorDisplayName, result.tools(), result.duration().toMillis());
 
-            // 10. 사용량 DB 로깅
-            logUsage(interactionId, userId, username, toolScopeId, userMessage, response, true, null);
+            if (!lease.complete(() -> finishUsage(execution.usage(), response, true, null))) {
+                throw new AgentStreamCancelledException();
+            }
 
             return result;
 
+        } catch (AgentStreamCancelledException cancelled) {
+            lease.cancel();
+            log.info("에이전트 요청 취소 - actor={}", actorDisplayName);
+            throw cancelled;
         } catch (AgentApprovalRequiredException approvalRequired) {
+            if (!lease.complete(() -> finishUsage(
+                    execution.usage(), null, false, "WAITING_APPROVAL"))) {
+                throw new AgentStreamCancelledException(approvalRequired);
+            }
             log.info("에이전트 승인 대기 - run={}, tool={}",
                     approvalRequired.getRunId(), approvalRequired.getToolName());
             throw approvalRequired;
         } catch (Exception e) {
-            log.error("OpenAI API 호출 실패 - 사용자: {}, 메시지: {}", username, userMessage, e);
-            logUsage(interactionId, userId, username, toolScopeId, userMessage, null, false, e.getMessage());
-            throw new ChatProcessingException(ChatProcessingException.ErrorType.OPENAI_API_FAILURE,
+            if (lease.isCancelled()) {
+                lease.cancel();
+                throw new AgentStreamCancelledException(e);
+            }
+            log.error("AI 처리 실패 - actor: {}, 메시지: {}", actorDisplayName, userMessage, e);
+            lease.complete(() -> finishUsage(
+                    execution.usage(), null, false, e.getMessage()));
+            throw new ChatProcessingException(ChatProcessingException.ErrorType.AI_PROVIDER_FAILURE,
                     "AI 응답을 받지 못했습니다. 잠시 후 다시 시도해주세요.", e);
+        } finally {
+            lease.unbindRunner(runner);
+            activeExecutions.remove(actorId.value(), lease);
+            latestAttempts.remove(actorId.value(), attempt);
+        }
+    }
+
+    private long beginAttempt(ActorId actorId) {
+        long attempt = nextAttempt.incrementAndGet();
+        Lock actorLock = actorLocks.lockFor(actorId);
+        ConversationExecutionLease.Cancellation superseded;
+        actorLock.lock();
+        try {
+            latestAttempts.put(actorId.value(), attempt);
+            ConversationExecutionLease previous = activeExecutions.get(actorId.value());
+            superseded = previous == null
+                    ? ConversationExecutionLease.Cancellation.NONE
+                    : previous.markCancelled();
+        } finally {
+            actorLock.unlock();
+        }
+        superseded.notifyCancellation();
+        return attempt;
+    }
+
+    private ExecutionAdmission reserveExecution(
+            String requestId,
+            ActorId actorId,
+            String actorDisplayName,
+            Long toolScopeId,
+            String userMessage,
+            boolean moderationFlagged,
+            AgentStreamObserver observer,
+            long attempt) throws RateLimitException, AdversarialPromptException {
+        Lock actorLock = actorLocks.lockFor(actorId);
+        actorLock.lock();
+        ConversationExecutionLease.Cancellation superseded =
+                ConversationExecutionLease.Cancellation.NONE;
+        try {
+            if (!Objects.equals(latestAttempts.get(actorId.value()), attempt)) {
+                throw new AgentStreamCancelledException();
+            }
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime since = now.minusSeconds(DUPLICATE_CHECK_SECONDS);
+            LocalDateTime oneHourAgo = now.minusHours(1);
+            LocalDateTime oneDayAgo = now.minusDays(1);
+            LocalDateTime monthStart = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+            boolean duplicate = userMessage != null && !userMessage.isBlank()
+                    && !usageRepository.findDuplicatePrompt(
+                            actorId.value(), userMessage, since).isEmpty();
+            long hourlyUsage = usageRepository.countByActorIdAndCreatedAtAfter(
+                    actorId.value(), oneHourAgo);
+            long dailyUsage = usageRepository.countByActorIdAndCreatedAtAfter(
+                    actorId.value(), oneDayAgo);
+            long totalDailyUsage = usageRepository.countByCreatedAtAfter(oneDayAgo);
+            long monthlyUsage = usageRepository.countMonthlyUsage(monthStart);
+            AdmissionDecision decision = admissionPolicy.decide(userMessage, new AdmissionFacts(
+                    moderationFlagged, duplicate, hourlyUsage, dailyUsage,
+                    totalDailyUsage, monthlyUsage));
+            if (!decision.accepted()) {
+                rejectAdmission(
+                        decision, requestId, actorId, actorDisplayName,
+                        toolScopeId, userMessage);
+            }
+
+            ModelUsage usage = reserveUsage(
+                    requestId, actorId, actorDisplayName, toolScopeId, userMessage);
+            ConversationExecutionLease lease = new ConversationExecutionLease(
+                    observer,
+                    () -> finishUsage(usage, null, false, "CANCELLED"));
+            ConversationExecutionLease previous = activeExecutions.get(actorId.value());
+            if (previous != null) {
+                superseded = previous.markCancelled();
+                meterRegistry.counter("gahyeonbot.conversation.supersessions").increment();
+            }
+            activeExecutions.put(actorId.value(), lease);
+            return new ExecutionAdmission(usage, lease);
+        } finally {
+            actorLock.unlock();
+            superseded.notifyCancellation();
+        }
+    }
+
+    private void rejectAdmission(
+            AdmissionDecision decision,
+            String requestId,
+            ActorId actorId,
+            String actorDisplayName,
+            Long toolScopeId,
+            String userMessage) throws RateLimitException, AdversarialPromptException {
+        log.warn("대화 admission 거절 actor={} reason={}", actorDisplayName, decision.reason());
+        if (decision.reason() == AdmissionDecision.Reason.INVALID_INPUT) {
+            throw new IllegalArgumentException(decision.message());
+        }
+        if (decision.reason() == AdmissionDecision.Reason.UNSAFE_INPUT) {
+            logUsage(requestId, actorId, actorDisplayName, toolScopeId, userMessage, null, false,
+                    decision.reason().name());
+            throw new AdversarialPromptException(decision.message());
+        }
+        throw new RateLimitException(decision.message());
+    }
+
+    private ModelUsage reserveUsage(
+            String requestId,
+            ActorId actorId,
+            String actorDisplayName,
+            Long toolScopeId,
+            String prompt) {
+        ModelUsage usage = ModelUsage.builder()
+                .requestId(requestId)
+                .actorId(actorId.value())
+                .actorDisplayName(actorDisplayName)
+                .toolScopeId(toolScopeId)
+                .prompt(prompt)
+                .model("agent-runtime")
+                .success(false)
+                .errorMessage("IN_PROGRESS")
+                .createdAt(LocalDateTime.now())
+                .build();
+        return usageRepository.saveAndFlush(usage);
+    }
+
+    private void finishUsage(
+            ModelUsage usage,
+            String response,
+            boolean success,
+            String errorMessage) {
+        try {
+            usage.setResponse(response);
+            usage.setSuccess(success);
+            usage.setErrorMessage(errorMessage);
+            usageRepository.saveAndFlush(usage);
+        } catch (Exception failure) {
+            log.error("사용량 완료 기록 실패 request={}", usage.getRequestId(), failure);
         }
     }
 
     /**
      * 사용량을 DB에 로깅합니다.
      *
-     * @throws org.springframework.dao.DataIntegrityViolationException 이미 처리된 interaction_id인 경우
+     * @throws org.springframework.dao.DataIntegrityViolationException 이미 처리된 request_id인 경우
      */
-    private void logUsage(String interactionId, Long userId, String username, Long toolScopeId, String prompt, String response, boolean success, String errorMessage) {
+    private void logUsage(
+            String requestId,
+            ActorId actorId,
+            String actorDisplayName,
+            Long toolScopeId,
+            String prompt,
+            String response,
+            boolean success,
+            String errorMessage) {
         try {
-            OpenAiUsage usage = OpenAiUsage.builder()
-                    .interactionId(interactionId)
-                    .userId(userId)
-                    .username(username)
-                    .guildId(toolScopeId)
+            ModelUsage usage = ModelUsage.builder()
+                    .requestId(requestId)
+                    .actorId(actorId.value())
+                    .actorDisplayName(actorDisplayName)
+                    .toolScopeId(toolScopeId)
                     .prompt(prompt)
                     .response(response)
                     .model("agent-runtime")
@@ -229,67 +368,28 @@ public class ConversationAdmissionService {
                     .createdAt(LocalDateTime.now())
                     .build();
 
-            usageRepository.save(usage);
+            usageRepository.saveAndFlush(usage);
         } catch (org.springframework.dao.DataIntegrityViolationException e) {
             // UNIQUE 제약조건 위반: 다른 인스턴스가 이미 처리 중
-            log.warn("중복 Interaction ID 감지 - 다른 인스턴스가 처리 중: {}", interactionId);
+            log.warn("중복 request ID 감지 - 다른 인스턴스가 처리 중: {}", requestId);
             throw e;
         } catch (Exception e) {
             log.error("사용량 로깅 실패", e);
         }
     }
 
+    private record ExecutionAdmission(
+            ModelUsage usage,
+            ConversationExecutionLease lease) {}
+
     /**
      * 서비스 활성화 상태를 확인합니다.
      */
-    public boolean isEnabled() {
-        return isEnabled;
-    }
-
-    /**
-     * OpenAI Moderation API를 사용하여 프롬프트의 적절성을 검사합니다.
-     *
-     * @param message 검사할 메시지
-     * @return true: 부적절한 콘텐츠 감지됨 (차단해야 함), false: 안전함
-     */
-    private boolean checkModeration(String message) {
+    @Override
+    public boolean isReady() {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(apiKey);
-
-            Map<String, String> body = Map.of("input", message);
-            HttpEntity<Map<String, String>> request = new HttpEntity<>(body, headers);
-
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    "https://api.openai.com/v1/moderations",
-                    HttpMethod.POST,
-                    request,
-                    new ParameterizedTypeReference<>() {
-                    }
-            );
-
-            if (response.getStatusCode() == HttpStatus.OK) {
-                Map<String, Object> responseBody = response.getBody();
-                if (responseBody != null) {
-                    Object resultsObj = responseBody.get("results");
-                    if (resultsObj instanceof List<?> results && !results.isEmpty()) {
-                        Object first = results.get(0);
-                        if (first instanceof Map<?, ?> firstResult) {
-                            Object flaggedObj = firstResult.get("flagged");
-                            if (flaggedObj instanceof Boolean flagged && flagged) {
-                                log.warn("Moderation API 차단: 부적절한 콘텐츠 감지");
-                                return true;
-                            }
-                        }
-                    }
-                }
-            }
-            return false;
-
-        } catch (Exception e) {
-            log.error("Moderation API 호출 실패 - 키워드 필터로 대체", e);
-            // API 호출 실패 시 false 반환 (키워드 필터가 대신 처리)
+            return agentRuntime.isReady();
+        } catch (RuntimeException unavailable) {
             return false;
         }
     }
@@ -313,11 +413,11 @@ public class ConversationAdmissionService {
     }
 
     /**
-     * OpenAI 처리 중 발생한 일반 오류
+     * AI provider 처리 중 발생한 일반 오류
      */
     public static class ChatProcessingException extends RuntimeException {
         public enum ErrorType {
-            OPENAI_API_FAILURE,
+            AI_PROVIDER_FAILURE,
             UNKNOWN
         }
 

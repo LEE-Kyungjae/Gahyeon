@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import random
 import subprocess
 import time
 import urllib.request
@@ -33,15 +34,19 @@ def sync_progress(output: Path, total: int) -> None:
         f"  확보 음성: {seconds / 60:.1f}분   평균 생성: {average:.1f}초/문장\n"
         f"  예상 완료까지: {remaining / 60:.1f}분\n"
     )
-    subprocess.run(
-        ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=4", "land", "tee /home/ubuntu/voicebox-distill.status"],
-        input=status,
-        text=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        timeout=10,
-        check=False,
-    )
+    try:
+        subprocess.run(
+            ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=4", "land", "tee /home/ubuntu/voicebox-distill.status"],
+            input=status,
+            text=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=10,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        # Progress mirroring is optional and must never stop corpus generation.
+        pass
 
 
 def build_sentences() -> list[str]:
@@ -122,8 +127,73 @@ def build_sentences() -> list[str]:
         for clock in times:
             sentences.append(f"{event} 일정은 {clock}로 등록하고 십 분 전에 알려드리겠습니다.")
 
-    # Stable de-duplication while preserving coverage order.
-    return list(dict.fromkeys(sentences))
+    # Broader natural Korean coverage for a pure Voicebox teacher corpus.
+    # Keep several sentence shapes so Piper does not learn one repeated cadence.
+    subjects = [
+        "새로 접수된 고객 문의", "이번 주 프로젝트 일정", "어제 발생한 서버 오류",
+        "오늘 아침 시장 동향", "다음 달 예산 계획", "회의에서 결정된 사항",
+        "최근 변경된 보안 정책", "현재 진행 중인 배포 작업", "지난 분기 매출 자료",
+        "사용자가 남긴 개선 의견", "백업 저장소의 남은 용량", "음성 모델의 평가 결과",
+        "개발팀이 제출한 코드 변경", "오후에 예정된 화상 회의", "새로 수집한 학습 데이터",
+        "모바일 앱의 응답 속도", "국내외 주요 경제 지표", "배송이 지연된 주문 목록",
+        "이번 업데이트의 핵심 기능", "장애 복구 과정에서 남은 문제",
+        "데이터베이스의 느린 질의", "고객 지원팀의 처리 현황", "내일 발표할 보고서 초안",
+        "실시간 알림 서비스의 상태", "최근 일주일 동안의 사용량",
+    ]
+    actions = [
+        "관련 기록과 비교해 정확한 원인을 확인했습니다",
+        "중요한 항목부터 차례대로 정리해 알려드리겠습니다",
+        "수치가 달라진 구간을 찾아 근거와 함께 설명하겠습니다",
+        "누락된 내용이 없는지 다시 한번 꼼꼼하게 검토하겠습니다",
+        "문제가 재발하지 않도록 필요한 조치를 준비하겠습니다",
+        "담당자가 바로 판단할 수 있도록 짧고 명확하게 요약하겠습니다",
+        "예상되는 위험과 가능한 해결 방법을 함께 제안하겠습니다",
+        "이전 결과와 나란히 놓고 변화한 부분을 살펴보겠습니다",
+        "완료 여부를 확인한 뒤 다음 작업으로 안전하게 넘어가겠습니다",
+        "사용자에게 미치는 영향을 기준으로 우선순위를 결정하겠습니다",
+    ]
+    openings = [
+        "먼저", "지금부터", "요청하신 대로", "결론을 말씀드리기 전에",
+    ]
+    for subject in subjects:
+        for action in actions:
+            for opening in openings:
+                sentences.append(f"{opening} {subject} 관련 내용을 확인하고 {action}.")
+
+    everyday = [
+        ("창문을 열기 전에", "밖의 기온과 공기 질을 확인해 주세요"),
+        ("집을 나서기 전에", "우산과 휴대전화를 챙겼는지 살펴보세요"),
+        ("물을 끓이는 동안", "식탁 위에 컵과 찻잎을 준비해 둘게요"),
+        ("저녁 식사가 끝나면", "남은 음식을 정리하고 설거지를 시작하겠습니다"),
+        ("주말 여행을 떠나기 전에", "교통 상황과 숙소 예약을 다시 확인할까요"),
+        ("운동을 시작하기 전에", "가볍게 몸을 풀고 호흡을 천천히 가다듬으세요"),
+        ("책을 읽다가 궁금한 점이 생기면", "표시해 두었다가 함께 이야기해 봅시다"),
+        ("비가 그친 오후에는", "가까운 공원을 천천히 걸어도 좋겠습니다"),
+        ("잠들기 한 시간 전에는", "밝은 화면을 줄이고 방을 조용하게 만들어 보세요"),
+        ("아침 식사를 준비하면서", "오늘 해야 할 일을 세 가지만 정해 보겠습니다"),
+    ]
+    tones = [".", "!", "?", ", 괜찮으신가요?"]
+    for prefix, clause in everyday:
+        for tone in tones:
+            sentences.append(f"{prefix} {clause}{tone}")
+
+    number_sentences = [
+        "회의는 오전 아홉 시 십오 분에 시작해서 열한 시에 끝날 예정입니다.",
+        "전체 백 개 항목 가운데 아흔일곱 개가 정상적으로 처리되었습니다.",
+        "응답 시간은 일 점 이 초에서 영 점 칠 초로 약 사십 퍼센트 줄었습니다.",
+        "첫째 항목은 품질, 둘째 항목은 속도, 셋째 항목은 안정성입니다.",
+        "저장 공간 이 테라바이트 중에서 약 육백오십 기가바이트가 남았습니다.",
+        "다음 점검은 팔월 십일일 화요일 오후 세 시로 예약하겠습니다.",
+        "오류는 열 번의 요청 중 한 번이 아니라 천 번 중 두 번 발생했습니다.",
+        "예상 비용은 삼십만 원에서 사십오만 원 사이로 계산됩니다.",
+        "현재 온도는 이십칠 도이고 체감 온도는 삼십 도에 가깝습니다.",
+        "파일 세 개의 크기는 각각 이십, 사십, 육십 메가바이트입니다.",
+    ]
+    sentences.extend(number_sentences)
+
+    unique = list(dict.fromkeys(sentences))
+    random.Random(20260808).shuffle(unique)
+    return unique
 
 
 def request_json(url: str, method: str = "GET", body: dict | None = None) -> dict:

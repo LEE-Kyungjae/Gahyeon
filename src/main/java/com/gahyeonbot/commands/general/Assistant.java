@@ -2,7 +2,7 @@ package com.gahyeonbot.commands.general;
 
 import com.gahyeonbot.commands.util.AbstractCommand;
 import com.gahyeonbot.commands.util.ResponseUtil;
-import com.gahyeonbot.services.assistant.VoiceAssistantService;
+import com.gahyeonbot.adapters.discord.voice.VoiceAssistantService;
 import lombok.RequiredArgsConstructor;
 import net.dv8tion.jda.api.events.interaction.command.SlashCommandInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;

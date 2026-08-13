@@ -1,6 +1,7 @@
 package com.gahyeonbot.controllers;
 
 import com.gahyeonbot.adapters.discord.bootstrap.BotInitializerRunner;
+import com.gahyeonbot.adapters.health.AgentRuntimeReadiness;
 import com.gahyeonbot.services.weather.WeatherService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,7 @@ public class HealthController {
     private final DataSource dataSource;
     private final BotInitializerRunner botRunner;
     private final WeatherService weatherService;
+    private final AgentRuntimeReadiness agentRuntimeReadiness;
 
     @GetMapping("/health")
     public ResponseEntity<Map<String, Object>> health() {
@@ -39,13 +41,26 @@ public class HealthController {
             ready = false;
         }
 
-        // 봇 초기화 완료 확인
-        if (!botRunner.isReady()) {
-            result.put("bot", "STARTING");
-            ready = false;
-        } else {
-            result.put("bot", botRunner.getShardManager() != null ? "UP" : "DISABLED");
-        }
+        // Discord disabled and leader-standby are intentional ready states. Any activation
+        // failure is fail-closed so a rollout cannot silently lose the Discord adapter.
+        BotInitializerRunner.ActivationState discordState = botRunner.getActivationState();
+        String botStatus = switch (discordState) {
+            case READY -> botRunner.getShardManager() == null ? "DOWN" : "UP";
+            case STANDBY -> "STANDBY";
+            case DISABLED -> "DISABLED";
+            case STARTING -> "STARTING";
+            case FAILED -> "DOWN";
+        };
+        result.put("bot", botStatus);
+        result.put("botState", discordState.name());
+        result.put("botReason", botRunner.getActivationReason());
+        if (!botRunner.isReady() || "DOWN".equals(botStatus)) ready = false;
+
+        AgentRuntimeReadiness.Snapshot conversation = agentRuntimeReadiness.snapshot();
+        result.put("conversationRequired", conversation.required());
+        result.put("conversation", conversation.ready() ? "UP"
+                : conversation.required() ? "DOWN" : "OPTIONAL_DISABLED");
+        if (!conversation.deploymentReady()) ready = false;
 
         // Weather update visibility (should not block readiness)
         result.put("weatherCurrentLastAttemptAt", weatherService.getLastCurrentAttemptAt());
@@ -63,6 +78,6 @@ public class HealthController {
 
     @GetMapping("/")
     public Map<String, String> root() {
-        return Map.of("service", "gahyeonbot", "status", "running");
+        return Map.of("service", "gahyeon", "status", "running");
     }
 }

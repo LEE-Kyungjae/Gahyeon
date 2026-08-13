@@ -1,0 +1,16 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "server-welcome-1",
+  "type": "server.welcome",
+  "sentAt": "2026-08-12T03:00:00Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "connection-1",
+  "delivery": "ephemeral",
+  "payload": {
+    "protocol": "gahyeon.unreal.v1",
+    "schemaVersion": 1,
+    "heartbeatIntervalMs": 10000,
+    "resumeAfter": 0
+  }
+}

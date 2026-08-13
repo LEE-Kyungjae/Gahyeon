@@ -105,6 +105,23 @@ export function proceduralPose(activity: AnimationActivity, elapsed: number): Po
         leftUpperArm: [0, 0, -0.08],
         rightUpperArm: [0, 0, 0.08],
       }
+    case 'listening':
+      return {
+        spine: [-0.035, 0, 0],
+        chest: [-0.015, 0, 0],
+        head: [-0.055 + Math.sin(elapsed * 1.1) * 0.012, 0.035, 0.025],
+        leftUpperArm: [0, 0, -0.075],
+        rightUpperArm: [0, 0, 0.075],
+      }
+    case 'thinking':
+      return {
+        spine: [0.015, 0, 0],
+        chest: [0.01, 0, 0],
+        head: [0.015, 0.16 + Math.sin(elapsed * 0.35) * 0.025, -0.035],
+        leftUpperArm: [-0.08, 0, -0.1],
+        rightUpperArm: [-0.22, 0, 0.22],
+        rightLowerArm: [-0.82, 0, 0],
+      }
     case 'conversation':
       return {
         chest: [breath * 0.012, 0, 0],

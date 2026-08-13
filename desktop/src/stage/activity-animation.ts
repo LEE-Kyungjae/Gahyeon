@@ -8,6 +8,8 @@ export type AnimationActivity =
   | 'look_outside'
   | 'relax'
   | 'attention'
+  | 'listening'
+  | 'thinking'
   | 'conversation'
 
 const supported = new Set<AnimationActivity>([
@@ -20,6 +22,8 @@ const supported = new Set<AnimationActivity>([
   'look_outside',
   'relax',
   'attention',
+  'listening',
+  'thinking',
   'conversation',
 ])
 

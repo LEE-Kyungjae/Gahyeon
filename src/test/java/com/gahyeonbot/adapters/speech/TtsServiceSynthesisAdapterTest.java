@@ -9,9 +9,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.*;
 
 class TtsServiceSynthesisAdapterTest {
@@ -58,5 +60,29 @@ class TtsServiceSynthesisAdapterTest {
         assertThat(audio.mediaType()).isEqualTo("audio/mpeg");
         assertThat(audio.fileExtension()).isEqualTo("mp3");
         verify(tts).synthesizeSegmentToAudio("안녕");
+    }
+
+    @Test
+    void rejectsAndDeletesOversizedProviderAudioBeforeReadingIt() throws Exception {
+        TtsService tts = mock(TtsService.class);
+        AssistantProperties properties = new AssistantProperties();
+        properties.setTtsProvider("voicebox");
+        Path providerFile = tempDir.resolve("oversized.wav");
+        try (var channel = Files.newByteChannel(
+                providerFile,
+                StandardOpenOption.CREATE_NEW,
+                StandardOpenOption.WRITE)) {
+            channel.position(TtsServiceSynthesisAdapter.MAX_SYNTHESIZED_AUDIO_BYTES);
+            channel.write(java.nio.ByteBuffer.wrap(new byte[]{1}));
+        }
+        when(tts.synthesizeSegmentToAudio("너무 긴 음성", "voicebox"))
+                .thenReturn(providerFile);
+        var adapter = new TtsServiceSynthesisAdapter(tts, properties);
+
+        assertThatThrownBy(() -> adapter.synthesize(
+                new SpeechSegment(0, "너무 긴 음성"), VoiceProfileId.ASSISTANT))
+                .isInstanceOf(TtsServiceSynthesisAdapter.SpeechSynthesisException.class)
+                .hasRootCauseMessage("합성 음성 크기가 허용 범위를 벗어났습니다: 16777217");
+        assertThat(Files.exists(providerFile)).isFalse();
     }
 }

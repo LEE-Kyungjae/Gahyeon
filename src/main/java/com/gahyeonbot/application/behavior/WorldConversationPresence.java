@@ -17,10 +17,14 @@ public class WorldConversationPresence implements ConversationPresencePort {
     private static final Logger log = LoggerFactory.getLogger(WorldConversationPresence.class);
 
     private final WorldStateUseCase worlds;
+    private final WorldActionCoordinator actions;
     private final ConcurrentHashMap<String, PresenceState> presence = new ConcurrentHashMap<>();
 
-    public WorldConversationPresence(WorldStateUseCase worlds) {
+    public WorldConversationPresence(
+            WorldStateUseCase worlds,
+            WorldActionCoordinator actions) {
         this.worlds = worlds;
+        this.actions = actions;
     }
 
     @Override
@@ -32,6 +36,7 @@ public class WorldConversationPresence implements ConversationPresencePort {
             if (state.activeConversations > 1) return () -> leave(worldKey, state);
             try {
                 WorldId worldId = new WorldId(worldKey);
+                actions.cancelPending(worldId, "conversation_started");
                 WorldStateSnapshot current = worlds.current(worldId);
                 state.previousActivity = current.activity();
                 state.previousTarget = current.interactionTarget();
