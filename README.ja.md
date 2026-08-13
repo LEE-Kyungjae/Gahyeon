@@ -249,9 +249,9 @@ repositoryとdeploymentを調整して移行するまでは一括変更しませ
 - [API](docs/API.md)
 - [Desktop](desktop/README.md)
 - [AIRI分析](docs/AIRI_DESKTOP_ANALYSIS.md)
-- [AAA Character Pipeline](docs/AAA_CHARACTER_PIPELINE.md)
-- [Character品質Gate](docs/GAHYEON_CHARACTER_QUALITY_GATES.md)
-- [G1 Modeling Handoff](docs/GAHYEON_G1_MODELING_HANDOFF.md)
+- AAA Character Pipeline *(キャラクター制作トラックで作成中)*
+- Character品質Gate *(キャラクター制作トラックで作成中)*
+- `docs/GAHYEON_G1_MODELING_HANDOFF.md` *(キャラクター制作トラックで作成中)*
 - [Unreal Acceptance状態](docs/unreal/ACCEPTANCE_STATUS.md)
 - [Looking Glass](docs/LOOKING_GLASS.md)
 - [音声](docs/CUSTOM_VOICE_TTS.md)

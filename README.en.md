@@ -249,9 +249,9 @@ repository and deployment migration.
 - [API](docs/API.md)
 - [Desktop](desktop/README.md)
 - [AIRI analysis](docs/AIRI_DESKTOP_ANALYSIS.md)
-- [AAA Character Pipeline](docs/AAA_CHARACTER_PIPELINE.md)
-- [Character quality gates](docs/GAHYEON_CHARACTER_QUALITY_GATES.md)
-- [G1 Modeling Handoff](docs/GAHYEON_G1_MODELING_HANDOFF.md)
+- AAA Character Pipeline *(in progress in the character production track)*
+- Character quality gates *(in progress in the character production track)*
+- `docs/GAHYEON_G1_MODELING_HANDOFF.md` *(in progress in the character production track)*
 - [Unreal acceptance status](docs/unreal/ACCEPTANCE_STATUS.md)
 - [Looking Glass](docs/LOOKING_GLASS.md)
 - [Voice](docs/CUSTOM_VOICE_TTS.md)

@@ -248,9 +248,9 @@ scripts/          Voice/Piper, SDXL asset pipeline과 운영 보조 도구
 - [API](docs/API.md)
 - [Desktop](desktop/README.md)
 - [AIRI 분석](docs/AIRI_DESKTOP_ANALYSIS.md)
-- [AAA Character Pipeline](docs/AAA_CHARACTER_PIPELINE.md)
-- [Character 품질 Gate](docs/GAHYEON_CHARACTER_QUALITY_GATES.md)
-- [G1 Modeling Handoff](docs/GAHYEON_G1_MODELING_HANDOFF.md)
+- AAA Character Pipeline *(캐릭터 제작 트랙에서 작성 중)*
+- Character 품질 Gate *(캐릭터 제작 트랙에서 작성 중)*
+- `docs/GAHYEON_G1_MODELING_HANDOFF.md` *(캐릭터 제작 트랙에서 작성 중)*
 - [Unreal Acceptance 상태](docs/unreal/ACCEPTANCE_STATUS.md)
 - [Looking Glass](docs/LOOKING_GLASS.md)
 - [음성](docs/CUSTOM_VOICE_TTS.md)

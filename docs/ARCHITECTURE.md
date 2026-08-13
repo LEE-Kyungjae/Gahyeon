@@ -237,7 +237,7 @@ bash scripts/verify_unreal_protocol_contract.sh
 
 정적 Stage 검증과 RuntimeCore harness 통과는 실제 UE 5.6 compile/PIE 증거를 대신하지 않는다.
 실기 acceptance와 캐릭터 품질 gate는 각각 Unreal 문서와
-[`GAHYEON_CHARACTER_QUALITY_GATES.md`](GAHYEON_CHARACTER_QUALITY_GATES.md)를 따른다.
+캐릭터 제작 트랙에서 작성 중인 `GAHYEON_CHARACTER_QUALITY_GATES.md` 계약을 따른다. 해당 문서는 캐릭터 소스와 함께 별도 반영한다.
 
 ## 배포와 호환 마이그레이션
 
@@ -251,6 +251,6 @@ rollback을 함께 준비한 별도 작업으로 수행한다.
 - [`API.md`](API.md)
 - [`GAHYEON_CORE_MIGRATION.md`](GAHYEON_CORE_MIGRATION.md)
 - [`CUSTOM_VOICE_TTS.md`](CUSTOM_VOICE_TTS.md)
-- [`AAA_CHARACTER_PIPELINE.md`](AAA_CHARACTER_PIPELINE.md)
-- [`GAHYEON_G1_MODELING_HANDOFF.md`](GAHYEON_G1_MODELING_HANDOFF.md)
+- `AAA_CHARACTER_PIPELINE.md` *(캐릭터 제작 트랙에서 작성 중)*
+- `GAHYEON_G1_MODELING_HANDOFF.md` *(캐릭터 제작 트랙에서 작성 중)*
 - [`adr/`](adr/)
