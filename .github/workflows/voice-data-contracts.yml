@@ -1,0 +1,156 @@
+name: Voice Data Contracts
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "scripts/check_voicebox_teacher_progress.py"
+      - "scripts/test_voicebox_teacher_progress.py"
+      - "scripts/build_voicebox_teacher_from_catalog.py"
+      - "scripts/test_build_voicebox_teacher_from_catalog.py"
+      - "scripts/verify_voicebox_handoff_identity.py"
+      - "scripts/test_verify_voicebox_handoff_identity.py"
+      - "scripts/verify_piper_training_identity.py"
+      - "scripts/test_verify_piper_training_identity.py"
+      - "scripts/verify_piper_training_failure.py"
+      - "scripts/test_verify_piper_training_failure.py"
+      - "scripts/record_piper_training_status.py"
+      - "scripts/test_record_piper_training_status.py"
+      - "scripts/report_voice_pipeline_status.py"
+      - "scripts/test_report_voice_pipeline_status.py"
+      - "scripts/acoustic_qc_voicebox_teacher.py"
+      - "scripts/test_acoustic_qc_voicebox_teacher.py"
+      - "scripts/stt_qc_voicebox_teacher.py"
+      - "scripts/test_stt_qc_voicebox_teacher.py"
+      - "scripts/package_voicebox_teacher_dataset.py"
+      - "scripts/test_package_voicebox_teacher_dataset.py"
+      - "scripts/finalize_voicebox_teacher_piper.sh"
+      - "scripts/deploy_voicebox_teacher_piper_to_land.sh"
+      - "scripts/land_run_piper_voicebox_diverse5000_stages4800.sh"
+      - "scripts/evaluate_tts_suite.py"
+      - "scripts/speaker_consistency_qc.py"
+      - "scripts/test_speaker_consistency_qc.py"
+      - "scripts/rank_piper_training_stages.py"
+      - "scripts/test_rank_piper_training_stages.py"
+      - "scripts/monitor_piper_training_land.sh"
+      - "scripts/build_piper_listening_review.py"
+      - "scripts/record_piper_listening_decision.py"
+      - "scripts/promote_piper_candidate.py"
+      - "scripts/verify_piper_release.py"
+      - "scripts/test_verify_piper_release.py"
+      - "scripts/test_piper_listening_review.py"
+      - "scripts/test_promote_piper_candidate.py"
+      - "scripts/deploy_piper_release_to_land.sh"
+      - "scripts/verify_piper_runtime_smoke.py"
+      - "scripts/test_verify_piper_runtime_smoke.py"
+      - "scripts/test_piper_runtime_server.py"
+      - "infra/images/piper/server.py"
+      - "scripts/ensure_voicebox_teacher_diverse4000.sh"
+      - "scripts/ensure_voicebox_teacher_diverse5000.sh"
+      - "scripts/run_voicebox_teacher_diverse1000.sh"
+      - "scripts/voicebox_supervisor_decision.py"
+      - "scripts/test_voicebox_supervisor_decision.py"
+      - "scripts/verify_voice_pipeline_wiring.py"
+      - "scripts/test_verify_voice_pipeline_wiring.py"
+      - ".github/workflows/voice-data-contracts.yml"
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "scripts/check_voicebox_teacher_progress.py"
+      - "scripts/test_voicebox_teacher_progress.py"
+      - "scripts/build_voicebox_teacher_from_catalog.py"
+      - "scripts/test_build_voicebox_teacher_from_catalog.py"
+      - "scripts/verify_voicebox_handoff_identity.py"
+      - "scripts/test_verify_voicebox_handoff_identity.py"
+      - "scripts/verify_piper_training_identity.py"
+      - "scripts/test_verify_piper_training_identity.py"
+      - "scripts/verify_piper_training_failure.py"
+      - "scripts/test_verify_piper_training_failure.py"
+      - "scripts/record_piper_training_status.py"
+      - "scripts/test_record_piper_training_status.py"
+      - "scripts/report_voice_pipeline_status.py"
+      - "scripts/test_report_voice_pipeline_status.py"
+      - "scripts/acoustic_qc_voicebox_teacher.py"
+      - "scripts/test_acoustic_qc_voicebox_teacher.py"
+      - "scripts/stt_qc_voicebox_teacher.py"
+      - "scripts/test_stt_qc_voicebox_teacher.py"
+      - "scripts/package_voicebox_teacher_dataset.py"
+      - "scripts/test_package_voicebox_teacher_dataset.py"
+      - "scripts/finalize_voicebox_teacher_piper.sh"
+      - "scripts/deploy_voicebox_teacher_piper_to_land.sh"
+      - "scripts/land_run_piper_voicebox_diverse5000_stages4800.sh"
+      - "scripts/evaluate_tts_suite.py"
+      - "scripts/speaker_consistency_qc.py"
+      - "scripts/test_speaker_consistency_qc.py"
+      - "scripts/rank_piper_training_stages.py"
+      - "scripts/test_rank_piper_training_stages.py"
+      - "scripts/monitor_piper_training_land.sh"
+      - "scripts/build_piper_listening_review.py"
+      - "scripts/record_piper_listening_decision.py"
+      - "scripts/promote_piper_candidate.py"
+      - "scripts/verify_piper_release.py"
+      - "scripts/test_verify_piper_release.py"
+      - "scripts/test_piper_listening_review.py"
+      - "scripts/test_promote_piper_candidate.py"
+      - "scripts/deploy_piper_release_to_land.sh"
+      - "scripts/verify_piper_runtime_smoke.py"
+      - "scripts/test_verify_piper_runtime_smoke.py"
+      - "scripts/test_piper_runtime_server.py"
+      - "infra/images/piper/server.py"
+      - "scripts/ensure_voicebox_teacher_diverse4000.sh"
+      - "scripts/ensure_voicebox_teacher_diverse5000.sh"
+      - "scripts/run_voicebox_teacher_diverse1000.sh"
+      - "scripts/voicebox_supervisor_decision.py"
+      - "scripts/test_voicebox_supervisor_decision.py"
+      - "scripts/verify_voice_pipeline_wiring.py"
+      - "scripts/test_verify_voice_pipeline_wiring.py"
+      - ".github/workflows/voice-data-contracts.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: voice-data-contracts-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  progress-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate resumable progress contract
+        run: |
+          python3 scripts/test_voicebox_teacher_progress.py
+          python3 scripts/test_build_voicebox_teacher_from_catalog.py
+          python3 scripts/test_verify_voicebox_handoff_identity.py
+          python3 scripts/test_verify_piper_training_identity.py
+          python3 scripts/test_verify_piper_training_failure.py
+          python3 scripts/test_record_piper_training_status.py
+          python3 scripts/test_report_voice_pipeline_status.py
+          python3 scripts/test_voicebox_supervisor_decision.py
+          python3 scripts/test_verify_voice_pipeline_wiring.py
+          python3 scripts/verify_voice_pipeline_wiring.py
+          python3 scripts/test_acoustic_qc_voicebox_teacher.py
+          python3 scripts/test_stt_qc_voicebox_teacher.py
+          python3 scripts/test_package_voicebox_teacher_dataset.py
+          python3 scripts/test_speaker_consistency_qc.py
+          python3 scripts/test_rank_piper_training_stages.py
+          python3 scripts/test_piper_listening_review.py
+          python3 scripts/test_promote_piper_candidate.py
+          python3 scripts/test_verify_piper_release.py
+          python3 scripts/test_verify_piper_runtime_smoke.py
+          python3 scripts/test_piper_runtime_server.py
+          python3 -m py_compile scripts/evaluate_tts_suite.py scripts/speaker_consistency_qc.py
+
+      - name: Validate voice handoff shell scripts
+        run: |
+          zsh -n scripts/finalize_voicebox_teacher_piper.sh
+          zsh -n scripts/deploy_voicebox_teacher_piper_to_land.sh
+          zsh -n scripts/monitor_piper_training_land.sh
+          zsh -n scripts/ensure_voicebox_teacher_diverse4000.sh
+          zsh -n scripts/ensure_voicebox_teacher_diverse5000.sh
+          zsh -n scripts/run_voicebox_teacher_diverse1000.sh
+          bash -n scripts/land_run_piper_voicebox_diverse5000_stages4800.sh
+          bash -n scripts/deploy_piper_release_to_land.sh
