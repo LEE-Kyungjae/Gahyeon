@@ -129,6 +129,7 @@ public class AgentRunLedger {
         }
         List<AgentRun> superseded = runRepository.findSupersededForUpdate(
                 actorId.value(),
+                current.getId(),
                 current.getCreatedAt(),
                 List.of(
                         AgentRunStatus.QUEUED,

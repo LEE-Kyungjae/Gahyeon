@@ -37,12 +37,14 @@ public interface AgentRunRepository extends JpaRepository<AgentRun, String> {
     @Query("""
             select r from AgentRun r
             where r.actorId = :actorId
+              and r.id <> :currentRunId
               and r.createdAt < :createdAt
               and r.status in :statuses
             order by r.createdAt asc
             """)
     List<AgentRun> findSupersededForUpdate(
             @Param("actorId") Long actorId,
+            @Param("currentRunId") String currentRunId,
             @Param("createdAt") LocalDateTime createdAt,
             @Param("statuses") List<com.gahyeonbot.services.ai.agent.AgentRunStatus> statuses);
 }
