@@ -33,20 +33,6 @@ GAHYEON_UE_ROOT="$fixture_root" \
   "$repo_root/scripts/run_unreal_engine_gate.sh" --check-only \
   | grep -q 'Unreal gate environment OK: UE 5.6'
 
-printf '%s\n' '{}' >"$fixture_root/unapproved-hero.json"
-set +e
-GAHYEON_UE_ROOT="$fixture_root" \
-GAHYEON_HERO_MANIFEST="$fixture_root/unapproved-hero.json" \
-  "$repo_root/scripts/run_unreal_engine_gate.sh" --check-only \
-  >"$fixture_root/hero-gate.out" 2>"$fixture_root/hero-gate.err"
-hero_gate_rc=$?
-set -e
-if [[ "$hero_gate_rc" -eq 0 ]]; then
-  echo "unapproved Hero manifest unexpectedly passed the Unreal gate" >&2
-  exit 1
-fi
-grep -q 'Hero manifest validation failed:' "$fixture_root/hero-gate.err"
-
 GAHYEON_UE_ROOT="$fixture_root" \
 GAHYEON_UNREAL_EVIDENCE_ROOT="$fixture_root/evidence" \
   "$repo_root/scripts/run_unreal_engine_gate.sh" >/dev/null

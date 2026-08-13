@@ -121,7 +121,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install audio contract dependency
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg zsh
       - name: Validate resumable progress contract
         run: |
           python3 scripts/test_voicebox_teacher_progress.py

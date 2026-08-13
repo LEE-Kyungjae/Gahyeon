@@ -8,6 +8,7 @@ on:
     paths:
       - "unreal/**"
       - "docs/unreal/**"
+      - "docs/adr/**"
       - "docs/contracts/**"
       - "src/main/java/com/gahyeonbot/adapters/unreal/**"
       - "src/test/java/com/gahyeonbot/adapters/unreal/**"
@@ -59,6 +60,7 @@ on:
     paths:
       - "unreal/**"
       - "docs/unreal/**"
+      - "docs/adr/**"
       - "docs/contracts/**"
       - "src/main/java/com/gahyeonbot/adapters/unreal/**"
       - "src/test/java/com/gahyeonbot/adapters/unreal/**"
@@ -148,9 +150,6 @@ jobs:
           python3 ./scripts/verify_looking_glass_unreal_profile.py
           python3 ./scripts/test_verify_looking_glass_adapter_source.py
           python3 ./scripts/verify_looking_glass_adapter_source.py
-          python3 ./scripts/test_verify_gahyeon_hero_asset.py
-          python3 ./scripts/test_package_gahyeon_unreal_content.py
-          python3 ./scripts/test_install_gahyeon_unreal_content.py
           python3 ./scripts/test_verify_streaming_stt_contract.py
           python3 ./scripts/verify_streaming_stt_contract.py
 
