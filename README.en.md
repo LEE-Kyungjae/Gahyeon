@@ -2,9 +2,16 @@
 
 [한국어](README.md) · [English](README.en.md) · [日本語](README.ja.md)
 
-Gahyeon is a modular embodied AI agent with persistent memory, voice, autonomous
-behavior, and a persistent world. It is not a screen attached to a Discord bot:
-independent clients and adapters share one Gahyeon Core.
+[![Build](https://github.com/LEE-Kyungjae/Gahyeon/actions/workflows/build-test.yml/badge.svg)](https://github.com/LEE-Kyungjae/Gahyeon/actions/workflows/build-test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+Gahyeon is an open-source project for building a real-time AI character that can
+remember, listen, speak, and act autonomously. A standalone Core owns conversation
+and memory, while Discord, Desktop, and Unreal connect through replaceable adapters.
+
+The goal is not to attach a 3D screen to a Discord bot. The same Gahyeon should be
+able to appear as a voice assistant on Discord, a living character on Desktop, and
+a high-fidelity real-time character in Unreal.
 
 > The priority is a low-latency real-time AI character architecture, not a graphics demo.
 > Reflex, Behavior, and Cognition must keep running independently while the LLM responds.
@@ -23,47 +30,47 @@ independent clients and adapters share one Gahyeon Core.
                                       Monitor · Looking Glass
 ```
 
-Core decides what Gahyeon says, remembers, feels, does, and where she moves.
-Presentation expresses those decisions through voice, facial animation, lip sync,
-body animation, and rendering.
+Core decides what Gahyeon says and remembers, and which emotion or action to express.
+Each client presents those decisions through voice, expressions, lip sync, animation,
+and rendering.
 
 ## Current status
 
-| Area | Current evidence |
+| Area | Implementation and verification status |
 |---|---|
 | Core/Application | Platform-neutral Conversation, Session, Speech ports, Event, and World/Behavior boundaries |
-| Headless | APIs and persistent World run without Discord or an LLM provider |
+| Headless | APIs and the persistent World run without Discord; conversation requires a configured LLM |
 | Discord Adapter | Existing slash commands, text/voice conversation, music, and operations remain available |
-| Desktop compatibility client | Electron/Vue/Three.js text, microphone, audio, VRM, and World path implemented |
-| Unreal Backend Adapter | Conditional WebSocket v1, replay/cursor/snapshot, and streaming speech implemented |
-| Unreal RuntimeCore | Engine-neutral C++20 Reflex/Behavior/Cognition, VAD, speech, viseme, World, persistence, and reconnect harnesses |
-| Unreal Stage | UE 5.6 source project, native runtime/ingress, and asset-free diagnostic pawn/camera implemented; Editor build, MetaHuman, NavMesh, and packaged build remain unverified |
-| Looking Glass | Desktop WebXR path exists; acceptance on a physical Go display is pending |
-| Voice production | A deduplicated 5,000-sentence Voicebox teacher corpus is being generated; completion automatically hands off to acoustic/STT/speaker QC, staged Piper training, and blind review |
-| Character production | SDXL LoRA training/comparison is complete; user originals are locked as canonical identity in the G0 pack with a G1 modeling handoff/drafts, while the final hero mesh remains incomplete |
+| Desktop Client | Electron/Vue/Three.js text, microphone, audio, VRM, and World flows implemented |
+| Unreal integration | WebSocket v1, reconnect, event replay, snapshots, and streaming speech implemented |
+| Real-time RuntimeCore | Engine-neutral C++20 Reflex/Behavior/Cognition, VAD, speech, viseme, and World tests implemented |
+| Unreal Stage | UE 5.6 source project and diagnostic pawn/camera implemented; MetaHuman and packaged-build verification remain pending |
+| Looking Glass | Desktop WebXR and Unreal adapter implemented; validation on a physical Go display remains pending |
+| Voice production | A low-duplication 5,000-sentence corpus is being generated, followed by QC, Piper training, and listening review |
+| Character production | SDXL LoRA comparison and the source-based identity standard are complete; the final hero mesh is in production |
 
-Reference-runtime evidence is not presented as packaged-Unreal acceptance. See the
-[acceptance evidence matrix](docs/unreal/ACCEPTANCE_STATUS.md) for RT-01 through RT-13,
-including slow-secondary-renderer isolation and the remaining hardware tests.
+RuntimeCore test results are not presented as acceptance of a packaged Unreal build.
+See the [acceptance evidence matrix](docs/unreal/ACCEPTANCE_STATUS.md) for automated
+RT-01 through RT-13 results and the checks that still require physical hardware.
 
 ## Design principles
 
-- Discord, Desktop, and Unreal are clients/adapters of Core.
-- Core domain does not depend on JDA, Electron, Unreal, Spring Web, or provider types.
-- The LLM emits semantic intent, not frame transforms or animation asset IDs.
+- Discord, Desktop, and Unreal are clients of Core.
+- Core does not depend on JDA, Electron, Unreal, Spring Web, or a specific AI provider.
+- The LLM chooses high-level intent, not frame-level transforms or animation files.
 - Reflex, Behavior, and Cognition run concurrently on different timescales.
 - Headless Behavior and World continue when no renderer is connected.
 - Network callbacks never mutate Game Thread state directly.
-- Durable cursors and action commands are acknowledged/sent only after persistence succeeds.
+- Durable cursors and action results are acknowledged only after persistence succeeds.
 - Memory owns what Gahyeon remembers; World State owns where she is and what she is doing.
 
 ## Requirements
 
 - Java 21
 - Node.js 20 or later and npm
-- Production: PostgreSQL 16 recommended
-- Development default: in-memory H2 in PostgreSQL compatibility mode
-- Unreal development: Unreal Engine 5.6 and compatible MetaHuman plugins
+- Production: PostgreSQL 16
+- Local tests: in-memory H2 in PostgreSQL compatibility mode
+- Unreal development: Unreal Engine 5.6 and a compatible MetaHuman plugin
 
 ## Quick start
 
@@ -266,3 +273,9 @@ and separate artifact storage.
 SDXL outputs and generated drafts are not canonical facial evidence. Character identity authority
 is the checksum-bound pack of user originals; inferred regions and approval state of generated G1
 sheets remain recorded in a separate manifest.
+
+## License
+
+Original project source code is distributed under the [MIT License](LICENSE). External models,
+voice data, MetaHuman, the Looking Glass SDK, and other third-party assets remain subject to
+their respective licenses.
