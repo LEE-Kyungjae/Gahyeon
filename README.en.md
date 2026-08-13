@@ -266,3 +266,9 @@ and separate artifact storage.
 SDXL outputs and generated drafts are not canonical facial evidence. Character identity authority
 is the checksum-bound pack of user originals; inferred regions and approval state of generated G1
 sheets remain recorded in a separate manifest.
+
+## License
+
+Original project source code is distributed under the [MIT License](LICENSE). External models,
+voice data, MetaHuman, the Looking Glass SDK, and other third-party assets remain subject to
+their respective licenses.

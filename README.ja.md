@@ -266,3 +266,8 @@ container imageへ含めないでください。デプロイ環境のsecretと�
 SDXL出力や生成draftはcanonicalな顔の根拠ではありません。Character identity authorityは
 checksumで固定したユーザー原本packであり、生成G1 sheetの推定領域と承認状態は別manifestで
 管理します。
+
+## ライセンス
+
+本プロジェクト独自のsource codeは[MIT License](LICENSE)で配布します。外部model、音声data、
+MetaHuman、Looking Glass SDK、その他のthird-party assetには、それぞれの個別licenseが適用されます。

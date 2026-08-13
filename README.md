@@ -264,3 +264,8 @@ Git이나 container image에 포함하지 마세요. 배포 환경의 secret과 
 
 SDXL/생성 draft는 canonical 얼굴 근거가 아닙니다. 캐릭터 identity authority는 checksum으로
 고정된 사용자 원본 pack이며, 생성된 G1 시트의 추정 영역과 승인 상태는 별도 manifest로 관리합니다.
+
+## 라이선스
+
+프로젝트의 자체 소스 코드는 [MIT License](LICENSE)로 배포됩니다. 외부 모델, 음성 데이터,
+MetaHuman, Looking Glass SDK와 기타 제3자 asset에는 각각의 별도 라이선스가 적용됩니다.

@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Desktop presentation client for the Gahyeon embodied AI agent.",
   "author": "Gahyeon contributors",
+  "license": "MIT",
   "private": true,
   "type": "module",
   "main": "dist-electron/main.js",
