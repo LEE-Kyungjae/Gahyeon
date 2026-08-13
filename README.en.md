@@ -263,6 +263,8 @@ repository and deployment migration.
 - [Looking Glass](docs/LOOKING_GLASS.md)
 - [Voice](docs/CUSTOM_VOICE_TTS.md)
 - [Deployment](docs/DEPLOYMENT.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
 
 ## Security and assets
 
