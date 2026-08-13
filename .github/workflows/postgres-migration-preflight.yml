@@ -1,0 +1,88 @@
+name: PostgreSQL Migration Preflight
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "src/main/resources/db/migration/**"
+      - "src/main/resources/application*.yml"
+      - "src/main/java/com/gahyeonbot/entity/**"
+      - "src/main/java/com/gahyeonbot/repository/**"
+      - "src/main/java/com/gahyeonbot/adapters/identity/JpaIdentityLinkAdapter.java"
+      - "build.gradle"
+      - "gradle/**"
+      - "gradlew"
+      - "scripts/fixtures/flyway-v24.sha256"
+      - "scripts/materialize_flyway_v24_fixture.py"
+      - "scripts/test_materialize_flyway_v24_fixture.py"
+      - "scripts/preflight_postgres_migrations.sh"
+      - "scripts/verify_postgres_migration_preflight.py"
+      - "scripts/test_verify_postgres_migration_preflight.py"
+      - "docs/DEPLOYMENT.md"
+      - "docs/DEPLOYMENT_MIGRATION_BLOCKER.md"
+      - "docs/adr/0011-v24-physical-schema-compatibility.md"
+      - ".github/workflows/postgres-migration-preflight.yml"
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "src/main/resources/db/migration/**"
+      - "src/main/resources/application*.yml"
+      - "src/main/java/com/gahyeonbot/entity/**"
+      - "src/main/java/com/gahyeonbot/repository/**"
+      - "src/main/java/com/gahyeonbot/adapters/identity/JpaIdentityLinkAdapter.java"
+      - "build.gradle"
+      - "gradle/**"
+      - "gradlew"
+      - "scripts/fixtures/flyway-v24.sha256"
+      - "scripts/materialize_flyway_v24_fixture.py"
+      - "scripts/test_materialize_flyway_v24_fixture.py"
+      - "scripts/preflight_postgres_migrations.sh"
+      - "scripts/verify_postgres_migration_preflight.py"
+      - "scripts/test_verify_postgres_migration_preflight.py"
+      - "docs/DEPLOYMENT.md"
+      - "docs/DEPLOYMENT_MIGRATION_BLOCKER.md"
+      - "docs/adr/0011-v24-physical-schema-compatibility.md"
+      - ".github/workflows/postgres-migration-preflight.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  postgres-migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout full migration history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Temurin JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Verify source contracts
+        run: |
+          python3 scripts/test_materialize_flyway_v24_fixture.py
+          python3 scripts/test_verify_postgres_migration_preflight.py
+          python3 scripts/verify_postgres_migration_preflight.py
+
+      - name: Build current application JAR
+        run: ./gradlew --no-daemon bootJar --console=plain
+
+      - name: Run disposable PostgreSQL migration preflight
+        env:
+          GAHYEON_POSTGRES_PREFLIGHT_SKIP_BUILD: "true"
+        run: ./scripts/preflight_postgres_migrations.sh
+
+      - name: Upload preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgres-migration-preflight-${{ github.sha }}
+          path: build/reports/postgres-migration-preflight/**
+          if-no-files-found: error
+          retention-days: 14

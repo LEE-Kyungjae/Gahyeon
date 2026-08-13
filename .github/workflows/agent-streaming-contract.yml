@@ -1,0 +1,43 @@
+name: Agent Streaming Contract
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "scripts/verify_agent_streaming_provider.py"
+      - "scripts/test_verify_agent_streaming_provider.py"
+      - "src/main/java/com/gahyeonbot/services/ai/agent/**"
+      - "src/test/java/com/gahyeonbot/services/ai/agent/**"
+      - ".github/workflows/agent-streaming-contract.yml"
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "scripts/verify_agent_streaming_provider.py"
+      - "scripts/test_verify_agent_streaming_provider.py"
+      - "src/main/java/com/gahyeonbot/services/ai/agent/**"
+      - "src/test/java/com/gahyeonbot/services/ai/agent/**"
+      - ".github/workflows/agent-streaming-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract-parser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/test_verify_agent_streaming_provider.py
+      - run: python3 -m py_compile scripts/verify_agent_streaming_provider.py
+
+  runtime-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: ./gradlew test --tests 'com.gahyeonbot.services.ai.agent.*'

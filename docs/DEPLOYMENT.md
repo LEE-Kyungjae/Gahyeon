@@ -2,7 +2,7 @@
 
 ## 개요
 
-가현봇은 GitHub Actions를 통한 자동화된 CI/CD 파이프라인과 Blue/Green 무중단 배포 전략을 사용합니다.
+Gahyeon은 GitHub Actions를 통한 자동화된 CI/CD 파이프라인과 Blue/Green 무중단 배포 전략을 사용합니다.
 
 **배포 환경**:
 - **Container Registry**: GitHub Container Registry (GHCR)
@@ -283,12 +283,50 @@ curl -fsS http://127.0.0.1:8080/api/health
 
 **성공 조건**:
 - HTTP 200 응답 수신
+- Headless 또는 Unreal을 켠 배포에서는 `conversationRequired=true`, `conversation=UP`
+- `BOT_ENABLED=false`이면 `botState=DISABLED`, `bot=DISABLED`
+- Discord 활성 leader이면 `botState=READY`, `bot=UP`; advisory-lock follower이면
+  `botState=STANDBY`, `bot=STANDBY`
 - 30초 이내 성공 시 다음 단계 진행
 
 **실패 시**:
 - 새 컨테이너 로그 출력
 - 컨테이너 중지 및 삭제 (롤백)
 - 배포 실패 종료
+
+Discord가 활성화된 상태에서 token 누락·거부, leader-lock DB 오류, ShardManager 초기화 실패는
+프로세스를 바로 종료하지 않지만 `botState=FAILED`, `bot=DOWN`과 HTTP 503을 반환합니다.
+정상 Blue/Green follower의 `STANDBY`와 실제 activation 장애의 `FAILED`를 혼동하지 마세요.
+
+> 배포 전 미완료 gate: GitHub의 image smoke는 현재 runner-native architecture와 `dev`/H2를
+> 검증합니다. 별도의 disposable PostgreSQL에서 운영 DB의 현재 Flyway version부터 최신까지
+> upgrade하는 release gate는 아직 필요합니다. 현재 image publish는 libdave의
+> `natives-linux-x86-64` 제약 때문에 `linux/amd64`만 지원합니다. `linux/arm64`는 arm64 native
+> artifact와 `BOT_ENABLED=true` Discord activation smoke를 갖추기 전까지 publish하지 않습니다.
+> 이 문서는 운영 PostgreSQL 또는 arm64 검증을 실행했다고 주장하지 않습니다.
+
+V30–V35 rename은 첫 GitOps 반영 전 제거하고 중립 Java 이름을 V24 물리 스키마에
+매핑하는 방식으로 source 호환성을 해결했습니다. 다만 이것은 live DB 상태의 증거가
+아닙니다. [migration compatibility preflight](DEPLOYMENT_MIGRATION_BLOCKER.md)에 정의한
+read-only `flyway_schema_history` 확인과 disposable PostgreSQL upgrade/empty-DB gate가
+통과하기 전에는 배포하지 마세요.
+
+```bash
+./scripts/preflight_postgres_migrations.sh
+```
+
+이 명령은 pgvector가 포함된 일회성 PostgreSQL 16에서 empty PostgreSQL 이력과
+authoritative V24 fixture→current 이력을 독립적으로 검증합니다. 제한된 migration role,
+V7 pgvector, V29 backfill/`NOT NULL`, V36 `user_id,status,created_at` index, application
+schema validation을 한꺼번에 fail-closed로 확인합니다. 이 결과는 **not live-production
+evidence**이며, 운영 `flyway_schema_history` read-only 확인과 운영 규모 lock 실측을
+대체하지 않습니다.
+
+`Build Image`는 main push 또는 main에서 `push_image=true`로 수동 실행할 때만 image/infra를
+변경합니다. main 수동 실행의 기본값(`false`)과 develop·feature ref의 모든 수동 실행은
+validation image와 smoke까지만 수행하고 GHCR의 `latest`나 infra repository를 변경하지
+않습니다. 성공한 main Build Image만 `Verify Production`의 자동 rollout 검증 대상으로
+이어집니다.
 
 #### 7. 이전 환경 정리
 새 컨테이너 Health Check 성공 후:
