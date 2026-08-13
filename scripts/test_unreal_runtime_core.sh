@@ -42,7 +42,8 @@ sources=(
 runtime_cxx="${CXX:-clang++}"
 export runtime_cxx runtime_build_dir runtime_module
 printf '%s\0' "${sources[@]}" | xargs -0 -n 1 -P "${GAHYEON_TEST_JOBS:-2}" \
-  sh -c '"$runtime_cxx" -std=c++20 -Wall -Wextra -Wpedantic -Werror -pthread \
+  sh -c '"$runtime_cxx" -std=c++20 -Wall -Wextra -Wpedantic -Werror \
+    -Wno-missing-field-initializers -pthread \
     -DGAHYEON_RUNTIME_CORE_API= -I"$runtime_module/Public" -c "$1" \
     -o "$runtime_build_dir/$(basename "${1%.cpp}").o" && printf "."' sh
 printf '\n'
