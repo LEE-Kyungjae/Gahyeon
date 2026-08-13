@@ -1,136 +1,65 @@
-# Contributing to Gahyeonbot
+# Contributing to Gahyeon
 
-## Git Workflow (GitHub Flow)
+Thanks for helping build Gahyeon. Keep changes small, evidence-backed, and compatible
+with the separation between Core and its presentation adapters.
 
-우리는 GitHub Flow 브랜치 전략을 사용합니다.
+## Before opening a change
 
-### 브랜치 구조
+1. Search existing issues and pull requests.
+2. Base changes on `develop`; production changes reach `main` through a reviewed PR.
+3. Do not commit credentials, source voice data, model checkpoints, generated character
+   drafts, or licensed third-party assets.
+4. Preserve existing Discord behavior while moving reusable logic toward Core ports.
+5. Do not present source-only or simulated evidence as physical Unreal, MetaHuman,
+   audio-device, or Looking Glass acceptance.
 
-- `main` - 프로덕션 브랜치 (항상 배포 가능한 상태)
-- `develop` - 개발 브랜치 (다음 릴리스 준비)
-- `feature/*` - 기능 개발 브랜치
-- `fix/*` - 버그 수정 브랜치
-- `hotfix/*` - 긴급 수정 브랜치
+## Local verification
 
-### 개발 워크플로우
+Run the checks relevant to the files you changed.
 
-#### 1. 새로운 기능 개발
-
-```bash
-# develop 브랜치에서 시작
-git checkout develop
-git pull origin develop
-
-# 기능 브랜치 생성
-git checkout -b feature/your-feature-name
-
-# 작업 후 커밋
-git add .
-git commit -m "feat: add new feature"
-
-# develop에 PR 생성
-git push origin feature/your-feature-name
-```
-
-#### 2. 버그 수정
+### Backend and Core
 
 ```bash
-# develop 브랜치에서 시작
-git checkout develop
-git pull origin develop
-
-# 수정 브랜치 생성
-git checkout -b fix/bug-description
-
-# 작업 후 커밋
-git add .
-git commit -m "fix: resolve bug description"
-
-# develop에 PR 생성
-git push origin fix/bug-description
+./gradlew test
+python3 scripts/verify_core_platform_boundaries.py
+./scripts/test_smoke_headless_core.sh
 ```
 
-#### 3. 긴급 수정 (Hotfix)
+### Desktop
 
 ```bash
-# main 브랜치에서 바로 시작
-git checkout main
-git pull origin main
-
-# hotfix 브랜치 생성
-git checkout -b hotfix/critical-issue
-
-# 수정 후 커밋
-git add .
-git commit -m "fix: critical issue description"
-
-# main과 develop 모두에 PR 생성
-git push origin hotfix/critical-issue
+cd desktop
+npm ci
+npm test
+npm run build
 ```
 
-#### 4. 프로덕션 배포
+### Unreal contracts
 
 ```bash
-# develop에서 main으로 PR 생성
-# PR 승인 및 머지 → 자동 배포 실행
+./scripts/verify_unreal_stage_scaffold.sh
+./scripts/test_unreal_runtime_core.sh
+./scripts/verify_unreal_protocol_contract.sh
 ```
 
-### Commit Message Convention
+These checks do not replace UE 5.6, MetaHuman, packaged-build, or physical-device
+acceptance where the relevant quality gate requires it.
 
-Semantic Versioning을 위해 다음 컨벤션을 따릅니다:
+### Documentation
 
-- `feat:` - 새로운 기능 (MINOR 버전 증가)
-- `fix:` - 버그 수정 (PATCH 버전 증가)
-- `docs:` - 문서 변경
-- `style:` - 코드 포맷팅
-- `refactor:` - 리팩토링
-- `test:` - 테스트 추가/수정
-- `chore:` - 빌드/설정 변경
+```bash
+python3 scripts/test_verify_readme_i18n.py
+python3 scripts/verify_readme_i18n.py
+```
 
-### CI/CD Pipeline
+## Pull requests
 
-#### develop 브랜치
-- ✅ 빌드 및 테스트 실행
-- ❌ Docker 이미지 빌드 안 함
-- ❌ 프로덕션 배포 안 함
+- Explain the user-visible outcome and the architectural boundary affected.
+- Include tests for behavior changes and record any hardware or provider proof that
+  remains pending.
+- Keep generated artifacts out of source commits unless a documented artifact contract
+  explicitly requires a small, redistributable fixture.
+- Use clear commit messages and avoid mixing unrelated subsystems in one commit.
 
-#### main 브랜치
-- ✅ 빌드 및 테스트 실행
-- ✅ 버전 태그 자동 생성
-- ✅ Docker 이미지 빌드 및 푸시
-- ✅ Blue-Green 프로덕션 배포
-
-#### Pull Request
-- ✅ 모든 PR에서 테스트 실행
-- ✅ 테스트 통과 필수
-
-### Branch Protection Rules
-
-#### main 브랜치
-- PR을 통해서만 머지 가능
-- 최소 1명의 리뷰 승인 필요 (권장)
-- CI 테스트 통과 필수
-- Force push 금지
-
-#### develop 브랜치
-- PR을 통해서만 머지 가능 (권장)
-- CI 테스트 통과 필수
-
-### 배포 프로세스
-
-1. **개발 작업**: feature 브랜치 → develop PR
-2. **테스트**: develop 브랜치에서 통합 테스트
-3. **릴리스**: develop → main PR (릴리스 준비 완료 시)
-4. **자동 배포**: main 머지 → CI/CD 자동 실행 → 프로덕션 배포
-5. **모니터링**: 배포 후 애플리케이션 상태 확인
-
-### 버전 관리
-
-- Semantic Versioning (MAJOR.MINOR.PATCH)
-- main 브랜치 푸시 시 자동으로 버전 태그 생성
-- `feat:` 커밋 → MINOR 버전 증가 (예: 0.3.0 → 0.4.0)
-- `fix:` 커밋 → PATCH 버전 증가 (예: 0.3.0 → 0.3.1)
-
-### Questions?
-
-워크플로우나 기여 방법에 대한 질문이 있으면 이슈를 생성해주세요.
+By contributing, you agree that your contributions are licensed under the project's
+[MIT License](LICENSE).

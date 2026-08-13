@@ -263,6 +263,8 @@ scripts/          Voice/Piper, SDXL asset pipeline과 운영 보조 도구
 - [Looking Glass](docs/LOOKING_GLASS.md)
 - [음성](docs/CUSTOM_VOICE_TTS.md)
 - [배포](docs/DEPLOYMENT.md)
+- [기여 안내](CONTRIBUTING.md)
+- [보안 정책](SECURITY.md)
 
 ## 보안과 자산
 

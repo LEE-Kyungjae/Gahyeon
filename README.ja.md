@@ -262,6 +262,8 @@ repositoryとdeploymentを調整して移行するまでは一括変更しませ
 - [Looking Glass](docs/LOOKING_GLASS.md)
 - [音声](docs/CUSTOM_VOICE_TTS.md)
 - [デプロイ](docs/DEPLOYMENT.md)
+- [コントリビューションガイド](CONTRIBUTING.md)
+- [セキュリティポリシー](SECURITY.md)
 
 ## セキュリティとasset
 
