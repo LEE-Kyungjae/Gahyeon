@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gahyeon.local/schemas/gahyeon-streaming-stt-evaluation-v1.schema.json",
+  "title": "Gahyeon end-to-end Streaming STT evaluation result v1",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "status", "observedAt", "source", "transport", "result", "latency"],
+      "properties": {
+        "schemaVersion": {"const": 1},
+        "status": {"const": "completed"},
+        "observedAt": {"type": "string", "format": "date-time"},
+        "source": {
+          "type": "object", "additionalProperties": false,
+          "required": ["wav", "sha256", "sampleRate", "channels", "frames", "durationMs"],
+          "properties": {
+            "wav": {"type": "string", "minLength": 1},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "sampleRate": {"type": "integer", "minimum": 8000, "maximum": 192000},
+            "channels": {"type": "integer", "minimum": 1, "maximum": 8},
+            "frames": {"type": "integer", "minimum": 1},
+            "durationMs": {"type": "number", "exclusiveMinimum": 0}
+          }
+        },
+        "transport": {
+          "type": "object", "additionalProperties": false,
+          "required": ["eventUrl", "sttUrl", "sessionId"],
+          "properties": {
+            "eventUrl": {"type": "string", "pattern": "^wss?://"},
+            "sttUrl": {"type": "string", "pattern": "^wss?://"},
+            "sessionId": {"type": "string", "minLength": 1, "maxLength": 128}
+          }
+        },
+        "result": {
+          "type": "object", "additionalProperties": false,
+          "required": ["expected", "transcript", "language", "cer", "partialCount", "partials"],
+          "properties": {
+            "expected": {"type": "string", "minLength": 1},
+            "transcript": {"type": "string", "minLength": 1},
+            "language": {"type": "string", "minLength": 2},
+            "cer": {"type": "number", "minimum": 0},
+            "partialCount": {"type": "integer", "minimum": 0},
+            "partials": {
+              "type": "array",
+              "items": {
+                "type": "object", "additionalProperties": false,
+                "required": ["sequence", "elapsedMs", "text"],
+                "properties": {
+                  "sequence": {"type": "integer", "minimum": 0},
+                  "elapsedMs": {"type": "number", "minimum": 0},
+                  "text": {"type": "string", "minLength": 1}
+                }
+              }
+            }
+          }
+        },
+        "latency": {
+          "type": "object", "additionalProperties": false,
+          "required": ["startToFirstPartialMs", "startToFinalMs", "vadEndToFinalMs"],
+          "properties": {
+            "startToFirstPartialMs": {"type": ["number", "null"], "minimum": 0},
+            "startToFinalMs": {"type": "number", "minimum": 0},
+            "vadEndToFinalMs": {"type": "number", "minimum": 0}
+          }
+        }
+      }
+    },
+    {
+      "type": "object", "additionalProperties": false,
+      "required": ["schemaVersion", "status", "observedAt", "error"],
+      "properties": {
+        "schemaVersion": {"const": 1},
+        "status": {"const": "failed"},
+        "observedAt": {"type": "string", "format": "date-time"},
+        "error": {"type": "string", "minLength": 1},
+        "caseIdentity": {
+          "type": "object", "additionalProperties": false,
+          "required": ["wav", "sha256", "expected"],
+          "properties": {
+            "wav": {"type": "string", "minLength": 1},
+            "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+            "expected": {"type": "string", "minLength": 1}
+          }
+        }
+      }
+    }
+  ]
+}

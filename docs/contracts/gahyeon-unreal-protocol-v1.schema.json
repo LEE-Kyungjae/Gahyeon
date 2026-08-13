@@ -1,0 +1,588 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gahyeon.local/schemas/gahyeon-unreal-protocol-v1.schema.json",
+  "title": "Gahyeon Unreal Protocol v1 Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol", "schemaVersion", "messageId", "type", "sentAt", "correlationId", "delivery", "payload"],
+  "properties": {
+    "protocol": {"const": "gahyeon.unreal.v1"},
+    "schemaVersion": {"const": 1},
+    "messageId": {"type": "string", "minLength": 1, "maxLength": 80},
+    "type": {"type": "string", "minLength": 1, "maxLength": 100},
+    "sentAt": {"type": "string", "format": "date-time"},
+    "sessionId": {"type": "string", "minLength": 1, "maxLength": 180},
+    "correlationId": {"type": "string", "minLength": 1, "maxLength": 120},
+    "delivery": {"enum": ["durable", "command", "ephemeral"]},
+    "sequence": {"type": "integer", "minimum": 1},
+    "payload": {"type": "object"}
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {"type": {"const": "client.ping"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "ephemeral"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "maxProperties": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "server.welcome"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "ephemeral"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["protocol", "schemaVersion", "heartbeatIntervalMs", "resumeAfter"],
+            "properties": {
+              "protocol": {"const": "gahyeon.unreal.v1"},
+              "schemaVersion": {"const": 1},
+              "heartbeatIntervalMs": {
+                "type": "integer",
+                "minimum": 1000,
+                "maximum": 60000
+              },
+              "resumeAfter": {"type": "integer", "minimum": 0}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "server.pong"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "ephemeral"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["clientSentAt"],
+            "properties": {
+              "clientSentAt": {"type": "string", "format": "date-time"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "perception.transcript.partial"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "ephemeral"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["generation", "text"],
+            "properties": {
+              "generation": {"type": "integer", "minimum": 0},
+              "text": {"type": "string", "minLength": 1, "maxLength": 8192},
+              "stability": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "perception.user.pose"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "ephemeral"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["generation", "position"],
+            "properties": {
+              "generation": {"type": "integer", "minimum": 0},
+              "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+              "position": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["x", "y", "z"],
+                "properties": {
+                  "x": {"type": "number"},
+                  "y": {"type": "number"},
+                  "z": {"type": "number"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {"properties": {"delivery": {"const": "durable"}}, "required": ["delivery"]},
+      "then": {"required": ["sequence"]},
+      "else": {"not": {"required": ["sequence"]}}
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "character.state.target"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "durable"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["generation", "state"],
+            "properties": {
+              "generation": {"type": "integer", "minimum": 0},
+              "state": {
+                "enum": [
+                  "idle", "listening", "thinking", "speaking", "reacting",
+                  "executing_action"
+                ]
+              },
+              "priority": {"type": "integer"},
+              "expiresAfterMs": {"type": "integer", "minimum": 1}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "world.snapshot"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"enum": ["ephemeral", "durable"]},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "worldId", "revision", "currentRoom", "position", "activity",
+              "activityStartedAt", "outfit", "worldTime", "emotion",
+              "updatedAt", "capturedAt"
+            ],
+            "properties": {
+              "worldId": {"type": "string", "minLength": 1},
+              "revision": {"type": "integer", "minimum": 0},
+              "currentRoom": {"type": "string", "minLength": 1},
+              "position": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["x", "y", "z"],
+                "properties": {
+                  "x": {"type": "number"},
+                  "y": {"type": "number"},
+                  "z": {"type": "number"}
+                }
+              },
+              "activity": {"type": "string", "minLength": 1},
+              "activityStartedAt": {"type": "string", "format": "date-time"},
+              "outfit": {"type": "string", "minLength": 1},
+              "worldTime": {"type": "string", "format": "date-time"},
+              "emotion": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["name", "intensity"],
+                "properties": {
+                  "name": {"type": "string", "minLength": 1},
+                  "intensity": {"type": "number", "minimum": 0, "maximum": 1}
+                }
+              },
+              "interactionTarget": {"type": "string", "minLength": 1},
+              "updatedAt": {"type": "string", "format": "date-time"},
+              "capturedAt": {"type": "string", "format": "date-time"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "speech.prepared"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "ephemeral"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "generation", "utteranceId", "utteranceIndex", "segmentIndex",
+              "segmentCount", "finalSegment", "audio", "visemes"
+            ],
+            "properties": {
+              "generation": {"type": "integer", "minimum": 0},
+              "utteranceId": {"type": "string", "minLength": 1},
+              "utteranceIndex": {"type": "integer", "minimum": 0},
+              "segmentIndex": {"type": "integer", "minimum": 0},
+              "segmentCount": {"type": "integer", "minimum": 1},
+              "finalSegment": {"type": "boolean"},
+              "audio": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["url", "mimeType"],
+                "properties": {
+                  "url": {"type": "string", "minLength": 1},
+                  "mimeType": {"type": "string", "minLength": 1}
+                }
+              },
+              "visemes": {
+                "type": "array",
+                "maxItems": 256,
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["semantic", "atMs", "durationMs", "weight"],
+                  "properties": {
+                    "semantic": {"type": "string", "minLength": 1},
+                    "atMs": {"type": "integer", "minimum": 0},
+                    "durationMs": {"type": "integer", "minimum": 1},
+                    "weight": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "speech.sequence.ended"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "ephemeral"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["generation", "utteranceCount", "outcome"],
+            "properties": {
+              "generation": {"type": "integer", "minimum": 0},
+              "utteranceCount": {"type": "integer", "minimum": 0},
+              "outcome": {"enum": ["completed", "failed"]}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"enum": ["generation.advanced", "interaction.generation.advanced"]}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "ephemeral"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["generation", "reason"],
+            "properties": {
+              "generation": {"type": "integer", "minimum": 0},
+              "reason": {"enum": ["cognition_timeout", "client_reset", "stt_failed", "microphone_capture_aborted"]}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "attention.target"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"enum": ["ephemeral", "durable"]},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "generation": {"type": "integer", "minimum": 0},
+              "kind": {"type": "string", "minLength": 1},
+              "targetId": {"type": "string", "minLength": 1},
+              "priority": {"type": "integer"},
+              "expiresAfterMs": {"type": "integer", "minimum": 1},
+              "headWeight": {"type": "number", "minimum": 0, "maximum": 1},
+              "eyeWeight": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "cognition.request.started"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "durable"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "generation": {"type": "integer", "minimum": 0},
+              "source": {"type": "string", "minLength": 1},
+              "modality": {"type": "string", "minLength": 1},
+              "actorId": {"type": "string", "minLength": 1}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "cognition.response.completed"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "durable"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "generation": {"type": "integer", "minimum": 0},
+              "runId": {"type": "string"},
+              "content": {"type": "string"},
+              "tools": {
+                "type": "array",
+                "maxItems": 256,
+                "items": {"type": "string", "minLength": 1}
+              },
+              "durationMillis": {"type": "integer", "minimum": 0}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {"enum": ["cognition.request.cancelled", "cognition.response.failed"]}
+        },
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "durable"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "generation": {"type": "integer", "minimum": 0},
+              "errorType": {"type": "string"},
+              "message": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "emotion.target"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["dimensions", "blendSeconds"],
+            "properties": {
+              "revision": {"type": "integer", "minimum": 0},
+              "generation": {"type": "integer", "minimum": 0},
+              "dimensions": {
+                "type": "object",
+                "minProperties": 1,
+                "maxProperties": 16,
+                "additionalProperties": {
+                  "type": "number", "minimum": 0, "maximum": 1
+                },
+                "propertyNames": {"minLength": 1}
+              },
+              "valence": {"type": "number", "minimum": -1, "maximum": 1},
+              "arousal": {"type": "number", "minimum": -1, "maximum": 1},
+              "dominance": {"type": "number", "minimum": -1, "maximum": 1},
+              "blendSeconds": {"type": "number", "minimum": 0, "maximum": 5},
+              "holdSeconds": {"type": "number", "minimum": 0, "maximum": 600}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "character.action.result"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "durable"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["actionId", "expectedRevision", "outcome", "result", "finalPosition"],
+            "properties": {
+              "actionId": {"type": "string", "minLength": 1, "maxLength": 80},
+              "expectedRevision": {"type": "integer", "minimum": 0},
+              "outcome": {"enum": ["completed", "failed", "cancelled"]},
+              "result": {"enum": ["committed", "recorded_failure", "duplicate", "conflict"]},
+              "reason": {"type": "string", "minLength": 1, "maxLength": 512},
+              "finalPosition": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["x", "y", "z"],
+                "properties": {
+                  "x": {"type": "number"},
+                  "y": {"type": "number"},
+                  "z": {"type": "number"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "character.action.acknowledged"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "ephemeral"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["actionId", "result", "terminal", "accepted", "duplicate"],
+            "properties": {
+              "actionId": {"type": "string", "minLength": 1},
+              "result": {"enum": ["committed", "recorded_failure", "duplicate", "stale", "conflict"]},
+              "terminal": {"type": "boolean"},
+              "accepted": {"type": "boolean"},
+              "duplicate": {"type": "boolean"}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "world.transition.target"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "durable"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "actionId", "worldId", "expectedRevision", "room", "position",
+              "activity", "interactionTarget", "timeoutMs"
+            ],
+            "properties": {
+              "actionId": {"type": "string", "minLength": 1},
+              "worldId": {"type": "string", "minLength": 1},
+              "expectedRevision": {"type": "integer", "minimum": 0},
+              "generation": {"type": "integer", "minimum": 0},
+              "room": {"type": "string", "minLength": 1},
+              "position": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["x", "y", "z"],
+                "properties": {
+                  "x": {"type": "number"},
+                  "y": {"type": "number"},
+                  "z": {"type": "number"}
+                }
+              },
+              "activity": {"type": "string", "minLength": 1},
+              "interactionTarget": {"type": "string", "minLength": 1},
+              "timeoutMs": {"type": "integer", "minimum": 1, "maximum": 600000}
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "character.action.completed"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "command"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["actionId", "expectedRevision", "outcome", "finalPosition"],
+            "properties": {
+              "actionId": {"type": "string", "minLength": 1},
+              "expectedRevision": {"type": "integer", "minimum": 0},
+              "outcome": {"enum": ["completed", "failed", "cancelled"]},
+              "reason": {"type": "string", "minLength": 1},
+              "finalPosition": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["x", "y", "z"],
+                "properties": {
+                  "x": {"type": "number"},
+                  "y": {"type": "number"},
+                  "z": {"type": "number"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"type": {"const": "gesture.intent"}},
+        "required": ["type"]
+      },
+      "then": {
+        "properties": {
+          "delivery": {"const": "ephemeral"},
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["semantic", "intensity"],
+            "properties": {
+              "generation": {"type": "integer", "minimum": 0},
+              "semantic": {"type": "string", "minLength": 1},
+              "intensity": {"type": "number", "minimum": 0, "maximum": 1},
+              "priority": {"type": "integer"},
+              "expiresAfterMs": {"type": "integer", "minimum": 1},
+              "handPreference": {"enum": ["left", "right", "either"]},
+              "durationHintMs": {"type": "integer", "minimum": 1}
+            }
+          }
+        }
+      }
+    }
+  ]
+}

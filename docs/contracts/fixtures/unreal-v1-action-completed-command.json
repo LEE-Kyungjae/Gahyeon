@@ -1,0 +1,16 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "command-action-desk-18-completed",
+  "type": "character.action.completed",
+  "sentAt": "2026-08-11T03:00:08Z",
+  "sessionId": "desktop:local-user",
+  "correlationId": "world-action:action-desk-18",
+  "delivery": "command",
+  "payload": {
+    "actionId": "action-desk-18",
+    "expectedRevision": 17,
+    "outcome": "completed",
+    "finalPosition": {"x": 7.0, "y": 0.0, "z": -2.0}
+  }
+}

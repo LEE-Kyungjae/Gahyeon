@@ -1,0 +1,25 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.6",
+  "Category": "AI Character QA",
+  "Description": "Editor-only MetaHuman character refinement and fixed-render QA project",
+  "Modules": [
+    {"Name": "GahyeonStage", "Type": "Runtime", "LoadingPhase": "Default"}
+  ],
+  "Plugins": [
+    {"Name": "AudioCapture", "Enabled": true},
+    {"Name": "WebSockets", "Enabled": true},
+    {"Name": "ControlRig", "Enabled": true},
+    {"Name": "FullBodyIK", "Enabled": true},
+    {"Name": "EnhancedInput", "Enabled": true},
+    {"Name": "PythonScriptPlugin", "Enabled": true},
+    {"Name": "EditorScriptingUtilities", "Enabled": true},
+    {"Name": "SequencerScripting", "Enabled": true},
+    {"Name": "MovieRenderPipeline", "Enabled": true},
+    {"Name": "MetaHumanCreator", "Enabled": true},
+    {"Name": "MetaHumanAnimator", "Enabled": true},
+    {"Name": "MetaHumanAnimatorDepthProcessing", "Enabled": true},
+    {"Name": "RigLogic", "Enabled": true},
+    {"Name": "HairStrands", "Enabled": true}
+  ]
+}

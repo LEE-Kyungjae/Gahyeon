@@ -1,0 +1,11 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "client-ping-1",
+  "type": "client.ping",
+  "sentAt": "2026-08-12T03:14:59Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "heartbeat-client-ping-1",
+  "delivery": "ephemeral",
+  "payload": {}
+}

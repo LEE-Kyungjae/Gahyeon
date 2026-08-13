@@ -1,0 +1,15 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "fixture-speech-sequence-failed-1",
+  "type": "speech.sequence.ended",
+  "sentAt": "2026-08-12T00:00:00Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "unreal:g13:failed-sequence",
+  "delivery": "ephemeral",
+  "payload": {
+    "generation": 13,
+    "utteranceCount": 1,
+    "outcome": "failed"
+  }
+}

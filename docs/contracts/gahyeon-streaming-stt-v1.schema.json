@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gahyeon.local/schemas/gahyeon-streaming-stt-v1.schema.json",
+  "title": "Gahyeon Core Streaming STT Control Protocol v1",
+  "oneOf": [
+    {"$ref": "#/$defs/start"},
+    {"$ref": "#/$defs/end"},
+    {"$ref": "#/$defs/cancel"},
+    {"$ref": "#/$defs/partial"},
+    {"$ref": "#/$defs/final"},
+    {"$ref": "#/$defs/error"}
+  ],
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[A-Za-z0-9._:-]{1,128}$"},
+    "base": {
+      "type": "object",
+      "required": ["schemaVersion", "type", "sessionId", "streamId", "generation"],
+      "properties": {
+        "schemaVersion": {"const": 1},
+        "type": {"type": "string"},
+        "sessionId": {"$ref": "#/$defs/id"},
+        "streamId": {"$ref": "#/$defs/id"},
+        "generation": {"type": "integer", "minimum": 0}
+      }
+    },
+    "start": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["schemaVersion", "type", "sessionId", "streamId", "generation", "observedAtMs", "format"],
+          "properties": {
+            "schemaVersion": {"const": 1},
+            "type": {"const": "stt.stream.start"},
+            "sessionId": {"$ref": "#/$defs/id"},
+            "streamId": {"$ref": "#/$defs/id"},
+            "generation": {"type": "integer", "minimum": 0},
+            "observedAtMs": {"type": "integer", "minimum": 0},
+            "format": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["encoding", "sampleRate", "channels", "framesPerChunk"],
+              "properties": {
+                "encoding": {"const": "float32le"},
+                "sampleRate": {"type": "integer", "minimum": 8000, "maximum": 192000},
+                "channels": {"type": "integer", "minimum": 1, "maximum": 8},
+                "framesPerChunk": {"type": "integer", "minimum": 64, "maximum": 4096}
+              }
+            }
+          }
+        }
+      ]
+    },
+    "end": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["schemaVersion", "type", "sessionId", "streamId", "generation", "observedAtMs", "lastAudioSequence"],
+          "properties": {
+            "schemaVersion": {"const": 1}, "type": {"const": "stt.stream.end"},
+            "sessionId": {"$ref": "#/$defs/id"}, "streamId": {"$ref": "#/$defs/id"},
+            "generation": {"type": "integer", "minimum": 0},
+            "observedAtMs": {"type": "integer", "minimum": 0},
+            "lastAudioSequence": {"type": "integer", "minimum": 0}
+          }
+        }
+      ]
+    },
+    "cancel": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["schemaVersion", "type", "sessionId", "streamId", "generation", "reason"],
+          "properties": {
+            "schemaVersion": {"const": 1}, "type": {"const": "stt.stream.cancel"},
+            "sessionId": {"$ref": "#/$defs/id"}, "streamId": {"$ref": "#/$defs/id"},
+            "generation": {"type": "integer", "minimum": 0},
+            "reason": {"enum": ["barge_in", "client_reset", "backpressure", "timeout", "capture_error"]}
+          }
+        }
+      ]
+    },
+    "partial": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["schemaVersion", "type", "sessionId", "streamId", "generation", "resultSequence", "text", "stability"],
+          "properties": {
+            "schemaVersion": {"const": 1}, "type": {"const": "stt.transcript.partial"},
+            "sessionId": {"$ref": "#/$defs/id"}, "streamId": {"$ref": "#/$defs/id"},
+            "generation": {"type": "integer", "minimum": 0},
+            "resultSequence": {"type": "integer", "minimum": 0},
+            "text": {"type": "string", "minLength": 1, "maxLength": 8192},
+            "stability": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        }
+      ]
+    },
+    "final": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["schemaVersion", "type", "sessionId", "streamId", "generation", "resultSequence", "text", "language"],
+          "properties": {
+            "schemaVersion": {"const": 1}, "type": {"const": "stt.transcript.final"},
+            "sessionId": {"$ref": "#/$defs/id"}, "streamId": {"$ref": "#/$defs/id"},
+            "generation": {"type": "integer", "minimum": 0},
+            "resultSequence": {"type": "integer", "minimum": 0},
+            "text": {"type": "string", "minLength": 1, "maxLength": 8192},
+            "language": {"type": "string", "pattern": "^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$"}
+          }
+        }
+      ]
+    },
+    "error": {
+      "allOf": [
+        {"$ref": "#/$defs/base"},
+        {
+          "type": "object", "additionalProperties": false,
+          "required": ["schemaVersion", "type", "sessionId", "streamId", "generation", "code", "recoverable"],
+          "properties": {
+            "schemaVersion": {"const": 1}, "type": {"const": "stt.stream.error"},
+            "sessionId": {"$ref": "#/$defs/id"}, "streamId": {"$ref": "#/$defs/id"},
+            "generation": {"type": "integer", "minimum": 0},
+            "code": {"enum": ["invalid_lifecycle", "sequence_gap", "format_changed", "backpressure", "provider_unavailable", "provider_timeout", "provider_error"]},
+            "recoverable": {"type": "boolean"}
+          }
+        }
+      ]
+    }
+  }
+}

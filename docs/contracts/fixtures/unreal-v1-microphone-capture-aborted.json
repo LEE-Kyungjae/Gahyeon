@@ -1,0 +1,14 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "microphone-capture-aborted-1",
+  "type": "interaction.generation.advanced",
+  "sentAt": "2026-08-12T00:00:00Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "capture-abort:g14",
+  "delivery": "ephemeral",
+  "payload": {
+    "generation": 14,
+    "reason": "microphone_capture_aborted"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "speech-prepared-1",
+  "type": "speech.prepared",
+  "sentAt": "2026-08-11T03:00:02Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "unreal:g12:client-message-1",
+  "delivery": "ephemeral",
+  "payload": {
+    "generation": 12,
+    "utteranceId": "550e8400-e29b-41d4-a716-446655440000",
+    "utteranceIndex": 0,
+    "segmentIndex": 0,
+    "segmentCount": 2,
+    "finalSegment": false,
+    "audio": {
+      "url": "/api/gahyeon/unreal/speech/audio/550e8400-e29b-41d4-a716-446655440000",
+      "mimeType": "audio/wav"
+    },
+    "visemes": [
+      {"semantic": "aa", "atMs": 0, "durationMs": 90, "weight": 1.0},
+      {"semantic": "ih", "atMs": 70, "durationMs": 80, "weight": 0.8}
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "client-command-91",
+  "type": "perception.transcript.final",
+  "sentAt": "2026-08-11T03:00:01Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "conversation-43",
+  "delivery": "command",
+  "payload": {
+    "generation": 12,
+    "text": "가현아, 이쪽을 봐줘.",
+    "language": "ko-KR"
+  }
+}

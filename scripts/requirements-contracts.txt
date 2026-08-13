@@ -1,0 +1,2 @@
+# Python-only contract validators used by CI and local asset handoff gates.
+jsonschema==4.23.0

@@ -7,6 +7,12 @@ logs/**
 
 # Desktop packaging output
 desktop/release/
+/unreal/**/build/
+/unreal/**/Binaries/
+/unreal/**/DerivedDataCache/
+/unreal/**/Intermediate/
+/unreal/**/Saved/
+/unreal/**/Plugins/LookingGlass/
 *.out
 
 # 디렉터리 및 IDE 설정 파일
@@ -52,3 +58,6 @@ ref/*
 
 # Local voice recordings, cloned profiles, and generated audio
 output/
+
+# Materialized large 3D binaries; manifests and contracts remain source-controlled.
+/artifacts/hero-cache/

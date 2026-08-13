@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 2,
+  "characterId": "gahyeon",
+  "status": "draft",
+  "qualityTier": "hero-master",
+  "gate": "G1",
+  "source": {
+    "revision": "replace-with-source-revision",
+    "coordinateSystem": "z-up-left-handed",
+    "unitMeters": 1.0
+  },
+  "packages": [{
+    "renderer": "hero-engine",
+    "format": "unreal-content-zip",
+    "uri": "replace-with-draft-unreal-content.zip",
+    "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "bytes": 1,
+    "lods": ["LOD0"],
+    "materials": ["skin"],
+    "groomMode": "none"
+  }],
+  "semantics": {
+    "expressions": ["neutral"],
+    "visemes": ["sil", "aa", "ih", "ou", "ee", "oh", "fv", "l", "mbp", "wq"],
+    "activities": ["idle"]
+  },
+  "provenance": {
+    "author": "replace-with-author",
+    "license": "private",
+    "sourceFiles": ["replace-with-source-file"],
+    "sourceManifests": [
+      {"kind": "identity-reference", "uri": "artifacts/gahyeon-ch/identity-reference.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"},
+      {"kind": "modeling-input", "uri": "artifacts/gahyeon-ch/modeling-input.json", "sha256": "0000000000000000000000000000000000000000000000000000000000000000"}
+    ],
+    "createdAt": "1970-01-01T00:00:00Z"
+  },
+  "acceptanceEvidence": []
+}

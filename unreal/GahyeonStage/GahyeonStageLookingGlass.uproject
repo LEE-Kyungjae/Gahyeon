@@ -1,0 +1,27 @@
+{
+  "FileVersion": 3,
+  "EngineAssociation": "5.6",
+  "Category": "AI Character",
+  "Description": "Opt-in Win64 Looking Glass Go prototype for Gahyeon Stage",
+  "Modules": [
+    {
+      "Name": "GahyeonStage",
+      "Type": "Runtime",
+      "LoadingPhase": "Default"
+    },
+    {
+      "Name": "GahyeonLookingGlassAdapter",
+      "Type": "Runtime",
+      "LoadingPhase": "PostDefault",
+      "PlatformAllowList": ["Win64"]
+    }
+  ],
+  "Plugins": [
+    {"Name": "AudioCapture", "Enabled": true},
+    {"Name": "WebSockets", "Enabled": true},
+    {"Name": "ControlRig", "Enabled": true},
+    {"Name": "FullBodyIK", "Enabled": true},
+    {"Name": "EnhancedInput", "Enabled": true},
+    {"Name": "LookingGlass", "Enabled": true, "SupportedTargetPlatforms": ["Win64"]}
+  ]
+}

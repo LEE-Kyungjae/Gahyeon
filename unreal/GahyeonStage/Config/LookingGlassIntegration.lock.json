@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "status": "evaluated-not-enabled",
+  "role": "optional-display-renderer",
+  "upstream": {
+    "repository": "https://github.com/Looking-Glass/Looking-Glass-Unreal-Plugin",
+    "release": "2.1.1",
+    "commit": "8a82363c80c6998357e8eb20994d6a69d8eff827",
+    "license": "MIT",
+    "archive": {
+      "url": "https://github.com/Looking-Glass/Looking-Glass-Unreal-Plugin/releases/download/2.1.1/LookingGlass.zip",
+      "bytes": 28378982,
+      "sha256": "062943c9919deadfe479d352de7d817426b706c6a96b859c5c4eba44d1f96623",
+      "root": "LookingGlass/"
+    }
+  },
+  "compatibility": {
+    "unrealEngine": "5.6",
+    "platforms": ["Win64"],
+    "minimumBridge": "2.5.1",
+    "realtimeModeImplemented": true,
+    "upstreamRecommendsRealtimeProduction": false,
+    "defaultQuiltViews": 66
+  },
+  "policy": {
+    "enabledByDefault": false,
+    "coreDependencyAllowed": false,
+    "desktopDependencyAllowed": false,
+    "headlessDependencyAllowed": false,
+    "deviceAbsentMustRemainHealthy": true,
+    "sharesWorldAndSession": true,
+    "separateCognitionOrVoicePipelineAllowed": false
+  },
+  "adoptionGates": [
+    "UE 5.6 Development Editor plugin build succeeds on Win64",
+    "Looking Glass Go is discovered through Bridge without changing Core health",
+    "desktop perspective renderer stays functional while Bridge and Go are absent",
+    "device render cost and frame pacing are measured on the target GPU",
+    "Reflex and audio playback latency budgets stay within their existing limits"
+  ],
+  "prototypeProfiles": [
+    {
+      "id": "go-realtime-quality",
+      "mode": "Realtime",
+      "purpose": "measure full-quality frame pacing"
+    },
+    {
+      "id": "go-realtime-adaptive",
+      "mode": "RealtimeAdaptive",
+      "purpose": "measure interactive editing fallback"
+    },
+    {
+      "id": "go-static-fallback",
+      "mode": "NonRealtime",
+      "purpose": "retain holographic output when target GPU cannot sustain realtime"
+    }
+  ]
+}

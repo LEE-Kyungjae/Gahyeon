@@ -1,0 +1,19 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "gesture-intent-1",
+  "type": "gesture.intent",
+  "sentAt": "2026-08-11T03:00:02Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "unreal:g12:client-message-1",
+  "delivery": "ephemeral",
+  "payload": {
+    "generation": 12,
+    "semantic": "explain_small",
+    "intensity": 0.65,
+    "priority": 40,
+    "expiresAfterMs": 1500,
+    "handPreference": "either",
+    "durationHintMs": 800
+  }
+}

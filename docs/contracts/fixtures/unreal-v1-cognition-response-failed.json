@@ -1,0 +1,16 @@
+{
+  "protocol": "gahyeon.unreal.v1",
+  "schemaVersion": 1,
+  "messageId": "cognition-failed-13",
+  "type": "cognition.response.failed",
+  "sentAt": "2026-08-11T03:00:03Z",
+  "sessionId": "desktop-local-user",
+  "correlationId": "unreal:g13:client-message-2",
+  "delivery": "durable",
+  "sequence": 22,
+  "payload": {
+    "generation": 13,
+    "errorType": "ProviderException",
+    "message": "provider unavailable"
+  }
+}
