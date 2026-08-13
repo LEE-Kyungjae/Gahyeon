@@ -2,9 +2,16 @@
 
 [한국어](README.md) · [English](README.en.md) · [日本語](README.ja.md)
 
-Gahyeonは、永続メモリ、音声、自律行動、永続的なWorldを備えたモジュール型の
-embodied AI agentです。Discord Botに画面を追加するプロジェクトではなく、独立した
-一つのGahyeon Coreを複数のClient/Adapterから利用する構成を目指します。
+[![Build](https://github.com/LEE-Kyungjae/Gahyeon/actions/workflows/build-test.yml/badge.svg)](https://github.com/LEE-Kyungjae/Gahyeon/actions/workflows/build-test.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+Gahyeonは、記憶し、聞き、話し、自律的に行動するリアルタイムAIキャラクターを
+構築するオープンソースプロジェクトです。会話と記憶を担う独立したCoreを中心に、
+Discord、Desktop、Unrealを交換可能な接続先として組み合わせます。
+
+目標はDiscord Botに3D画面を付けることではありません。同じGahyeonがDiscordでは
+音声アシスタント、Desktopでは生活するキャラクター、Unrealでは高品質なリアルタイム
+キャラクターとして存在できる構成を目指します。
 
 > 優先するのはグラフィックスデモではなく、低遅延リアルタイムAIキャラクターの
 > アーキテクチャです。LLMの応答中もReflex、Behavior、Cognitionは互いをブロックせず
@@ -24,47 +31,46 @@ embodied AI agentです。Discord Botに画面を追加するプロジェクト�
                                       Monitor · Looking Glass
 ```
 
-Coreは、何を話し、記憶し、感じ、行動し、どこへ移動するかを決定します。
-Presentationは、その決定を音声、表情、リップシンク、アニメーション、レンダリングで
-表現します。
+Coreは、何を話して記憶するか、どの感情や行動を選ぶかを決定します。各クライアントは
+その結果を音声、表情、リップシンク、アニメーション、映像として表現します。
 
 ## 現在の状態
 
-| 領域 | 現在確認できるもの |
+| 領域 | 実装・検証状況 |
 |---|---|
 | Core/Application | プラットフォーム非依存のConversation、Session、Speech port、Event、World/Behavior境界 |
-| Headless | DiscordやLLM providerなしでAPIと永続Worldを実行可能 |
+| Headless | DiscordなしでAPIと永続Worldを実行可能。会話にはLLMの設定が必要 |
 | Discord Adapter | 既存のSlash Command、テキスト・音声会話、音楽、運用機能を維持 |
-| Desktop互換Client | Electron/Vue/Three.jsによるテキスト、マイク、音声、VRM、World経路 |
-| Unreal Backend Adapter | 条件付きWebSocket v1、replay/cursor/snapshot、streaming speech |
-| Unreal RuntimeCore | エンジン非依存C++20 Reflex/Behavior/Cognition、VAD、speech、viseme、World、保存・再接続harness |
-| Unreal Stage | UE 5.6 source project、native runtime/ingress、asset不要の診断Pawn・カメラ。Editor build、MetaHuman、NavMesh、packaged buildは未検証 |
-| Looking Glass | Desktop WebXR経路を実装。実機Go displayでのacceptanceは未完了 |
-| Voice制作 | 重複を除いた5,000文のVoicebox teacher corpusを生成中。完了後は音響/STT/話者QC、Piper段階学習、blind reviewへ自動移行 |
-| Character制作 | SDXL LoRA学習・比較は完了。ユーザー原本をcanonical identityとして固定したG0 packとG1 modeling handoff/draftを準備済み。最終hero meshは未完成 |
+| Desktop Client | Electron/Vue/Three.jsによるテキスト、マイク、音声、VRM、Worldの流れを実装 |
+| Unreal連携 | WebSocket v1、再接続、イベント再生、snapshot、streaming speechを実装 |
+| リアルタイムRuntimeCore | エンジン非依存のC++20 Reflex/Behavior/Cognition、VAD、音声、viseme、Worldテストを実装 |
+| Unreal Stage | UE 5.6ソースプロジェクトと診断用Pawn・カメラを実装。MetaHumanとパッケージ検証は未完了 |
+| Looking Glass | Desktop WebXRとUnreal Adapterを実装。実機Goでの検証は未完了 |
+| 音声制作 | 重複を抑えた5,000文を生成中。完了後にQC、Piper学習、試聴評価へ移行 |
+| キャラクター制作 | SDXL LoRA比較と原本に基づくidentity基準を策定済み。最終hero meshは制作中 |
 
-Reference runtimeの合格を、packaged Unrealの合格とは扱いません。遅い補助rendererの
-隔離を含むRT-01からRT-13までの証拠と残る実機検証は
+RuntimeCoreのテスト合格を、パッケージ化したUnrealの合格とは扱いません。RT-01から
+RT-13までの自動検証結果と、実機で確認すべき項目は
 [Acceptance状態表](docs/unreal/ACCEPTANCE_STATUS.md)を参照してください。
 
 ## 設計原則
 
-- Discord、Desktop、UnrealはCoreのClient/Adapterです。
-- Core domainはJDA、Electron、Unreal、Spring Web、特定providerの型に依存しません。
-- LLMはsemantic intentを生成し、frame単位のtransformやanimation asset IDを選びません。
+- Discord、Desktop、UnrealはCoreへ接続するクライアントです。
+- CoreはJDA、Electron、Unreal、Spring Web、特定のAI providerに依存しません。
+- LLMは高水準の意図だけを選び、フレーム単位の座標やanimation fileを直接選びません。
 - Reflex、Behavior、Cognitionは異なる時間軸で並行動作します。
 - RendererがなくてもHeadless BehaviorとWorldは進行します。
 - Network callbackはGame Threadの状態を直接変更しません。
-- durable cursorとaction commandは保存成功後にだけACK・送信します。
+- イベントcursorと行動結果は、保存に成功した後でのみ確認応答を返します。
 - Memoryは何を記憶するか、World Stateは現在どこで何をしているかを担当します。
 
 ## 必要環境
 
 - Java 21
 - Node.js 20以降とnpm
-- 本番環境: PostgreSQL 16推奨
-- 開発標準: PostgreSQL互換モードのin-memory H2
-- Unreal開発: Unreal Engine 5.6と互換MetaHuman plugin
+- 本番環境: PostgreSQL 16
+- ローカルテスト: PostgreSQL互換モードのインメモリH2
+- Unreal開発: Unreal Engine 5.6と互換性のあるMetaHumanプラグイン
 
 ## クイックスタート
 
