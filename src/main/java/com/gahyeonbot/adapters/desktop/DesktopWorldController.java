@@ -22,14 +22,17 @@ public class DesktopWorldController {
     private final WorldStateUseCase worlds;
     private final WorldActionCoordinator actions;
     private final DesktopCredentialAuthorization credentialAuthorization;
+    private final DesktopWorldActionPresentationPresence presentationPresence;
 
     public DesktopWorldController(
             WorldStateUseCase worlds,
             WorldActionCoordinator actions,
-            DesktopCredentialAuthorization credentialAuthorization) {
+            DesktopCredentialAuthorization credentialAuthorization,
+            DesktopWorldActionPresentationPresence presentationPresence) {
         this.worlds = worlds;
         this.actions = actions;
         this.credentialAuthorization = credentialAuthorization;
+        this.presentationPresence = presentationPresence;
     }
 
     @GetMapping("/{worldId}")
@@ -82,9 +85,37 @@ public class DesktopWorldController {
                 actionId,
                 request.expectedRevision(),
                 "completed",
-                "desktop_navigation_arrived",
+                "desktop_presentation_completed",
                 new WorldPosition(request.x(), request.y(), request.z())));
         return new CompleteActionResponse(result);
+    }
+
+    @PostMapping("/{worldId}/presence")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void heartbeatPresence(
+            @PathVariable @NotBlank
+            @Size(max = DesktopEventStreamService.MAXIMUM_WORLD_ID_CHARACTERS)
+            String worldId,
+            @Valid @RequestBody PresenceRequest request,
+            HttpServletRequest httpRequest) {
+        credentialAuthorization.requireInstallation(httpRequest, request.installationId());
+        presentationPresence.heartbeat(
+                new WorldId(worldId), request.installationId(), request.rendererId());
+    }
+
+    @DeleteMapping("/{worldId}/presence")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void releasePresence(
+            @PathVariable @NotBlank
+            @Size(max = DesktopEventStreamService.MAXIMUM_WORLD_ID_CHARACTERS)
+            String worldId,
+            @RequestParam @NotBlank @Size(max = 200) String installationId,
+            @RequestParam @NotBlank
+            @Size(max = DesktopWorldActionPresentationPresence.MAXIMUM_RENDERER_ID_CHARACTERS)
+            String rendererId,
+            HttpServletRequest httpRequest) {
+        credentialAuthorization.requireInstallation(httpRequest, installationId);
+        presentationPresence.release(new WorldId(worldId), installationId, rendererId);
     }
 
     @ExceptionHandler(WorldStateConflictException.class)
@@ -119,6 +150,13 @@ public class DesktopWorldController {
             double x,
             double y,
             double z
+    ) {}
+
+    public record PresenceRequest(
+            @NotBlank @Size(max = 200) String installationId,
+            @NotBlank
+            @Size(max = DesktopWorldActionPresentationPresence.MAXIMUM_RENDERER_ID_CHARACTERS)
+            String rendererId
     ) {}
 
     public record CompleteActionResponse(WorldActionCoordinator.CompletionResult result) {}

@@ -5,6 +5,7 @@ import com.gahyeonbot.core.event.GahyeonEvent;
 import com.gahyeonbot.core.event.EventScopeType;
 import com.gahyeonbot.core.session.ClientSource;
 import com.gahyeonbot.core.session.ConversationSessionId;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 
 @Service
 @ConditionalOnProperty(name = "gahyeon.headless.enabled", havingValue = "true")
@@ -27,18 +29,30 @@ public class DesktopEventStreamService {
     private static final long STREAM_TIMEOUT_MILLIS = Duration.ofMinutes(30).toMillis();
     private static final int READ_BATCH_SIZE = 100;
     private static final int MAXIMUM_DELTA_CHARACTERS = 16_384;
+    static final int MAXIMUM_WORLD_ID_CHARACTERS = 180;
 
     private final GahyeonEventQuery events;
     private final ConcurrentHashMap<String, Subscription> subscriptions = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> conversationGenerations = new ConcurrentHashMap<>();
     private final int maximumSubscriptions;
     private final int maximumSubscriptionsPerSession;
+    private final Supplier<SseEmitter> emitterFactory;
 
+    @Autowired
     public DesktopEventStreamService(
             GahyeonEventQuery events,
             @Value("${gahyeon.desktop.maximum-event-subscriptions:128}") int maximumSubscriptions,
             @Value("${gahyeon.desktop.maximum-event-subscriptions-per-session:4}")
             int maximumSubscriptionsPerSession) {
+        this(events, maximumSubscriptions, maximumSubscriptionsPerSession,
+                () -> new SseEmitter(STREAM_TIMEOUT_MILLIS));
+    }
+
+    DesktopEventStreamService(
+            GahyeonEventQuery events,
+            int maximumSubscriptions,
+            int maximumSubscriptionsPerSession,
+            Supplier<SseEmitter> emitterFactory) {
         if (maximumSubscriptions < 1 || maximumSubscriptionsPerSession < 1
                 || maximumSubscriptionsPerSession > maximumSubscriptions) {
             throw new IllegalArgumentException("Desktop event subscription limits are invalid");
@@ -46,10 +60,15 @@ public class DesktopEventStreamService {
         this.events = events;
         this.maximumSubscriptions = maximumSubscriptions;
         this.maximumSubscriptionsPerSession = maximumSubscriptionsPerSession;
+        this.emitterFactory = java.util.Objects.requireNonNull(emitterFactory, "emitterFactory");
     }
 
-    public synchronized SseEmitter subscribe(String sessionId, long afterSequence) {
+    public synchronized SseEmitter subscribe(
+            String sessionId,
+            String worldId,
+            long afterSequence) {
         requireSessionId(sessionId);
+        requireWorldId(worldId);
         if (afterSequence < 0) {
             throw new IllegalArgumentException("afterSequence은 0 이상이어야 합니다.");
         }
@@ -64,8 +83,10 @@ public class DesktopEventStreamService {
         }
 
         String subscriptionId = UUID.randomUUID().toString();
-        SseEmitter emitter = new SseEmitter(STREAM_TIMEOUT_MILLIS);
-        subscriptions.put(subscriptionId, new Subscription(sessionId, afterSequence, emitter));
+        SseEmitter emitter = emitterFactory.get();
+        if (emitter == null) throw new IllegalStateException("SSE emitter factory returned null");
+        subscriptions.put(subscriptionId,
+                new Subscription(sessionId, worldId, afterSequence, emitter));
         emitter.onCompletion(() -> subscriptions.remove(subscriptionId));
         emitter.onTimeout(() -> subscriptions.remove(subscriptionId));
         emitter.onError(error -> subscriptions.remove(subscriptionId));
@@ -150,6 +171,13 @@ public class DesktopEventStreamService {
         }
     }
 
+    private static void requireWorldId(String worldId) {
+        if (worldId == null || worldId.isBlank()
+                || worldId.length() > MAXIMUM_WORLD_ID_CHARACTERS) {
+            throw new IllegalArgumentException("worldId가 필요하며 180자 이하여야 합니다.");
+        }
+    }
+
     @Scheduled(fixedDelayString = "${gahyeon.desktop.event-poll-millis:250}")
     void deliverEvents() {
         subscriptions.forEach(this::deliverEvents);
@@ -159,7 +187,7 @@ public class DesktopEventStreamService {
         try {
             for (GahyeonEvent event : events.after(subscription.cursor, READ_BATCH_SIZE)) {
                 subscription.cursor = event.sequence();
-                if (!isVisibleTo(event, subscription.sessionId)) continue;
+                if (!isVisibleTo(event, subscription.sessionId, subscription.worldId)) continue;
                 subscription.send(SseEmitter.event()
                         .id(Long.toString(event.sequence()))
                         .name(event.type())
@@ -171,25 +199,32 @@ public class DesktopEventStreamService {
         }
     }
 
-    private boolean isVisibleTo(GahyeonEvent event, String sessionId) {
+    private boolean isVisibleTo(GahyeonEvent event, String sessionId, String worldId) {
         String internalSessionId = ConversationSessionId
                 .fromExternal(ClientSource.DESKTOP, sessionId).value();
-        return event.scope().type() == EventScopeType.WORLD
-                || event.scope().type() == EventScopeType.SYSTEM
-                || event.scope().type() == EventScopeType.SESSION
-                && (event.scope().id().equals(internalSessionId)
-                    || event.scope().id().equals(sessionId));
+        return switch (event.scope().type()) {
+            case WORLD -> event.scope().id().equals(worldId);
+            case SYSTEM -> true;
+            case SESSION -> event.scope().id().equals(internalSessionId)
+                    || event.scope().id().equals(sessionId);
+        };
     }
 
     record StreamCursor(long sequence) {}
 
     private static final class Subscription {
         private final String sessionId;
+        private final String worldId;
         private final SseEmitter emitter;
         private volatile long cursor;
 
-        private Subscription(String sessionId, long cursor, SseEmitter emitter) {
+        private Subscription(
+                String sessionId,
+                String worldId,
+                long cursor,
+                SseEmitter emitter) {
             this.sessionId = sessionId;
+            this.worldId = worldId;
             this.cursor = cursor;
             this.emitter = emitter;
         }

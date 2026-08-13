@@ -6,6 +6,7 @@ import {
   validateAudioInput,
   validateEventSubscription,
   validateMessageRequest,
+  validateRendererId,
   validateWorldActionCompletion,
 } from './ipc-security.js'
 
@@ -14,11 +15,24 @@ describe('Electron IPC security boundary', () => {
     const source = readFileSync(new URL('./main.ts', import.meta.url), 'utf8')
     const handlers = source.matchAll(/ipcMain\.handle\([^]*?\n}\)/g)
     const blocks = [...handlers].map(match => match[0])
-    expect(blocks.length).toBe(11)
+    expect(blocks.length).toBe(13)
     expect(blocks.every(block => block.includes('requireTrustedIpcEvent(event)'))).toBe(true)
     expect(source).toContain("ipcMain.on('gahyeon:speech:cancel'")
     expect(source).toContain("ipcMain.on('gahyeon:events:subscribe'")
     expect(source).toContain("ipcMain.on('gahyeon:events:unsubscribe'")
+    expect(source).toContain("url.searchParams.set('worldId', request.worldId)")
+    expect(source).toContain("ipcMain.handle('gahyeon:world:presence:heartbeat'")
+    expect(source).toContain("ipcMain.handle('gahyeon:world:presence:release'")
+    expect(source).toContain("body: JSON.stringify({ installationId, rendererId })")
+    expect(source).toContain("url.searchParams.set('rendererId', rendererId)")
+    const preload = readFileSync(new URL('./preload.ts', import.meta.url), 'utf8')
+    expect(preload).toContain('const rendererId = crypto.randomUUID()')
+    expect(preload).toMatch(
+      /ipcRenderer\.invoke\(\s*'gahyeon:world:presence:heartbeat', worldId, installationId, rendererId/,
+    )
+    expect(preload).toMatch(
+      /ipcRenderer\.invoke\(\s*'gahyeon:world:presence:release', worldId, installationId, rendererId/,
+    )
     expect(source.match(/if \(!isTrustedIpcEvent\([^)]*\)\) return/g)).toHaveLength(3)
     expect(source).toContain("window.webContents.on('will-navigate'")
     expect(source).toContain("window.webContents.on('will-redirect'")
@@ -61,14 +75,23 @@ describe('Electron IPC security boundary', () => {
       displayName: '가현', message: 'x'.repeat(16_385),
     })).toThrow('message')
     expect(() => validateEventSubscription({
-      sessionId: 'desktop-1', installationId: 'install-1', afterSequence: -1,
+      sessionId: 'desktop-1', installationId: 'install-1', worldId: 'gahyeon-home',
+      afterSequence: -1,
     })).toThrow('afterSequence')
+    expect(validateEventSubscription({
+      sessionId: 'desktop-1', installationId: 'install-1', worldId: 'gahyeon-home',
+      afterSequence: 0,
+    }).worldId).toBe('gahyeon-home')
     expect(() => validateEventSubscription({
       sessionId: 's'.repeat(181), installationId: 'install-1', afterSequence: 0,
     })).toThrow('sessionId')
   })
 
   it('rejects malformed, non-finite, and oversized action/audio payloads', () => {
+    expect(validateRendererId('550e8400-e29b-41d4-a716-446655440000'))
+      .toBe('550e8400-e29b-41d4-a716-446655440000')
+    expect(() => validateRendererId(' ')).toThrow('rendererId')
+    expect(() => validateRendererId('r'.repeat(121))).toThrow('rendererId')
     expect(validateWorldActionCompletion('gahyeon-home', {
       installationId: 'install-1', actionId: 'action-1', expectedRevision: 7,
       finalPosition: { x: 1, y: 0, z: -2 },

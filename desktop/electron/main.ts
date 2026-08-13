@@ -22,6 +22,7 @@ import {
   validateIdentityLinkRequest,
   validateInstallationId,
   validateMessageRequest,
+  validateRendererId,
   validateSpeechSegment,
   validateSpeechText,
   validateWorldActionCompletion,
@@ -243,6 +244,55 @@ ipcMain.handle('gahyeon:world:action:complete', async (
   return response.json()
 })
 
+ipcMain.handle('gahyeon:world:presence:heartbeat', async (
+  event,
+  rawWorldId: unknown,
+  rawInstallationId: unknown,
+  rawRendererId: unknown,
+) => {
+  requireTrustedIpcEvent(event)
+  const worldId = validatePayload(() => validateWorldId(rawWorldId))
+  const installationId = validatePayload(() => validateInstallationId(rawInstallationId))
+  const rendererId = validatePayload(() => validateRendererId(rawRendererId))
+  const response = await fetchWithTimeout(
+    `${apiBaseUrl}/gahyeon/desktop/worlds/${encodeURIComponent(worldId)}/presence`,
+    {
+      method: 'POST',
+      headers: coreHeaders({ 'content-type': 'application/json' }),
+      body: JSON.stringify({ installationId, rendererId }),
+    },
+    METADATA_TIMEOUT_MILLIS,
+    'worldPresence',
+    AbortSignal.timeout(METADATA_TIMEOUT_MILLIS),
+  )
+  if (!response.ok) throw clientError('worldPresence', response.status)
+})
+
+ipcMain.handle('gahyeon:world:presence:release', async (
+  event,
+  rawWorldId: unknown,
+  rawInstallationId: unknown,
+  rawRendererId: unknown,
+) => {
+  requireTrustedIpcEvent(event)
+  const worldId = validatePayload(() => validateWorldId(rawWorldId))
+  const installationId = validatePayload(() => validateInstallationId(rawInstallationId))
+  const rendererId = validatePayload(() => validateRendererId(rawRendererId))
+  const url = new URL(
+    `${apiBaseUrl}/gahyeon/desktop/worlds/${encodeURIComponent(worldId)}/presence`,
+  )
+  url.searchParams.set('installationId', installationId)
+  url.searchParams.set('rendererId', rendererId)
+  const response = await fetchWithTimeout(
+    url,
+    { method: 'DELETE', headers: coreHeaders() },
+    METADATA_TIMEOUT_MILLIS,
+    'worldPresence',
+    AbortSignal.timeout(METADATA_TIMEOUT_MILLIS),
+  )
+  if (!response.ok) throw clientError('worldPresence', response.status)
+})
+
 ipcMain.handle('gahyeon:speech:status', async (event) => {
   requireTrustedIpcEvent(event)
   const response = await fetchWithTimeout(
@@ -391,7 +441,12 @@ ipcMain.on('gahyeon:events:unsubscribe', (event) => {
 
 async function consumeEvents(
   sender: Electron.WebContents,
-  request: { sessionId: string, installationId: string, afterSequence: number },
+  request: {
+    sessionId: string
+    installationId: string
+    worldId: string
+    afterSequence: number
+  },
   controller: AbortController,
 ) {
   let cursor = Number.isSafeInteger(request.afterSequence) && request.afterSequence >= 0
@@ -404,6 +459,7 @@ async function consumeEvents(
       const url = new URL(`${apiBaseUrl}/gahyeon/desktop/events`)
       url.searchParams.set('sessionId', request.sessionId)
       url.searchParams.set('installationId', request.installationId)
+      url.searchParams.set('worldId', request.worldId)
       url.searchParams.set('afterSequence', String(cursor))
       const response = await fetch(url, {
         headers: coreHeaders({ accept: 'text/event-stream' }),

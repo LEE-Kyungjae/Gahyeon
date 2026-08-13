@@ -5,6 +5,7 @@ const MAXIMUM_DISPLAY_NAME_CHARACTERS = 100
 const MAXIMUM_MESSAGE_CHARACTERS = 16_384
 const MAXIMUM_LINK_CODE_CHARACTERS = 128
 const MAXIMUM_WORLD_ID_CHARACTERS = 120
+const MAXIMUM_RENDERER_ID_CHARACTERS = 120
 const MAXIMUM_ACTION_ID_CHARACTERS = 80
 const MAXIMUM_AUDIO_BYTES = 20 * 1024 * 1024
 const MAXIMUM_SPEECH_TEXT_CHARACTERS = 16_384
@@ -49,6 +50,7 @@ export interface ValidatedWorldActionCompletion {
 export interface ValidatedEventSubscription {
   sessionId: string
   installationId: string
+  worldId: string
   afterSequence: number
 }
 
@@ -122,6 +124,10 @@ export function validateWorldId(value: unknown) {
   return boundedText(value, 'worldId', MAXIMUM_WORLD_ID_CHARACTERS)
 }
 
+export function validateRendererId(value: unknown) {
+  return boundedText(value, 'rendererId', MAXIMUM_RENDERER_ID_CHARACTERS)
+}
+
 export function validateWorldActionCompletion(
   worldIdValue: unknown,
   requestValue: unknown,
@@ -167,6 +173,7 @@ export function validateEventSubscription(value: unknown): ValidatedEventSubscri
   return {
     sessionId: boundedText(request.sessionId, 'sessionId', MAXIMUM_SESSION_ID_CHARACTERS),
     installationId: validateInstallationId(request.installationId),
+    worldId: validateWorldId(request.worldId),
     afterSequence: safeInteger(request.afterSequence, 'afterSequence'),
   }
 }

@@ -114,6 +114,8 @@ export function reduceStageEvent(state: StageState, event: GahyeonDesktopEvent):
     }
     case 'character.action.result': {
       const actionId = text(payload.actionId, '')
+      const result = lowerText(payload.result, '')
+      if (!isTerminalActionResult(result)) return state
       if (actionId !== state.pendingWorldAction?.actionId
           && actionId !== state.deferredWorldAction?.actionId) return state
       return {
@@ -153,6 +155,13 @@ function isWorldEvent(type: string) {
     || type === 'world.state.restored'
     || type === 'world.transition.target'
     || type === 'character.action.result'
+}
+
+function isTerminalActionResult(result: string) {
+  return result === 'committed'
+    || result === 'duplicate'
+    || result === 'recorded_failure'
+    || result === 'conflict'
 }
 
 function eventPayload(data: unknown): Record<string, unknown> {

@@ -65,4 +65,48 @@ describe('browser conversation transport', () => {
       installationId: 'install-1', expectedRevision: 7, x: 4.5, y: 0, z: -2.25,
     })
   })
+
+  it('heartbeats and releases exact world-scoped renderer presence', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await browserBridge.heartbeatWorldPresence('gahyeon-home', 'install-1')
+    await browserBridge.releaseWorldPresence('gahyeon-home', 'install-1')
+
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/worlds/gahyeon-home/presence')
+    const heartbeat = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as {
+      installationId: string
+      rendererId: string
+    }
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'POST' })
+    expect(heartbeat.installationId).toBe('install-1')
+    expect(heartbeat.rendererId).toMatch(/^[0-9a-f-]+$/i)
+    expect(heartbeat.rendererId.length).toBeLessThanOrEqual(120)
+    expect(String(fetchMock.mock.calls[1][0])).toContain('installationId=install-1')
+    expect(String(fetchMock.mock.calls[1][0]))
+      .toContain(`rendererId=${encodeURIComponent(heartbeat.rendererId)}`)
+    expect(fetchMock.mock.calls[1][1]).toMatchObject({ method: 'DELETE' })
+  })
+
+  it('subscribes to the exact world as well as the conversation session', () => {
+    let sourceUrl = ''
+    class FakeEventSource {
+      onerror?: () => void
+      constructor(url: string) { sourceUrl = url }
+      addEventListener() {}
+      close() {}
+    }
+    vi.stubGlobal('EventSource', FakeEventSource)
+
+    const unsubscribe = browserBridge.subscribeEvents({
+      sessionId: 'session-1', installationId: 'install-1',
+      worldId: 'gahyeon-home', afterSequence: 7,
+    }, () => undefined)
+
+    expect(sourceUrl).toContain('worldId=gahyeon-home')
+    expect(sourceUrl).toContain('sessionId=session-1')
+    unsubscribe()
+  })
 })

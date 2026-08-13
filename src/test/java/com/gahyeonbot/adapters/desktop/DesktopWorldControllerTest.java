@@ -17,10 +17,12 @@ class DesktopWorldControllerTest {
         WorldStateUseCase worlds = mock(WorldStateUseCase.class);
         WorldActionCoordinator actions = mock(WorldActionCoordinator.class);
         DesktopCredentialAuthorization authorization = mock(DesktopCredentialAuthorization.class);
+        DesktopWorldActionPresentationPresence presence =
+                mock(DesktopWorldActionPresentationPresence.class);
         HttpServletRequest httpRequest = mock(HttpServletRequest.class);
         when(actions.complete(org.mockito.ArgumentMatchers.any()))
                 .thenReturn(WorldActionCoordinator.CompletionResult.COMMITTED);
-        var controller = new DesktopWorldController(worlds, actions, authorization);
+        var controller = new DesktopWorldController(worlds, actions, authorization, presence);
 
         var response = controller.completeAction(
                 "gahyeon-home",
@@ -37,10 +39,37 @@ class DesktopWorldControllerTest {
         assertThat(completion.getValue().actionId()).isEqualTo("action-18");
         assertThat(completion.getValue().expectedRevision()).isEqualTo(7);
         assertThat(completion.getValue().outcome()).isEqualTo("completed");
-        assertThat(completion.getValue().reason()).isEqualTo("desktop_navigation_arrived");
+        assertThat(completion.getValue().reason()).isEqualTo("desktop_presentation_completed");
         assertThat(completion.getValue().finalPosition().x()).isEqualTo(4.5);
         assertThat(completion.getValue().finalPosition().z()).isEqualTo(-2.25);
         assertThat(response.result()).isEqualTo(
                 WorldActionCoordinator.CompletionResult.COMMITTED);
+    }
+
+    @Test
+    void authenticatesHeartbeatAndReleaseAgainstTheInstallationOwner() {
+        WorldStateUseCase worlds = mock(WorldStateUseCase.class);
+        WorldActionCoordinator actions = mock(WorldActionCoordinator.class);
+        DesktopCredentialAuthorization authorization = mock(DesktopCredentialAuthorization.class);
+        DesktopWorldActionPresentationPresence presence =
+                mock(DesktopWorldActionPresentationPresence.class);
+        HttpServletRequest httpRequest = mock(HttpServletRequest.class);
+        var controller = new DesktopWorldController(worlds, actions, authorization, presence);
+
+        controller.heartbeatPresence(
+                "gahyeon-home",
+                new DesktopWorldController.PresenceRequest("install-1", "renderer-a"),
+                httpRequest);
+        controller.releasePresence(
+                "gahyeon-home", "install-1", "renderer-a", httpRequest);
+
+        verify(authorization, org.mockito.Mockito.times(2))
+                .requireInstallation(httpRequest, "install-1");
+        verify(presence).heartbeat(
+                new com.gahyeonbot.core.world.WorldId("gahyeon-home"),
+                "install-1", "renderer-a");
+        verify(presence).release(
+                new com.gahyeonbot.core.world.WorldId("gahyeon-home"),
+                "install-1", "renderer-a");
     }
 }

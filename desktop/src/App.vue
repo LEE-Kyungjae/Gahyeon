@@ -21,7 +21,15 @@ import type { PendingWorldAction } from './stage/stage-state'
 import { locale, setLocale, t, type Locale, type MessageKey } from './i18n'
 import { GahyeonClientError, localizedError } from './client-error'
 import { LatencyMetrics } from './runtime/latency-metrics'
-import { DurableEventCursor } from './runtime/durable-event-cursor'
+import { DurableEventCursor, type CursorAdmission } from './runtime/durable-event-cursor'
+import { isEventVisibleToWorld } from './runtime/world-event-admission'
+import { WorldPresenceLease } from './runtime/world-presence-lease'
+import { WorldActionAckOutbox } from './runtime/world-action-ack-outbox'
+import { WorldActionAckWorker } from './runtime/world-action-ack-worker'
+import { worldSnapshotEvent } from './runtime/world-snapshot-admission'
+import { terminalActionResultId } from './runtime/world-action-result'
+import { WorldActionAckCoordinator } from './runtime/world-action-ack-coordinator'
+import { PendingWorldActionJournal } from './runtime/pending-world-action-journal'
 
 const StageView = defineAsyncComponent(() => import('./components/StageView.vue'))
 
@@ -52,6 +60,10 @@ const nativeDesktop = window.gahyeon !== undefined
 const streamState = ref<'connecting' | 'connected' | 'error'>('connecting')
 const completedRequests = new RecentRequestRegistry()
 const unsuccessfulRequests = new RecentRequestRegistry()
+const worldId = 'gahyeon-home'
+const pendingWorldActions = new PendingWorldActionJournal(localStorage)
+const restoredWorldAction = pendingWorldActions.restore(worldId)
+const worldStageReady = ref(!restoredWorldAction.restored)
 const pendingConversations = new Map<string, {
   sentences: IncrementalSentenceAccumulator
   speech?: SpeechSequence
@@ -62,19 +74,27 @@ const pendingConversations = new Map<string, {
 const messages = ref<ChatEntry[]>([
   { id: 'welcome', role: 'gahyeon', text: '', messageKey: 'conversation.welcome' },
 ])
-const stageState = ref(initialStageState)
+const stageState = ref(restoredWorldAction.restored
+  ? { ...initialStageState, pendingWorldAction: restoredWorldAction.action }
+  : initialStageState)
 const messageList = ref<HTMLElement>()
 const durableEvents = new DurableEventCursor(
   localStorage.getItem(`gahyeon.cursor.${sessionId}`),
 )
 let unsubscribe: (() => void) | undefined
+let worldDurabilityFailed = !pendingWorldActions.health().healthy
 const gahyeon = getGahyeonBridge()
 const modelUrl = import.meta.env.VITE_GAHYEON_VRM_URL as string | undefined
 const heroManifestUrl = import.meta.env.VITE_GAHYEON_HERO_MANIFEST_URL as string | undefined
 const animationManifestUrl = import.meta.env.VITE_GAHYEON_VRMA_MANIFEST as string | undefined
 const worldUrl = import.meta.env.VITE_GAHYEON_WORLD_URL as string | undefined
 const lookingGlassEnabled = import.meta.env.VITE_GAHYEON_LOOKING_GLASS === 'true'
-const worldId = 'gahyeon-home'
+const worldPresence = new WorldPresenceLease(gahyeon, worldId, installationId)
+const worldActionAcks = new WorldActionAckCoordinator(
+  new WorldActionAckWorker(new WorldActionAckOutbox(localStorage), gahyeon),
+  worldPresence,
+)
+if (worldDurabilityFailed) worldActionAcks.failDurability()
 const recorder = new WavRecorder()
 const speechPlayer = new SpeechPlayer()
 const latencyMetrics = new LatencyMetrics()
@@ -137,6 +157,7 @@ async function unlinkIdentity() {
 }
 
 onMounted(() => {
+  worldActionAcks.start()
   void loadIdentityLinkStatus()
   subscribeToCoreEvents()
   void loadSpeechStatus()
@@ -169,10 +190,17 @@ async function loadSpeechStatus() {
 async function loadWorldSnapshot() {
   try {
     const snapshot = await gahyeon.getWorldState(worldId)
-    stageState.value = reduceStageEvent(stageState.value, {
-      event: 'world.state.restored',
-      data: snapshot,
-    })
+    const event = worldSnapshotEvent(snapshot, worldId)
+    if (event) {
+      const previous = stageState.value
+      const next = reduceStageEvent(previous, event)
+      if (!clearSupersededWorldActions(previous, next)) {
+        failWorldDurability()
+        return
+      }
+      stageState.value = next
+      worldStageReady.value = true
+    }
   }
   catch {
     // The local stage remains alive with its default world. Event-stream
@@ -180,18 +208,21 @@ async function loadWorldSnapshot() {
   }
 }
 
-async function completeWorldAction(action: PendingWorldAction) {
-  try {
-    await gahyeon.completeWorldAction(worldId, {
+function completeWorldAction(action: PendingWorldAction) {
+  if (!worldActionAcks.enqueue({
+    worldId,
+    request: {
       installationId,
       actionId: action.actionId,
       expectedRevision: action.expectedRevision,
       finalPosition: action.position,
-    })
-  }
-  catch {
-    // Core owns a bounded headless completion fallback. Losing this optional
-    // renderer acknowledgement must not stop local idle/reflex animation.
+    },
+  })) return
+  // The durable ACK outbox now owns recovery. Clear the pre-arrival journal
+  // only after that synchronous handoff has succeeded, so a crash never loses
+  // the action between navigation and acknowledgement delivery.
+  if (!pendingWorldActions.clear(action.actionId).persisted) {
+    failWorldDurability()
   }
 }
 
@@ -199,31 +230,107 @@ function subscribeToCoreEvents() {
   unsubscribe = gahyeon.subscribeEvents({
     sessionId,
     installationId,
+    worldId,
     afterSequence: durableEvents.current(),
   }, event => {
     const cursorAdmission = durableEvents.prepare(event)
     if (!cursorAdmission) return
-    stageState.value = reduceStageEvent(stageState.value, event)
+    if (!isEventVisibleToWorld(event, worldId)) {
+      tryPersistDurableEventCursor(cursorAdmission)
+      return
+    }
+    const previousStageState = stageState.value
+    const nextStageState = reduceStageEvent(previousStageState, event)
+    if (event.event === 'world.transition.target' && nextStageState !== previousStageState) {
+      const action = nextStageState.pendingWorldAction !== previousStageState.pendingWorldAction
+        ? nextStageState.pendingWorldAction
+        : nextStageState.deferredWorldAction !== previousStageState.deferredWorldAction
+          ? nextStageState.deferredWorldAction
+          : undefined
+      if (action && !pendingWorldActions.record(worldId, action).persisted) {
+        stageState.value = nextStageState
+        failWorldDurability()
+        return
+      }
+    }
+    if (event.event === 'character.action.result') {
+      const actionId = terminalActionResultId(event.data)
+      if (actionId) {
+        if (!pendingWorldActions.clear(actionId).persisted) {
+          stageState.value = nextStageState
+          failWorldDurability()
+          return
+        }
+        worldActionAcks.reconcile(actionId)
+        if (restoredWorldAction.restored
+            && restoredWorldAction.action.actionId === actionId) {
+          worldStageReady.value = true
+        }
+      }
+    }
+    if (!clearSupersededWorldActions(previousStageState, nextStageState)) {
+      stageState.value = nextStageState
+      failWorldDurability()
+      return
+    }
+    stageState.value = nextStageState
+    if (restoredWorldAction.restored
+        && (event.event === 'world.state.changed' || event.event === 'world.state.restored')) {
+      worldStageReady.value = true
+    }
     if (event.event === 'stream.connected') streamState.value = 'connected'
     if (event.event === 'stream.error') streamState.value = 'error'
     if (event.event === 'conversation.delta') applyConversationDelta(event.data)
     applyConversationTerminal(event.event, event.data)
-    if (durableEvents.commit(cursorAdmission)) {
-      localStorage.setItem(
-        `gahyeon.cursor.${sessionId}`,
-        String(durableEvents.current()),
-      )
-    }
+    tryPersistDurableEventCursor(cursorAdmission)
   })
+}
+
+function tryPersistDurableEventCursor(admission: CursorAdmission) {
+  if (!admission.durable || worldDurabilityFailed) return
+  try {
+    localStorage.setItem(`gahyeon.cursor.${sessionId}`, String(admission.cursor))
+  }
+  catch {
+    failWorldDurability()
+    return
+  }
+  durableEvents.commit(admission)
+}
+
+function failWorldDurability() {
+  if (worldDurabilityFailed) return
+  worldDurabilityFailed = true
+  worldActionAcks.failDurability()
+  unsubscribe?.()
+  unsubscribe = undefined
+}
+
+function clearSupersededWorldActions(previous: typeof initialStageState, next: typeof initialStageState) {
+  const retained = new Set([
+    next.pendingWorldAction?.actionId,
+    next.deferredWorldAction?.actionId,
+  ])
+  const previousActions = [previous.pendingWorldAction, previous.deferredWorldAction]
+  for (const action of previousActions) {
+    if (!action || retained.has(action.actionId)) continue
+    if (!pendingWorldActions.clear(action.actionId).persisted) return false
+  }
+  return true
 }
 
 onBeforeUnmount(() => {
   unsubscribe?.()
+  worldActionAcks.stop()
   gahyeon.cancelSpeechRequests()
   if (recordingTimeout !== undefined) window.clearTimeout(recordingTimeout)
   void recorder.cancel()
   void speechPlayer.dispose()
 })
+
+function setRendererPresence(present: boolean) {
+  worldActionAcks.setRendererPresent(present)
+}
 
 async function send(fromTranscription = false) {
   const text = input.value.trim()
@@ -569,6 +676,7 @@ function persistentId(key: string, prefix: string) {
       <div class="ambient ambient-one" />
       <div class="ambient ambient-two" />
       <StageView
+        v-if="worldStageReady"
         :state="stageState"
         :model-url="modelUrl"
         :hero-manifest-url="heroManifestUrl"
@@ -576,6 +684,7 @@ function persistentId(key: string, prefix: string) {
         :world-url="worldUrl"
         :looking-glass-enabled="lookingGlassEnabled"
         @world-action-arrived="completeWorldAction"
+        @renderer-presence="setRendererPresence"
       />
 
       <div class="presence">

@@ -176,7 +176,12 @@ describe('stage state reducer', () => {
       event: 'character.action.result', data: { payload: { actionId: 'other' } },
     }).pendingWorldAction).toBeDefined()
     expect(reduceStageEvent(pending, {
-      event: 'character.action.result', data: { payload: { actionId: 'action-3' } },
+      event: 'character.action.result',
+      data: { payload: { actionId: 'action-3', result: 'stale' } },
+    }).pendingWorldAction).toBeDefined()
+    expect(reduceStageEvent(pending, {
+      event: 'character.action.result',
+      data: { payload: { actionId: 'action-3', result: 'recorded_failure' } },
     }).pendingWorldAction).toBeUndefined()
     expect(reduceStageEvent(pending, {
       event: 'character.moved',

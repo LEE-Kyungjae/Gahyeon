@@ -79,12 +79,14 @@ export interface GahyeonDesktopBridge {
     worldId: string,
     request: WorldActionCompletionRequest,
   ): Promise<WorldActionCompletionResponse>
+  heartbeatWorldPresence(worldId: string, installationId: string): Promise<void>
+  releaseWorldPresence(worldId: string, installationId: string): Promise<void>
   getSpeechStatus(): Promise<SpeechStatus>
   transcribeWav(audio: ArrayBuffer): Promise<string>
   prepareSpeech(text: string): Promise<SpeechSegment[]>
   synthesizeSpeech(segment: SpeechSegment): Promise<AudioPayload>
   subscribeEvents(
-    request: { sessionId: string, installationId: string, afterSequence: number },
+    request: { sessionId: string, installationId: string, worldId: string, afterSequence: number },
     listener: (event: GahyeonDesktopEvent) => void,
   ): () => void
 }
@@ -97,6 +99,7 @@ const CONVERSATION_TIMEOUT_MILLIS = 10_000
 const METADATA_TIMEOUT_MILLIS = 5_000
 const MAXIMUM_SPEECH_AUDIO_BYTES = 16 * 1024 * 1024
 let browserConversationController = new AbortController()
+const browserRendererId = globalThis.crypto.randomUUID()
 
 export const browserBridge: GahyeonDesktopBridge = {
   async sendMessage(request) {
@@ -170,6 +173,34 @@ export const browserBridge: GahyeonDesktopBridge = {
     }
     return response.json() as Promise<WorldActionCompletionResponse>
   },
+  async heartbeatWorldPresence(worldId, installationId) {
+    const response = await speechFetch(
+      `/api/gahyeon/desktop/worlds/${encodeURIComponent(worldId)}/presence`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ installationId, rendererId: browserRendererId }),
+      },
+      METADATA_TIMEOUT_MILLIS,
+      'worldPresence',
+      AbortSignal.timeout(METADATA_TIMEOUT_MILLIS),
+    )
+    if (!response.ok) throw new GahyeonClientError('worldPresence', String(response.status))
+  },
+  async releaseWorldPresence(worldId, installationId) {
+    const query = new URLSearchParams({
+      installationId,
+      rendererId: browserRendererId,
+    })
+    const response = await speechFetch(
+      `/api/gahyeon/desktop/worlds/${encodeURIComponent(worldId)}/presence?${query}`,
+      { method: 'DELETE' },
+      METADATA_TIMEOUT_MILLIS,
+      'worldPresence',
+      AbortSignal.timeout(METADATA_TIMEOUT_MILLIS),
+    )
+    if (!response.ok) throw new GahyeonClientError('worldPresence', String(response.status))
+  },
   async getSpeechStatus() {
     const response = await speechFetch(
       '/api/gahyeon/desktop/speech/status',
@@ -217,6 +248,7 @@ export const browserBridge: GahyeonDesktopBridge = {
     const query = new URLSearchParams({
       sessionId: request.sessionId,
       installationId: request.installationId,
+      worldId: request.worldId,
       afterSequence: String(request.afterSequence),
     })
     const source = new EventSource(`/api/gahyeon/desktop/events?${query}`)

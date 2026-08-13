@@ -16,6 +16,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{
   worldActionArrived: [action: PendingWorldAction]
+  rendererPresence: [present: boolean]
 }>()
 
 const host = ref<HTMLElement>()
@@ -24,17 +25,22 @@ const modelError = ref('')
 const lookingGlassReady = ref(false)
 const lookingGlassLoading = ref(false)
 let stage: ThreeStage | undefined
+let mounted = false
 
 onMounted(async () => {
+  mounted = true
   if (!host.value) return
   stage = new ThreeStage(
     host.value,
     props.state,
     action => emit('worldActionArrived', action),
   )
+  emit('rendererPresence', true)
   if (props.worldUrl) {
     try {
-      stage.setEnvironment(await GltfWorldEnvironment.load(props.worldUrl))
+      const environment = await GltfWorldEnvironment.load(props.worldUrl)
+      if (mounted) stage.setEnvironment(environment)
+      else environment.dispose()
     }
     catch (error) {
       modelError.value = t('stage.worldFailure', { details: localizedError(error) })
@@ -51,6 +57,10 @@ onMounted(async () => {
     const character = await VrmCharacterRenderer.load(
       verified?.objectUrl ?? props.modelUrl!, props.animationManifestUrl,
     ).finally(() => verified?.revoke())
+    if (!mounted) {
+      character.dispose()
+      return
+    }
     stage.setCharacter(character)
     if (character.animationWarnings.length > 0) {
       modelError.value = t('stage.partialAnimation', { details: character.animationWarnings.join('; ') })
@@ -62,7 +72,11 @@ onMounted(async () => {
 })
 
 watch(() => props.state, state => stage?.setState(state), { deep: true })
-onBeforeUnmount(() => stage?.dispose())
+onBeforeUnmount(() => {
+  mounted = false
+  emit('rendererPresence', false)
+  stage?.dispose()
+})
 
 async function enableLookingGlass() {
   if (!stage || !lookingGlassControls.value || lookingGlassLoading.value) return

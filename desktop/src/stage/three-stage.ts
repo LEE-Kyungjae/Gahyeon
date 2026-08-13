@@ -15,6 +15,7 @@ import { PlaceholderCharacterRenderer } from './placeholder-character'
 import { buildNavigationPath } from './navigation-path'
 import type { PendingWorldAction, StageState, Vector3State } from './stage-state'
 import { GahyeonHomeEnvironment, type WorldEnvironment } from './world-environment'
+import { WorldActionInteractionGate } from './world-action-interaction'
 
 export class ThreeStage {
   private readonly scene = new Scene()
@@ -29,6 +30,7 @@ export class ThreeStage {
   private navigationTargetRoom: string
   private navigationPath: Vector3[] = []
   private notifiedWorldActionId?: string
+  private readonly worldActionInteraction = new WorldActionInteractionGate()
   private lookingGlassInitialized = false
 
   constructor(
@@ -151,9 +153,6 @@ export class ThreeStage {
     this.lastFrameTime = frameTime
     const reflexOwnsPresentation = isImmediateActivity(this.state.activity)
     if (!reflexOwnsPresentation) this.advanceNavigation(delta)
-    if (!reflexOwnsPresentation && this.navigationPath.length === 0) {
-      this.notifyWorldActionArrival()
-    }
     const characterPosition = this.character.object.position.clone()
     const desiredCamera = characterPosition.clone().add(new Vector3(0, 2.15, 6.7))
     this.camera.position.lerp(desiredCamera, Math.min(1, delta * 2.8))
@@ -163,6 +162,7 @@ export class ThreeStage {
       delta,
     )
     this.renderer.render(this.scene, this.camera)
+    this.notifyWorldActionArrival(delta, reflexOwnsPresentation)
   }
 
   private advanceNavigation(deltaSeconds: number) {
@@ -176,19 +176,19 @@ export class ThreeStage {
       this.navigationPath.shift()
       if (this.navigationPath.length === 0) {
         this.currentRoom = this.navigationTargetRoom
-        this.notifyWorldActionArrival()
       }
       return
     }
     position.addScaledVector(target.clone().sub(position).normalize(), step)
   }
 
-  private notifyWorldActionArrival() {
+  private notifyWorldActionArrival(deltaSeconds: number, paused: boolean) {
     const action = this.state.pendingWorldAction
-    if (!action || action.actionId === this.notifiedWorldActionId) return
+    if (action?.actionId === this.notifiedWorldActionId) return
     const destination = stageDestination(this.state)
-    if (destination.room !== this.currentRoom
-        || !samePosition(destination.position, vectorState(this.character.object.position), 0.001)) return
+    const arrived = destination.room === this.currentRoom
+      && samePosition(destination.position, vectorState(this.character.object.position), 0.025)
+    if (!this.worldActionInteraction.advance(action, arrived, deltaSeconds, paused) || !action) return
     this.notifiedWorldActionId = action.actionId
     this.onWorldActionArrived?.(action)
   }

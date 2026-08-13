@@ -35,10 +35,13 @@ public class DesktopEventStreamController {
             String sessionId,
             @RequestParam @jakarta.validation.constraints.NotBlank @Size(max = 200)
             String installationId,
+            @RequestParam @jakarta.validation.constraints.NotBlank
+            @Size(max = DesktopEventStreamService.MAXIMUM_WORLD_ID_CHARACTERS)
+            String worldId,
             @RequestParam(defaultValue = "0") long afterSequence,
             HttpServletRequest request) {
         credentialAuthorization.requireInstallation(request, installationId);
         ownership.claim(sessionId, installationId);
-        return streams.subscribe(sessionId, afterSequence);
+        return streams.subscribe(sessionId, worldId, afterSequence);
     }
 }
