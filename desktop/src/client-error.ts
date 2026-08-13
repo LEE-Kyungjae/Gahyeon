@@ -10,10 +10,14 @@ export class GahyeonClientError extends Error {
 }
 
 const translations: Record<string, MessageKey> = {
-  conversation: 'error.conversation', world: 'error.world', speechStatus: 'error.speechStatus',
+  conversation: 'error.conversation', conversationCancel: 'error.conversation',
+  responseLimit: 'error.responseLimit',
+  world: 'error.world', speechStatus: 'error.speechStatus',
   transcription: 'error.transcription', speechSegments: 'error.speechSegments', synthesis: 'error.synthesis',
   eventStream: 'error.eventStream', recorderInactive: 'error.recorderInactive', recordingShort: 'error.recordingShort',
   vrmInvalid: 'error.vrmInvalid', vrmaManifest: 'error.vrmaManifest', vrmaClip: 'error.vrmaClip',
+  heroManifest: 'error.heroManifest',
+  identityLink: 'error.identityLink',
 }
 
 export function localizedError(error: unknown): string {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { encodePcm16Wav } from './wav-recorder'
+import { encodePcm16Wav, rmsLevel } from './wav-recorder'
 
 describe('PCM WAV encoder', () => {
   it('writes a mono PCM16 WAV header and clamps samples', () => {
@@ -16,5 +16,11 @@ describe('PCM WAV encoder', () => {
     expect(view.getUint16(34, true)).toBe(16)
     expect(view.getInt16(44, true)).toBe(-32768)
     expect(view.getInt16(48, true)).toBe(32767)
+  })
+
+  it('computes a bounded RMS level for local VAD', () => {
+    expect(rmsLevel(new Float32Array([]))).toBe(0)
+    expect(rmsLevel(new Float32Array([0.5, -0.5]))).toBeCloseTo(0.5)
+    expect(rmsLevel(new Float32Array([2, -2]))).toBe(1)
   })
 })

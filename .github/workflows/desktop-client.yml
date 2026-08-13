@@ -1,0 +1,43 @@
+name: Desktop Client
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "desktop/**"
+      - "docs/contracts/gahyeon-hero-asset.schema.json"
+      - "docs/contracts/gahyeon-hero-asset.example.json"
+      - ".github/workflows/desktop-client.yml"
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "desktop/**"
+      - "docs/contracts/gahyeon-hero-asset.schema.json"
+      - "docs/contracts/gahyeon-hero-asset.example.json"
+      - ".github/workflows/desktop-client.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-client-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci
+      - run: npm test -- --run
+      - run: npm run build

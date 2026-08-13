@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import type { StageState } from '../stage/stage-state'
+import type { PendingWorldAction, StageState } from '../stage/stage-state'
 import { ThreeStage } from '../stage/three-stage'
 import { GltfWorldEnvironment } from '../stage/world-environment'
 import { t } from '../i18n'
@@ -9,9 +9,13 @@ import { localizedError } from '../client-error'
 const props = defineProps<{
   state: StageState
   modelUrl?: string
+  heroManifestUrl?: string
   animationManifestUrl?: string
   worldUrl?: string
   lookingGlassEnabled?: boolean
+}>()
+const emit = defineEmits<{
+  worldActionArrived: [action: PendingWorldAction]
 }>()
 
 const host = ref<HTMLElement>()
@@ -23,7 +27,11 @@ let stage: ThreeStage | undefined
 
 onMounted(async () => {
   if (!host.value) return
-  stage = new ThreeStage(host.value, props.state)
+  stage = new ThreeStage(
+    host.value,
+    props.state,
+    action => emit('worldActionArrived', action),
+  )
   if (props.worldUrl) {
     try {
       stage.setEnvironment(await GltfWorldEnvironment.load(props.worldUrl))
@@ -32,13 +40,17 @@ onMounted(async () => {
       modelError.value = t('stage.worldFailure', { details: localizedError(error) })
     }
   }
-  if (!props.modelUrl) return
+  if (!props.heroManifestUrl && !props.modelUrl) return
   try {
     const { VrmCharacterRenderer } = await import('../stage/vrm-character')
+    let verified: { objectUrl: string; revoke(): void } | undefined
+    if (props.heroManifestUrl) {
+      const { loadApprovedHeroPackage } = await import('../stage/hero-asset-loader')
+      verified = await loadApprovedHeroPackage(props.heroManifestUrl, 'three-vrm')
+    }
     const character = await VrmCharacterRenderer.load(
-      props.modelUrl,
-      props.animationManifestUrl,
-    )
+      verified?.objectUrl ?? props.modelUrl!, props.animationManifestUrl,
+    ).finally(() => verified?.revoke())
     stage.setCharacter(character)
     if (character.animationWarnings.length > 0) {
       modelError.value = t('stage.partialAnimation', { details: character.animationWarnings.join('; ') })

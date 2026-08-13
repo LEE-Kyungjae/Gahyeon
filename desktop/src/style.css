@@ -43,6 +43,14 @@ button, input, textarea { font: inherit; }
 .conversation-header h2 { margin-top: 6px; font-size: 20px; font-weight: 500; }
 .name-input { width: 108px; padding: 8px 10px; color: #babcc7; background: transparent; border: 1px solid transparent; border-radius: 8px; text-align: right; outline: none; }
 .name-input:focus { border-color: #ffffff1f; background: #ffffff08; }
+.identity-link { margin: 0 28px 8px; color: #9497a5; font-size: 12px; }
+.identity-link summary { cursor: pointer; width: fit-content; }
+.identity-link form { display: flex; gap: 8px; margin-top: 8px; }
+.identity-link input { flex: 1; min-width: 0; padding: 8px 10px; color: #e6e7ed; background: #ffffff08; border: 1px solid #ffffff1f; border-radius: 8px; }
+.identity-link button { padding: 8px 14px; border: 0; border-radius: 8px; color: #11131a; background: #d8c3a5; cursor: pointer; }
+.identity-link button:disabled { cursor: default; opacity: .5; }
+.identity-link .identity-unlink { margin-top: 8px; color: #e8c8c8; background: #7d343444; border: 1px solid #b75b5b66; }
+.identity-expiry-warning { margin: 8px 0 0; color: #e9bd75; line-height: 1.45; }
 .locale-select { padding: 7px 9px; color: #babcc7; background: #1b1e27; border: 1px solid #ffffff12; border-radius: 8px; outline: none; }
 .messages { overflow-y: auto; padding: 28px 4px; scrollbar-width: thin; scrollbar-color: #ffffff1d transparent; }
 .message { max-width: 86%; margin-bottom: 24px; }

@@ -4,6 +4,8 @@ import { animationActivity, validateAnimationManifest } from './activity-animati
 describe('activity animation contract', () => {
   it('normalizes Core activity names and falls back safely', () => {
     expect(animationActivity('LOOK-OUTSIDE')).toBe('look_outside')
+    expect(animationActivity('LISTENING')).toBe('listening')
+    expect(animationActivity('thinking')).toBe('thinking')
     expect(animationActivity('unknown')).toBe('idle')
   })
 
