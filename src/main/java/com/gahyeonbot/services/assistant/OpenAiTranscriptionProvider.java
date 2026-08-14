@@ -12,6 +12,7 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
@@ -34,12 +35,38 @@ public class OpenAiTranscriptionProvider implements SpeechToTextProvider {
 
         var p = properties.getStt();
         try {
-            return request(wavAudio, p.getBaseUrl(), p.getEndpoint(), p.getModel(), p.getPrompt());
+            return observedRequest("primary", wavAudio, p.getBaseUrl(), p.getEndpoint(),
+                    p.getModel(), p.getPrompt());
         } catch (RuntimeException primaryFailure) {
             if (!hasText(p.getFallbackBaseUrl())) throw primaryFailure;
             log.warn("주 STT 호출 실패, fallback STT로 전환합니다: {}", primaryFailure.getMessage());
-            return request(wavAudio, p.getFallbackBaseUrl(), p.getFallbackEndpoint(),
+            return observedRequest("fallback", wavAudio,
+                    p.getFallbackBaseUrl(), p.getFallbackEndpoint(),
                     p.getFallbackModel(), "");
+        }
+    }
+
+    private String observedRequest(
+            String provider,
+            byte[] wavAudio,
+            String baseUrl,
+            String endpoint,
+            String model,
+            String prompt) {
+        long startedAt = System.nanoTime();
+        try {
+            String transcript = request(wavAudio, baseUrl, endpoint, model, prompt);
+            log.info("STT provider 완료 provider={} audioBytes={} elapsedMs={} chars={} blank={}",
+                    provider, wavAudio.length,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt),
+                    transcript.length(), transcript.isBlank());
+            return transcript;
+        } catch (RuntimeException failure) {
+            log.warn("STT provider 실패 provider={} audioBytes={} elapsedMs={} failureType={}",
+                    provider, wavAudio.length,
+                    TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAt),
+                    failure.getClass().getSimpleName());
+            throw failure;
         }
     }
 

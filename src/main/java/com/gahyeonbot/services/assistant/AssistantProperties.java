@@ -5,6 +5,8 @@ import lombok.Setter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
+
 @Getter
 @Setter
 @Component
@@ -16,7 +18,14 @@ public class AssistantProperties {
     private boolean speakResponses = true;
     private String ttsProvider = "edge";
     private long responseAcknowledgementMillis = 1_500;
-    private String responseAcknowledgementText = "잠시만요, 확인해 볼게요.";
+    /** Legacy single-message override. Empty means use the rotating list. */
+    private String responseAcknowledgementText = "";
+    private List<String> responseAcknowledgementTexts = List.of(
+            "잠깐만요. 정리해서 답할게요.",
+            "알아보고 있어요. 조금만 기다려 주세요.",
+            "확인 중이에요. 곧 말씀드릴게요.",
+            "생각을 정리하고 있어요. 잠시만요.");
+    private long responseAcknowledgementCooldownMillis = 30_000;
     private int maxAiRequestsPerMinute = 12;
     private long duplicateTranscriptMillis = 10_000;
     private int minTranscriptCharacters = 2;
