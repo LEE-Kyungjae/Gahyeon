@@ -209,7 +209,10 @@ assistant:
   speak-responses: ${ASSISTANT_SPEAK_RESPONSES:true}
   tts-provider: ${ASSISTANT_TTS_PROVIDER:edge}
   response-acknowledgement-millis: ${ASSISTANT_RESPONSE_ACKNOWLEDGEMENT_MILLIS:1500}
-  response-acknowledgement-text: ${ASSISTANT_RESPONSE_ACKNOWLEDGEMENT_TEXT:잠시만요, 확인해 볼게요.}
+  # The singular value is a backwards-compatible override. Leave it empty to rotate the list.
+  response-acknowledgement-text: ${ASSISTANT_RESPONSE_ACKNOWLEDGEMENT_TEXT:}
+  response-acknowledgement-texts: ${ASSISTANT_RESPONSE_ACKNOWLEDGEMENT_TEXTS:잠깐만요. 정리해서 답할게요.,알아보고 있어요. 조금만 기다려 주세요.,확인 중이에요. 곧 말씀드릴게요.,생각을 정리하고 있어요. 잠시만요.}
+  response-acknowledgement-cooldown-millis: ${ASSISTANT_RESPONSE_ACKNOWLEDGEMENT_COOLDOWN_MILLIS:30000}
   max-ai-requests-per-minute: ${ASSISTANT_MAX_AI_REQUESTS_PER_MINUTE:12}
   duplicate-transcript-millis: ${ASSISTANT_DUPLICATE_TRANSCRIPT_MILLIS:10000}
   vad:

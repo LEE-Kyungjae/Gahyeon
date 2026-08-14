@@ -147,6 +147,8 @@ public class VoiceAssistantService {
         private final ExecutorService ttsWorker = Executors.newSingleThreadExecutor(
                 Thread.ofVirtual().name("assistant-tts-", 0).factory());
         private final AtomicLong responseRevision = new AtomicLong();
+        private final VoiceAcknowledgementPolicy acknowledgementPolicy =
+                new VoiceAcknowledgementPolicy();
         private volatile boolean closed;
 
         private Session(Guild guild, AudioChannel voiceChannel, MessageChannel textChannel,
@@ -217,9 +219,11 @@ public class VoiceAssistantService {
                 String transcript = transcription.transcribe(new AudioInput(
                         WavEncoder.pcmToWav(pcm), "audio/wav"));
                 long sttMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - sttStartedAt);
-                log.info("비서 STT 완료 guild={} user={} audioMs={} detectedSpeechMs={} sttMs={} chars={}",
+                long speechPermille = capturedAudioMillis <= 0 ? 0
+                        : Math.min(1_000, detectedSpeechMillis * 1_000 / capturedAudioMillis);
+                log.info("비서 STT 완료 guild={} user={} audioMs={} detectedSpeechMs={} speechPermille={} sttMs={} chars={} blank={}",
                         guild.getIdLong(), userId, capturedAudioMillis, detectedSpeechMillis,
-                        sttMillis, transcript.length());
+                        speechPermille, sttMillis, transcript.length(), transcript.isBlank());
                 if (transcript.isBlank()) return;
                 RequestGuard guard = requestGuards.computeIfAbsent(userId, ignored -> new RequestGuard());
                 transcript = guard.mergeOrHold(transcript, System.currentTimeMillis());
@@ -278,25 +282,32 @@ public class VoiceAssistantService {
                 long revision,
                 AtomicBoolean waitingForAnswer) {
             long delay = properties.getResponseAcknowledgementMillis();
-            String message = properties.getResponseAcknowledgementText();
             if (!properties.isSpeakResponses()
                     || !speechSynthesis.isReady(VoiceProfileId.ASSISTANT)
-                    || delay < 0 || message == null || message.isBlank()) {
+                    || delay < 0
+                    || !acknowledgementPolicy.hasMessages(
+                            properties.getResponseAcknowledgementText(),
+                            properties.getResponseAcknowledgementTexts())) {
                 return null;
             }
             return silenceDetector.schedule(
                     () -> ttsWorker.submit(() -> speakAcknowledgement(
-                            message, revision, waitingForAnswer)),
+                            revision, waitingForAnswer)),
                     delay, TimeUnit.MILLISECONDS);
         }
 
         private void speakAcknowledgement(
-                String message,
                 long revision,
                 AtomicBoolean waitingForAnswer) {
             if (closed || revision != responseRevision.get() || !waitingForAnswer.get()) return;
-            try {
-                var segments = speechSynthesis.prepare(message);
+            var lease = acknowledgementPolicy.tryAcquire(
+                    System.currentTimeMillis(),
+                    properties.getResponseAcknowledgementCooldownMillis(),
+                    properties.getResponseAcknowledgementText(),
+                    properties.getResponseAcknowledgementTexts());
+            if (lease.isEmpty()) return;
+            try (var acknowledgement = lease.get()) {
+                var segments = speechSynthesis.prepare(acknowledgement.message());
                 if (segments.isEmpty()) return;
                 AudioOutput output = speechSynthesis.synthesize(
                         segments.getFirst(), VoiceProfileId.ASSISTANT);
