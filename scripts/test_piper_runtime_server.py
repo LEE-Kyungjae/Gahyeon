@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import hashlib
+import io
 import os
 import sys
 import tempfile
@@ -11,6 +12,7 @@ import types
 import unittest
 import wave
 from pathlib import Path
+from unittest import mock
 
 
 SERVER = Path(__file__).parents[1] / "infra/images/piper/server.py"
@@ -41,11 +43,16 @@ class FakePiperVoice:
     def load(cls, *_: object, **__: object):
         return cls()
 
-    def synthesize_wav(self, _: str, wav_file: wave.Wave_write) -> None:
-        wav_file.setnchannels(1)
-        wav_file.setsampwidth(2)
-        wav_file.setframerate(16_000)
-        wav_file.writeframes(b"\0\0" * 1_600)
+    def synthesize(self, text: str, syn_config=None):
+        self.last_synthesis_config = syn_config
+        sentence_count = 2 if "." in text else 1
+        for _ in range(sentence_count):
+            yield types.SimpleNamespace(
+                sample_channels=1,
+                sample_width=2,
+                sample_rate=16_000,
+                audio_int16_bytes=b"\0\0" * 1_600,
+            )
 
 
 class FakeBaseModel:
@@ -63,6 +70,7 @@ def load_server():
     responses.Response = FakeResponse
     piper = types.ModuleType("piper")
     piper.PiperVoice = FakePiperVoice
+    piper.SynthesisConfig = lambda **values: types.SimpleNamespace(**values)
     pydantic = types.ModuleType("pydantic")
     pydantic.BaseModel = FakeBaseModel
     pydantic.Field = lambda **_: None
@@ -101,6 +109,37 @@ class PiperRuntimeServerTest(unittest.TestCase):
         self.assertEqual(response.headers["X-Piper-Config-SHA256"], "c" * 64)
         self.assertGreater(float(response.headers["X-Audio-Seconds"]), 0)
         self.assertGreaterEqual(float(response.headers["X-Realtime-Factor"]), 0)
+        self.assertEqual(response.headers["X-Sentence-Silence-Seconds"], "0.280")
+        self.assertEqual(response.headers["X-Audio-Denoised"], "true")
+
+    def test_inserts_silence_between_sentence_chunks(self) -> None:
+        payload = self.server.synthesize_payload("첫 문장. 두 번째 문장")
+        with wave.open(io.BytesIO(payload), "rb") as wav_file:
+            expected_frames = 3_200 + round(16_000 * 0.28)
+            self.assertEqual(wav_file.getnframes(), expected_frames)
+
+    def test_uses_listener_selected_prosody(self) -> None:
+        self.server.synthesize_payload("억양 설정 확인")
+        config = self.server.voice.last_synthesis_config
+        self.assertEqual(config.length_scale, 1.03)
+        self.assertEqual(config.noise_scale, 0.85)
+        self.assertEqual(config.noise_w_scale, 0.95)
+
+    def test_github_pronunciation_survives_transliterator_failure(self) -> None:
+        prepared, mode = self.server.prepare_synthesis_text("GitHub 확인")
+        self.assertEqual(prepared, "[[ɡithʌbɯ]] 확인")
+        self.assertEqual(mode, "pronunciation-dictionary-fallback")
+
+    def test_uses_approved_medium_noise_filter(self) -> None:
+        payload = self.server.synthesize_payload("필터 확인")
+        completed = types.SimpleNamespace(stdout=b"\0\0" * 1_600, stderr=b"")
+        with mock.patch.object(self.server.subprocess, "run", return_value=completed) as run:
+            self.server.normalize_loudness(payload, 16_000)
+        command = run.call_args.args[0]
+        self.assertEqual(
+            command[command.index("-af") + 1],
+            "highpass=f=80,afftdn=nr=10:nf=-32:tn=1,loudnorm=I=-12:TP=-1:LRA=7",
+        )
 
     def test_health_binds_alias_sha_and_readiness(self) -> None:
         self.assertEqual(self.server.health(), {
@@ -145,15 +184,14 @@ class PiperRuntimeServerTest(unittest.TestCase):
 
     def test_synthesis_failure_releases_the_admission_slot(self) -> None:
         class BrokenVoice:
-            def synthesize_wav(self, _: str, wav_file: wave.Wave_write) -> None:
-                wav_file.setnchannels(1)
-                wav_file.setsampwidth(2)
-                wav_file.setframerate(16_000)
+            def synthesize(self, _: str, syn_config=None):
                 raise RuntimeError("broken model")
+                yield
         self.server.voice = BrokenVoice()
-        with self.assertRaisesRegex(RuntimeError, "broken model"):
+        with self.assertRaises(FakeHttpException) as captured:
             self.server.synthesize(
                 self.server.SynthesisRequest(text="실패할 문장"), authorization=None)
+        self.assertEqual(captured.exception.status_code, 422)
         self.assertTrue(self.server.SYNTHESIS_SLOT.acquire(blocking=False))
         self.server.SYNTHESIS_SLOT.release()
 

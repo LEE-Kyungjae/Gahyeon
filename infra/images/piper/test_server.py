@@ -15,8 +15,13 @@ class PiperServerTest(unittest.TestCase):
         self.assertEqual(korean_mode, "original")
         self.assertEqual(english_mode, "english-transliterated")
         self.assertNotRegex(english, r"[A-Za-z]")
-        self.assertIn("깃허브", english)
+        self.assertIn("[[ɡithʌbɯ]]", english)
         self.assertIn("에이피아이", english)
+
+    def test_overrides_github_with_listener_approved_phonemes(self) -> None:
+        prepared, mode = server.prepare_synthesis_text("깃허브에서 확인했어요")
+        self.assertEqual(prepared, "[[ɡithʌbɯ]]에서 확인했어요")
+        self.assertEqual(mode, "phoneme-overridden")
 
     def test_rejects_header_only_wav(self) -> None:
         output = io.BytesIO()
