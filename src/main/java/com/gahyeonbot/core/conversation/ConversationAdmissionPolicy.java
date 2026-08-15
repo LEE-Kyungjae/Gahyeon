@@ -6,9 +6,9 @@ import java.util.List;
 public final class ConversationAdmissionPolicy {
     public static final int MAX_MESSAGE_LENGTH = 1_000;
     public static final int ACTOR_HOURLY_LIMIT = 75;
-    public static final int ACTOR_DAILY_LIMIT = 30;
-    public static final int GLOBAL_DAILY_LIMIT = 50;
-    public static final int GLOBAL_MONTHLY_LIMIT = 100;
+    public static final int ACTOR_DAILY_LIMIT = 100;
+    public static final int GLOBAL_DAILY_LIMIT = 100;
+    public static final int GLOBAL_MONTHLY_LIMIT = 3_100;
 
     private static final List<String> ADVERSARIAL_KEYWORDS = List.of(
             "ignore", "disregard", "forget", "override", "bypass",
