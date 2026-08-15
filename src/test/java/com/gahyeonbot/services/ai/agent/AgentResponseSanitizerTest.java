@@ -56,4 +56,17 @@ class AgentResponseSanitizerTest {
                 "<s><pad>정상적인 답변입니다.</s>"))
                 .isEqualTo("정상적인 답변입니다.");
     }
+
+    @Test
+    void keepsOnlyResponseFromThoughtResponseEnvelope() {
+        assertThat(DefaultAgentRuntime.sanitizeFinalResponse("""
+                <thought>
+                internal reasoning that must never be shown
+                thought>
+                <response>
+                사용자에게 보여 줄 최종 답변입니다.
+                response>
+                """))
+                .isEqualTo("사용자에게 보여 줄 최종 답변입니다.");
+    }
 }

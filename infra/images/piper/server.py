@@ -4,6 +4,8 @@ import io
 import hashlib
 import logging
 import os
+import re
+import subprocess
 import threading
 import time
 import wave
@@ -33,6 +35,17 @@ MODEL_SHA256 = os.getenv("PIPER_MODEL_SHA256", "")
 CONFIG_SHA256 = os.getenv("PIPER_CONFIG_SHA256", "")
 SYNTHESIS_SLOT = threading.BoundedSemaphore(1)
 voice: PiperVoice | None = None
+LATIN_TEXT = re.compile(r"[A-Za-z]")
+MARKUP_TAG = re.compile(r"<[^>]*>")
+UNSPEAKABLE_TEXT = re.compile(r"[^0-9A-Za-z가-힣\s.,?!'’-]")
+TECH_PRONUNCIATIONS = {
+    "openai": "오픈에이아이",
+    "github": "깃허브",
+    "api": "에이피아이",
+    "tts": "티티에스",
+    "stt": "에스티티",
+    "ai": "에이아이",
+}
 
 
 def file_sha256(path: Path) -> str:
@@ -55,6 +68,82 @@ class SynthesisRequest(BaseModel):
     model: str | None = None
     speakerId: str | None = None
     format: str = "wav"
+
+
+def prepare_synthesis_text(text: str) -> tuple[str, str]:
+    text = re.sub(r"\s+", " ", MARKUP_TAG.sub(" ", text)).strip()
+    if not text:
+        return "", "markup-stripped"
+    if not LATIN_TEXT.search(text):
+        return text, "original"
+    prepared = text
+    for source, pronunciation in TECH_PRONUNCIATIONS.items():
+        prepared = re.sub(rf"(?i)\b{re.escape(source)}\b", pronunciation, prepared)
+    try:
+        from hunmin import transcribe_auto
+        converted = transcribe_auto(prepared, primary_lang="en")
+    except Exception as error:
+        log.warning("english_transliteration_failed type=%s", type(error).__name__)
+        return text, "original"
+    return (converted or text), "english-transliterated"
+
+
+def validate_wav(payload: bytes) -> tuple[int, int, int]:
+    try:
+        with wave.open(io.BytesIO(payload), "rb") as wav_file:
+            channels = wav_file.getnchannels()
+            sample_rate = wav_file.getframerate()
+            frames = wav_file.getnframes()
+            sample_width = wav_file.getsampwidth()
+    except (EOFError, wave.Error) as error:
+        raise ValueError("Piper returned an invalid WAV") from error
+    if channels != 1 or sample_width != 2 or sample_rate <= 0 or frames <= 0:
+        raise ValueError("Piper returned an empty or unsupported WAV")
+    return sample_rate, frames, channels
+
+
+def normalize_loudness(payload: bytes, sample_rate: int) -> bytes:
+    command = [
+        "ffmpeg", "-hide_banner", "-loglevel", "error",
+        "-i", "pipe:0",
+        "-af", "loudnorm=I=-9:TP=-1:LRA=7",
+        "-ar", str(sample_rate), "-ac", "1",
+        "-f", "s16le", "pipe:1",
+    ]
+    try:
+        result = subprocess.run(
+            command, input=payload, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+            check=True, timeout=20,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        log.warning("loudness_normalization_failed type=%s", type(error).__name__)
+        return payload
+    if not result.stdout:
+        log.warning("loudness_normalization_failed type=empty_output")
+        return payload
+    output = io.BytesIO()
+    with wave.open(output, "wb") as wav_file:
+        wav_file.setnchannels(1)
+        wav_file.setsampwidth(2)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(result.stdout)
+    normalized = output.getvalue()
+    validate_wav(normalized)
+    return normalized
+
+
+def synthesize_payload(text: str) -> bytes:
+    if voice is None:
+        raise ValueError("model is not ready")
+    output = io.BytesIO()
+    try:
+        with wave.open(output, "wb") as wav_file:
+            voice.synthesize_wav(text, wav_file)
+    except (EOFError, wave.Error) as error:
+        raise ValueError("Piper could not synthesize a valid WAV") from error
+    payload = output.getvalue()
+    validate_wav(payload)
+    return payload
 
 
 @asynccontextmanager
@@ -106,24 +195,41 @@ def synthesize(
     if request.model and request.model != MODEL_ALIAS:
         raise HTTPException(status_code=404, detail="unknown model alias")
 
+    prepared_text, text_mode = prepare_synthesis_text(text)
+    if not prepared_text:
+        raise HTTPException(status_code=422, detail="text did not contain speakable content")
     started = time.perf_counter()
-    output = io.BytesIO()
     admitted = SYNTHESIS_SLOT.acquire(timeout=max(0.0, ADMISSION_TIMEOUT_SECONDS))
     if not admitted:
         raise HTTPException(status_code=429, detail="synthesis is busy")
     try:
-        with wave.open(output, "wb") as wav_file:
-            voice.synthesize_wav(text, wav_file)
+        try:
+            payload = synthesize_payload(prepared_text)
+        except ValueError as first_error:
+            retry_text = UNSPEAKABLE_TEXT.sub(" ", prepared_text)
+            retry_text = re.sub(r"\s+", " ", retry_text).strip()
+            if not retry_text or retry_text == prepared_text:
+                raise HTTPException(
+                    status_code=422, detail="text did not produce valid speech audio",
+                ) from first_error
+            log.warning("synthesis_retry chars=%d", len(prepared_text))
+            try:
+                payload = synthesize_payload(retry_text)
+            except ValueError as retry_error:
+                raise HTTPException(
+                    status_code=422, detail="text did not produce valid speech audio",
+                ) from retry_error
     finally:
         SYNTHESIS_SLOT.release()
     elapsed = time.perf_counter() - started
-    payload = output.getvalue()
-    with wave.open(io.BytesIO(payload), "rb") as wav_file:
-        duration = wav_file.getnframes() / wav_file.getframerate()
+    sample_rate, frames, _ = validate_wav(payload)
+    payload = normalize_loudness(payload, sample_rate)
+    sample_rate, frames, _ = validate_wav(payload)
+    duration = frames / sample_rate
     rtf = elapsed / duration if duration else 0.0
     log.info(
-        "synthesized chars=%d audio_seconds=%.3f generation_seconds=%.3f rtf=%.3f",
-        len(text), duration, elapsed, rtf,
+        "synthesized chars=%d prepared_chars=%d text_mode=%s audio_seconds=%.3f generation_seconds=%.3f rtf=%.3f",
+        len(text), len(prepared_text), text_mode, duration, elapsed, rtf,
     )
     return Response(
         content=payload,
@@ -135,5 +241,7 @@ def synthesize(
             "X-Generation-Seconds": f"{elapsed:.4f}",
             "X-Audio-Seconds": f"{duration:.4f}",
             "X-Realtime-Factor": f"{rtf:.4f}",
+            "X-Synthesis-Text-Mode": text_mode,
+            "X-Loudness-Normalized": "true",
         },
     )
