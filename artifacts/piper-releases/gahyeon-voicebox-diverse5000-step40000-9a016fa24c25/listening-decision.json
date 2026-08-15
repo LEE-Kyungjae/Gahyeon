@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "status": "approved",
+  "reviewId": "user-selected-step40000-20260815",
+  "completion": "/Users/ze/work/gahyeonbot/artifacts/piper-voicebox-long-80000-release/COMPLETED.json",
+  "selectedLabel": "USER",
+  "selectedKind": "candidate",
+  "selectedStep": 40000,
+  "modelSha256": "9a016fa24c258faeccf9e9aa607ed807b7b567b8441f179451c94ff636ebde65",
+  "gates": {
+    "identity": true,
+    "pronunciation": true,
+    "naturalness": true,
+    "artifactFree": true
+  },
+  "approvedBy": "user",
+  "notes": "User selected step 40000 after direct 20k/40k/80k listening comparisons. Multi-sentence CLI concatenation crackle was isolated from the model; sentence-local synthesis was clean and the Gahyeon runtime chunks sentences.",
+  "approvedAt": "2026-08-15T05:10:00Z"
+}

@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 2,
+  "status": "approved",
+  "modelAlias": "gahyeon-voicebox-diverse5000-step40000-9a016fa24c25",
+  "step": 40000,
+  "modelSha256": "9a016fa24c258faeccf9e9aa607ed807b7b567b8441f179451c94ff636ebde65",
+  "configSha256": "e6257ee2956315e515b90b358b176195bd416ff3dd9174d3b66250d95d86164b",
+  "approvedBy": "user",
+  "approvedAt": "2026-08-15T05:11:16.153452+00:00",
+  "listeningDecision": "/Users/ze/work/gahyeonbot/artifacts/piper-voicebox-long-80000-release/listening-decision-step40000.json",
+  "listeningDecisionSha256": "d4120f772c8211fdbfa9900aba7139ed119bbd2182ad7794eef72fa41adf7693",
+  "reviewId": "user-selected-step40000-20260815",
+  "sourceCompletion": "/Users/ze/work/gahyeonbot/artifacts/piper-voicebox-long-80000-release/COMPLETED.json",
+  "objectiveMetrics": {
+    "score": 0.79516,
+    "meanCer": 0.0623,
+    "maxCer": 0.2258,
+    "meanSpeakerSimilarity": 0.8777,
+    "minSpeakerSimilarity": 0.8683
+  },
+  "artifacts": {
+    "evaluation-suite.json": {
+      "bytes": 3143,
+      "sha256": "0f39b8086dc6d4bb8d9f9dcf3e478fc6849ded6fe52859c212ec26c8eb5544ef"
+    },
+    "listening-decision.json": {
+      "bytes": 786,
+      "sha256": "d4120f772c8211fdbfa9900aba7139ed119bbd2182ad7794eef72fa41adf7693"
+    },
+    "listening-samples/eval-1.wav": {
+      "bytes": 187948,
+      "sha256": "3224b26eb7a63b9017842eb90a1b0ea4eb076780da97da97aa67a5ac71a250dc"
+    },
+    "listening-samples/eval-2.wav": {
+      "bytes": 253996,
+      "sha256": "a227704bfb5366858cc61957f05e16d863d5565c1d5d8f7e4fcbec9ea23f98a5"
+    },
+    "listening-samples/eval-3.wav": {
+      "bytes": 157740,
+      "sha256": "706e360d5f282f8415197f4b18a54eae3e2aca95019cf28483d7be7c47645b19"
+    },
+    "listening-samples/eval-4.wav": {
+      "bytes": 138284,
+      "sha256": "cc3ac7c1c20f6ce240cffcdaa9569c89fbd1381fee78fa12e32bb83c6517ec3e"
+    },
+    "listening-samples/eval-5.wav": {
+      "bytes": 225836,
+      "sha256": "fd3d1080e274bd89b255434ea08c21afc7e45db064c3a5edbba426b64080127b"
+    },
+    "voice.onnx": {
+      "bytes": 63516050,
+      "sha256": "9a016fa24c258faeccf9e9aa607ed807b7b567b8441f179451c94ff636ebde65"
+    },
+    "voice.onnx.json": {
+      "bytes": 5033,
+      "sha256": "e6257ee2956315e515b90b358b176195bd416ff3dd9174d3b66250d95d86164b"
+    }
+  }
+}
