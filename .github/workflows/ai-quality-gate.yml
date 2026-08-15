@@ -1,0 +1,72 @@
+name: AI Quality Gate
+
+on:
+  push:
+    branches: [develop, main]
+    paths:
+      - "quality/**"
+      - "scripts/run_ai_quality_gate.sh"
+      - "scripts/create_autonomy_contract.py"
+      - "scripts/decide_autonomy_action.py"
+      - "scripts/evaluate_canary_observation.py"
+      - "scripts/verify_blind_tts_review.py"
+      - "scripts/build_piper_listening_review.py"
+      - "scripts/test_piper_listening_review.py"
+      - "scripts/test_create_autonomy_contract.py"
+      - "scripts/test_decide_autonomy_action.py"
+      - "scripts/test_evaluate_canary_observation.py"
+      - "scripts/test_verify_blind_tts_review.py"
+      - "scripts/verify_ai_quality_catalog.py"
+      - "scripts/test_verify_ai_quality_catalog.py"
+      - "scripts/test_piper_runtime_server.py"
+      - "infra/images/piper/**"
+      - "src/main/java/com/gahyeonbot/adapters/discord/voice/**"
+      - "src/main/java/com/gahyeonbot/services/ai/**"
+      - "src/test/java/com/gahyeonbot/adapters/discord/voice/**"
+      - "src/test/java/com/gahyeonbot/services/ai/**"
+      - ".github/workflows/ai-quality-gate.yml"
+  pull_request:
+    branches: [develop, main]
+    paths:
+      - "quality/**"
+      - "scripts/run_ai_quality_gate.sh"
+      - "scripts/create_autonomy_contract.py"
+      - "scripts/decide_autonomy_action.py"
+      - "scripts/evaluate_canary_observation.py"
+      - "scripts/verify_blind_tts_review.py"
+      - "scripts/build_piper_listening_review.py"
+      - "scripts/test_piper_listening_review.py"
+      - "scripts/test_create_autonomy_contract.py"
+      - "scripts/test_decide_autonomy_action.py"
+      - "scripts/test_evaluate_canary_observation.py"
+      - "scripts/test_verify_blind_tts_review.py"
+      - "scripts/verify_ai_quality_catalog.py"
+      - "scripts/test_verify_ai_quality_catalog.py"
+      - "scripts/test_piper_runtime_server.py"
+      - "infra/images/piper/**"
+      - "src/main/java/com/gahyeonbot/adapters/discord/voice/**"
+      - "src/main/java/com/gahyeonbot/services/ai/**"
+      - "src/test/java/com/gahyeonbot/adapters/discord/voice/**"
+      - "src/test/java/com/gahyeonbot/services/ai/**"
+      - ".github/workflows/ai-quality-gate.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-quality-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deterministic-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Run incident regression quality gate
+        run: bash scripts/run_ai_quality_gate.sh

@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "policyId": "gahyeon-autonomy-v1",
+  "defaultCanary": {
+    "minimumObservationSeconds": 1800,
+    "minimumQualifyingRequests": 30,
+    "requiredIdentity": [
+      "sourceCommit",
+      "artifactDigest",
+      "deploymentRevision",
+      "configurationIdentity"
+    ],
+    "rollbackThresholds": [
+      {"metric": "errorRate", "operator": ">", "value": 0.01},
+      {"metric": "p95LatencyRegressionMs", "operator": ">", "value": 300},
+      {"metric": "unexpectedTranscriptCount", "operator": ">", "value": 0},
+      {"metric": "emptyAudioCount", "operator": ">", "value": 0}
+    ]
+  },
+  "domains": {
+    "agent": {
+      "requiredGates": ["impact-analysis", "regression-test", "ai-quality-gate"],
+      "humanGates": ["production-deploy"]
+    },
+    "stt": {
+      "requiredGates": ["impact-analysis", "regression-test", "ai-quality-gate"],
+      "humanGates": ["production-deploy"]
+    },
+    "tts": {
+      "requiredGates": ["impact-analysis", "regression-test", "ai-quality-gate", "blind-listening"],
+      "humanGates": ["blind-listening", "production-deploy"]
+    },
+    "weather": {
+      "requiredGates": ["impact-analysis", "regression-test", "ai-quality-gate"],
+      "humanGates": ["production-deploy"]
+    },
+    "deployment": {
+      "requiredGates": ["impact-analysis", "regression-test", "ai-quality-gate"],
+      "humanGates": ["production-deploy"]
+    }
+  }
+}

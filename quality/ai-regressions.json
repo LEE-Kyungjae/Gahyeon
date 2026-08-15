@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "stt-known-short-hallucination",
+      "domain": "stt",
+      "incident": "Short or silent audio produced a known phrase the user did not say.",
+      "invariant": "Known hallucination phrases from short audio are rejected before conversation processing.",
+      "testFile": "src/test/java/com/gahyeonbot/adapters/discord/voice/VoiceAssistantTranscriptionGuardTest.java",
+      "testMethod": "rejectsKnownHallucinationFromShortAudio",
+      "productionSignal": "Rejected transcription reason and audio duration, without raw user audio.",
+      "rollbackTrigger": "Any known hallucination reaches the agent after deployment."
+    },
+    {
+      "id": "stt-subsecond-impossible-length",
+      "domain": "stt",
+      "incident": "Subsecond audio produced an implausibly long transcript.",
+      "invariant": "Transcript length must remain plausible for captured audio duration.",
+      "testFile": "src/test/java/com/gahyeonbot/adapters/discord/voice/VoiceAssistantTranscriptionGuardTest.java",
+      "testMethod": "rejectsImplausiblyLongTranscriptFromSubsecondAudio",
+      "productionSignal": "Audio duration, transcript length, and guard decision.",
+      "rollbackTrigger": "An implausible transcript from subsecond audio is accepted."
+    },
+    {
+      "id": "stt-dominant-repetition",
+      "domain": "stt",
+      "incident": "STT emitted a mechanically repeated token sequence.",
+      "invariant": "Dominant repeated-token transcripts are rejected regardless of audio length.",
+      "testFile": "src/test/java/com/gahyeonbot/adapters/discord/voice/VoiceAssistantTranscriptionGuardTest.java",
+      "testMethod": "rejectsDominantRepeatedTokenEvenFromLongAudio",
+      "productionSignal": "Token repetition ratio and guard decision.",
+      "rollbackTrigger": "A dominant repeated-token transcript reaches the agent."
+    },
+    {
+      "id": "agent-thought-response-envelope",
+      "domain": "agent",
+      "incident": "Internal reasoning or envelope markup appeared in the user-visible response.",
+      "invariant": "Only the response field of a thought/response envelope is user-visible.",
+      "testFile": "src/test/java/com/gahyeonbot/services/ai/agent/AgentResponseSanitizerTest.java",
+      "testMethod": "keepsOnlyResponseFromThoughtResponseEnvelope",
+      "productionSignal": "Sanitizer action and output class, without private reasoning content.",
+      "rollbackTrigger": "Internal reasoning or envelope tags become user-visible."
+    },
+    {
+      "id": "agent-empty-final-retry",
+      "domain": "agent",
+      "incident": "Sanitization removed the entire model response.",
+      "invariant": "An empty sanitized response receives exactly one corrective retry.",
+      "testFile": "src/test/java/com/gahyeonbot/services/ai/agent/DefaultAgentRuntimeCancellationTest.java",
+      "testMethod": "retriesOnceWhenSanitizationRemovesTheEntireFinalResponse",
+      "productionSignal": "Empty-final correction count and final outcome.",
+      "rollbackTrigger": "An empty final response is sent without corrective recovery."
+    },
+    {
+      "id": "agent-empty-final-fallback",
+      "domain": "agent",
+      "incident": "The corrective retry was also empty.",
+      "invariant": "A safe user-facing fallback is returned when correction remains empty.",
+      "testFile": "src/test/java/com/gahyeonbot/services/ai/agent/DefaultAgentRuntimeCancellationTest.java",
+      "testMethod": "returnsSafeMessageWhenTheCorrectionRetryIsAlsoEmpty",
+      "productionSignal": "Correction exhaustion and fallback selection.",
+      "rollbackTrigger": "Correction exhaustion produces silence, markup, or an exception."
+    },
+    {
+      "id": "piper-empty-wav",
+      "domain": "tts",
+      "incident": "Piper returned a WAV header without playable speech.",
+      "invariant": "Header-only audio is rejected as an empty synthesis result.",
+      "testFile": "infra/images/piper/test_server.py",
+      "testMethod": "test_rejects_header_only_wav",
+      "productionSignal": "Synthesized byte length, duration, and rejection reason.",
+      "rollbackTrigger": "Header-only or zero-duration audio is delivered."
+    },
+    {
+      "id": "piper-markup-only",
+      "domain": "tts",
+      "incident": "Formatting markup reached speech normalization or produced noise.",
+      "invariant": "Markup is stripped before transliteration and synthesis.",
+      "testFile": "infra/images/piper/test_server.py",
+      "testMethod": "test_strips_markup_before_transliteration",
+      "productionSignal": "Normalization outcome class and synthesis success.",
+      "rollbackTrigger": "Markup is spoken or causes synthesis artifacts."
+    },
+    {
+      "id": "piper-english-transliteration",
+      "domain": "tts",
+      "incident": "English terms were pronounced poorly while Korean text was otherwise acceptable.",
+      "invariant": "Supported English tokens are transliterated while Korean text is preserved.",
+      "testFile": "infra/images/piper/test_server.py",
+      "testMethod": "test_transliterates_english_and_preserves_korean",
+      "productionSignal": "English-token normalization count and fallback count.",
+      "rollbackTrigger": "Supported English tokens bypass normalization or Korean text is altered."
+    }
+  ]
+}
