@@ -47,7 +47,17 @@ public enum City {
     VENICE("베니스", "이탈리아", 45.4408, 12.3155, "auto"),
     DOLOMITES("돌로미티", "이탈리아", 46.5405, 12.1357, "auto"),
     FLORENCE("피렌체", "이탈리아", 43.7696, 11.2558, "auto"),
-    ROME("로마", "이탈리아", 41.9028, 12.4964, "auto");
+    ROME("로마", "이탈리아", 41.9028, 12.4964, "auto"),
+
+    // 스페인 주요 권역
+    MADRID("마드리드", "스페인", 40.4168, -3.7038, "Europe/Madrid"),
+    BARCELONA("바르셀로나", "스페인", 41.3874, 2.1686, "Europe/Madrid"),
+    SEVILLE("세비야", "스페인", 37.3891, -5.9845, "Europe/Madrid"),
+    VALENCIA("발렌시아", "스페인", 39.4699, -0.3763, "Europe/Madrid"),
+    BILBAO("빌바오", "스페인", 43.2630, -2.9350, "Europe/Madrid"),
+    SANTIAGO_DE_COMPOSTELA("산티아고데콤포스텔라", "스페인", 42.8782, -8.5448, "Europe/Madrid"),
+    PALMA_DE_MALLORCA("팔마데마요르카", "스페인", 39.5696, 2.6502, "Europe/Madrid"),
+    LAS_PALMAS("라스팔마스", "스페인", 28.1235, -15.4363, "Atlantic/Canary");
 
     private final String koreanName;
     private final String country;

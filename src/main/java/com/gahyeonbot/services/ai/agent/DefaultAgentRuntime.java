@@ -37,6 +37,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class DefaultAgentRuntime implements AgentRuntime {
     private static final int REPEATED_TOOL_CALL_LIMIT = 3;
     private static final int MAX_EVENT_PAYLOAD = 4_000;
+    private static final int EMPTY_FINAL_RESPONSE_RETRY_LIMIT = 1;
+    private static final String EMPTY_FINAL_RESPONSE_FALLBACK =
+            "답변을 정리하는 중 문제가 생겼어요. 같은 질문을 한 번만 다시 말해 주세요.";
 
     private final ChatModel chatModel;
     private final MemoryUseCase memoryUseCase;
@@ -219,6 +222,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
                     .internalToolExecutionEnabled(false)
                     .build();
             AgentLoopGuard loopGuard = new AgentLoopGuard(REPEATED_TOOL_CALL_LIMIT);
+            int emptyFinalResponseRetries = 0;
 
             while (true) {
                 ensureNotCancelled(streamObserver, control);
@@ -269,16 +273,34 @@ public class DefaultAgentRuntime implements AgentRuntime {
 
                 if (!assistant.hasToolCalls()) {
                     String content = sanitizeFinalResponse(assistant.getText());
-                    if (content.isBlank()) throw new IllegalStateException("모델의 최종 응답이 비어 있습니다.");
+                    if (content.isBlank()
+                            && emptyFinalResponseRetries < EMPTY_FINAL_RESPONSE_RETRY_LIMIT
+                            && stepped.getCurrentStep() < request.maxSteps()) {
+                        emptyFinalResponseRetries++;
+                        meterRegistry.counter("gahyeonbot.agent.empty_final_response.retries").increment();
+                        log.warn("빈 최종 응답 교정 재시도 run={} retry={}",
+                                run.getId(), emptyFinalResponseRetries);
+                        messages.add(new UserMessage("""
+                                [출력 교정]
+                                내부 추론이나 태그를 출력하지 말고, 사용자의 질문에 대한 최종 답변만 한국어로 작성해.
+                                """));
+                        continue;
+                    }
+                    if (content.isBlank()) {
+                        meterRegistry.counter("gahyeonbot.agent.empty_final_response.fallbacks").increment();
+                        log.error("빈 최종 응답 교정 실패; 안전 응답 사용 run={}", run.getId());
+                        content = EMPTY_FINAL_RESPONSE_FALLBACK;
+                    }
+                    String finalContent = content;
                     boolean committed = control.commitIfActive(() -> {
                         ensureNotCancelled(streamObserver, control);
-                        ledger.succeed(run.getId(), content);
-                        memoryUseCase.remember(request.actorId(), request.message(), content);
+                        ledger.succeed(run.getId(), finalContent);
+                        memoryUseCase.remember(request.actorId(), request.message(), finalContent);
                     });
                     if (!committed) throw new AgentStreamCancelledException();
                     Duration duration = Duration.ofNanos(System.nanoTime() - startedNanos);
                     recordMetrics(request.modality(), "succeeded", duration);
-                    return new AgentResult(run.getId(), content, usedTools, duration);
+                    return new AgentResult(run.getId(), finalContent, usedTools, duration);
                 }
 
                 List<ToolResponseMessage.ToolResponse> toolResponses = new ArrayList<>();
