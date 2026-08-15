@@ -474,6 +474,14 @@ public class DefaultAgentRuntime implements AgentRuntime {
     static String sanitizeFinalResponse(String value) {
         if (value == null || value.isBlank()) return "";
         String content = value.trim();
+        String lowerContent = content.toLowerCase(Locale.ROOT);
+        int responseStart = lowerContent.lastIndexOf("<response>");
+        if (responseStart >= 0) {
+            String explicitResponse = content.substring(responseStart + "<response>".length())
+                    .replaceFirst("(?is)\\s*(?:</response>|response>)\\s*$", "")
+                    .trim();
+            if (!explicitResponse.isBlank()) content = explicitResponse;
+        }
         int thinkingEnd = content.toLowerCase(Locale.ROOT).lastIndexOf("</think>");
         if (thinkingEnd >= 0) {
             String finalAnswer = content.substring(thinkingEnd + "</think>".length()).trim();
@@ -482,6 +490,9 @@ public class DefaultAgentRuntime implements AgentRuntime {
         content = content
                 .replaceAll("(?is)<think>.*?</think>", "")
                 .replaceAll("(?is)</?think>", "")
+                .replaceAll("(?is)<thought>.*?(?:</thought>|thought>)", "")
+                .replaceAll("(?is)</?thought>", "")
+                .replaceAll("(?is)</?response>", "")
                 .replaceAll("(?i)(?:<pad>|<unk>|<s>|</s>)+", "")
                 .trim();
         String lower = content.toLowerCase(Locale.ROOT);
@@ -497,7 +508,8 @@ public class DefaultAgentRuntime implements AgentRuntime {
         if (lower.startsWith("here's a thinking process:")
                 || lower.startsWith("here is a thinking process:")
                 || lower.startsWith("thinking process:")
-                || lower.startsWith("analysis:")) {
+                || lower.startsWith("analysis:")
+                || lower.startsWith("<thought>")) {
             return "";
         }
         return content;
