@@ -482,6 +482,7 @@ public class DefaultAgentRuntime implements AgentRuntime {
         content = content
                 .replaceAll("(?is)<think>.*?</think>", "")
                 .replaceAll("(?is)</?think>", "")
+                .replaceAll("(?i)(?:<pad>|<unk>|<s>|</s>)+", "")
                 .trim();
         String lower = content.toLowerCase(Locale.ROOT);
         for (String marker : List.of(

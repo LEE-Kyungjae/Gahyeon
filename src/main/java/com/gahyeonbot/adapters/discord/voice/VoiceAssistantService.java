@@ -40,6 +40,7 @@ import org.springframework.stereotype.Service;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.*;
@@ -225,6 +226,13 @@ public class VoiceAssistantService {
                         guild.getIdLong(), userId, capturedAudioMillis, detectedSpeechMillis,
                         speechPermille, sttMillis, transcript.length(), transcript.isBlank());
                 if (transcript.isBlank()) return;
+                if (isLikelyShortAudioHallucination(
+                        transcript, capturedAudioMillis, detectedSpeechMillis)) {
+                    log.warn("비서 STT 환각 차단 guild={} user={} audioMs={} detectedSpeechMs={} chars={}",
+                            guild.getIdLong(), userId, capturedAudioMillis,
+                            detectedSpeechMillis, transcript.length());
+                    return;
+                }
                 RequestGuard guard = requestGuards.computeIfAbsent(userId, ignored -> new RequestGuard());
                 transcript = guard.mergeOrHold(transcript, System.currentTimeMillis());
                 if (transcript == null) {
@@ -469,5 +477,20 @@ public class VoiceAssistantService {
 
     private static String limit(String text, int max) {
         return text.length() <= max ? text : text.substring(0, max - 3) + "...";
+    }
+
+    static boolean isLikelyShortAudioHallucination(
+            String transcript,
+            long capturedAudioMillis,
+            long detectedSpeechMillis) {
+        if (transcript == null || capturedAudioMillis > 2_500 || detectedSpeechMillis > 1_000) {
+            return false;
+        }
+        String normalized = transcript.toLowerCase(Locale.ROOT)
+                .replaceAll("[\\s\\p{Punct}]", "");
+        return normalized.equals("감사합니다")
+                || normalized.equals("시청해주셔서감사합니다")
+                || normalized.equals("자막제공")
+                || normalized.equals("자막제공및광고를포함하고있습니다");
     }
 }

@@ -42,4 +42,18 @@ class AgentResponseSanitizerTest {
                 """))
                 .isEqualTo("아니에요, 언제든 편하게 물어봐 주세요.");
     }
+
+    @Test
+    void rejectsResponseContainingOnlyModelControlTokens() {
+        assertThat(DefaultAgentRuntime.sanitizeFinalResponse(
+                "<pad><pad><pad><pad>"))
+                .isEmpty();
+    }
+
+    @Test
+    void removesModelControlTokensAroundARealAnswer() {
+        assertThat(DefaultAgentRuntime.sanitizeFinalResponse(
+                "<s><pad>정상적인 답변입니다.</s>"))
+                .isEqualTo("정상적인 답변입니다.");
+    }
 }
