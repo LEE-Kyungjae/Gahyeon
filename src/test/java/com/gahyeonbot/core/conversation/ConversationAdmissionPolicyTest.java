@@ -24,8 +24,12 @@ class ConversationAdmissionPolicyTest {
     void enforcesActorAndGlobalLimits() {
         assertThat(policy.decide("안녕", new AdmissionFacts(false, false, 75, 0, 0, 0)).reason())
                 .isEqualTo(AdmissionDecision.Reason.ACTOR_HOURLY_LIMIT);
-        assertThat(policy.decide("안녕", new AdmissionFacts(false, false, 0, 0, 50, 0)).reason())
+        assertThat(policy.decide("안녕", new AdmissionFacts(false, false, 0, 100, 0, 0)).reason())
+                .isEqualTo(AdmissionDecision.Reason.ACTOR_DAILY_LIMIT);
+        assertThat(policy.decide("안녕", new AdmissionFacts(false, false, 0, 0, 100, 0)).reason())
                 .isEqualTo(AdmissionDecision.Reason.GLOBAL_DAILY_LIMIT);
+        assertThat(policy.decide("안녕", new AdmissionFacts(false, false, 0, 0, 0, 3_100)).reason())
+                .isEqualTo(AdmissionDecision.Reason.GLOBAL_MONTHLY_LIMIT);
     }
 
     private static AdmissionFacts facts() {
