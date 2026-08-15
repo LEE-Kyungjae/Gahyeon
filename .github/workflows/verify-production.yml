@@ -48,7 +48,10 @@ jobs:
           if [ -z "$expected_image_tag" ] && [ -n "$DEPLOYED_HEAD_SHA" ]; then
             expected_image_tag="sha-${DEPLOYED_HEAD_SHA:0:7}"
           fi
-          ssh -p "${SSH_PORT:-22}" "$SSH_USER@$SSH_HOST" \
+          ssh -p "${SSH_PORT:-22}" \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=20 \
+            "$SSH_USER@$SSH_HOST" \
             "EXPECTED_IMAGE_TAG='$expected_image_tag' bash -s" <<'REMOTE'
           set -euo pipefail
 
@@ -63,6 +66,8 @@ jobs:
               if [ -z "$mismatched" ]; then
                 break
               fi
+              printf 'Waiting for %s (%s/60). Current images:\n%s\n' \
+                "$EXPECTED_IMAGE_TAG" "$attempt" "$images"
               if [ "$attempt" -eq 60 ]; then
                 printf 'Timed out waiting for %s. Current images:\n%s\n' \
                   "$EXPECTED_IMAGE_TAG" "$images" >&2
