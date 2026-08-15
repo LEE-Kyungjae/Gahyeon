@@ -36,10 +36,54 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DefaultAgentRuntimeCancellationTest {
+    @Test
+    void retriesOnceWhenSanitizationRemovesTheEntireFinalResponse() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.call(any(Prompt.class)))
+                .thenReturn(new ChatResponse(List.of(new Generation(
+                        new AssistantMessage("analysis: internal reasoning only")))))
+                .thenReturn(new ChatResponse(List.of(new Generation(
+                        new AssistantMessage("정상적으로 복구한 답변입니다.")))));
+        MemoryUseCase memory = emptyMemory();
+        AgentRunLedger ledger = runningLedger("run-empty-final-retry");
+        DefaultAgentRuntime runtime = runtime(
+                model, memory, ledger, mock(AgentRunRepository.class),
+                mock(AgentApprovalService.class), new ToolPolicy(),
+                new WeatherTools(mock(WeatherService.class)));
+
+        AgentResult result = runtime.execute(request("empty-final-retry"));
+
+        assertThat(result.content()).isEqualTo("정상적으로 복구한 답변입니다.");
+        verify(model, times(2)).call(any(Prompt.class));
+        verify(ledger).succeed("run-empty-final-retry", "정상적으로 복구한 답변입니다.");
+        verify(memory).remember(new ActorId(42), "prompt", "정상적으로 복구한 답변입니다.");
+    }
+
+    @Test
+    void returnsSafeMessageWhenTheCorrectionRetryIsAlsoEmpty() {
+        ChatModel model = mock(ChatModel.class);
+        when(model.call(any(Prompt.class))).thenReturn(new ChatResponse(List.of(new Generation(
+                new AssistantMessage("analysis: internal reasoning only")))));
+        MemoryUseCase memory = emptyMemory();
+        AgentRunLedger ledger = runningLedger("run-empty-final-fallback");
+        DefaultAgentRuntime runtime = runtime(
+                model, memory, ledger, mock(AgentRunRepository.class),
+                mock(AgentApprovalService.class), new ToolPolicy(),
+                new WeatherTools(mock(WeatherService.class)));
+
+        AgentResult result = runtime.execute(request("empty-final-fallback"));
+
+        assertThat(result.content()).isEqualTo(
+                "답변을 정리하는 중 문제가 생겼어요. 같은 질문을 한 번만 다시 말해 주세요.");
+        verify(model, times(2)).call(any(Prompt.class));
+        verify(ledger).succeed("run-empty-final-fallback", result.content());
+    }
+
     @Test
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
     void cancelledGenerationCannotCommitLedgerOrMemoryAfterProviderReturns() throws Exception {

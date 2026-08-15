@@ -82,4 +82,15 @@ class WeatherToolsTest {
                         "get_supported_weather_locations"
                 );
     }
+
+    @Test
+    void supportedLocationsIncludeRepresentativeSpanishRegions() {
+        String locations = tools.getSupportedLocations();
+
+        assertThat(locations)
+                .contains("MADRID | 마드리드 | 스페인")
+                .contains("BARCELONA | 바르셀로나 | 스페인")
+                .contains("SEVILLE | 세비야 | 스페인")
+                .contains("LAS_PALMAS | 라스팔마스 | 스페인");
+    }
 }
