@@ -479,9 +479,26 @@ public class DefaultAgentRuntime implements AgentRuntime {
             String finalAnswer = content.substring(thinkingEnd + "</think>".length()).trim();
             if (!finalAnswer.isBlank()) content = finalAnswer;
         }
-        return content
+        content = content
                 .replaceAll("(?is)<think>.*?</think>", "")
                 .replaceAll("(?is)</?think>", "")
                 .trim();
+        String lower = content.toLowerCase(Locale.ROOT);
+        for (String marker : List.of(
+                "\nfinal answer:", "\nfinal response:",
+                "\n최종 답변:", "\n최종 응답:")) {
+            int markerIndex = lower.lastIndexOf(marker);
+            if (markerIndex >= 0) {
+                String finalAnswer = content.substring(markerIndex + marker.length()).trim();
+                if (!finalAnswer.isBlank()) return finalAnswer;
+            }
+        }
+        if (lower.startsWith("here's a thinking process:")
+                || lower.startsWith("here is a thinking process:")
+                || lower.startsWith("thinking process:")
+                || lower.startsWith("analysis:")) {
+            return "";
+        }
+        return content;
     }
 }
