@@ -76,7 +76,7 @@ dependencies {
     implementation 'se.michaelthelin.spotify:spotify-web-api-java:9.1.1'
 
     // OpenAI API
-    implementation platform('org.springframework.ai:spring-ai-bom:1.0.1')
+    implementation platform('org.springframework.ai:spring-ai-bom:1.1.5')
     implementation 'org.springframework.ai:spring-ai-starter-model-openai'
 
     // HTTP Client
