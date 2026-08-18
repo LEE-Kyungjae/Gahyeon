@@ -257,3 +257,35 @@ notifications:
     schedule-zone: ${NOTIFICATIONS_DM_SCHEDULE_ZONE:Asia/Seoul}
     trending-summary-enabled: ${NOTIFICATIONS_DM_TRENDING_SUMMARY_ENABLED:true}
     trending-summary-cron: ${NOTIFICATIONS_DM_TRENDING_SUMMARY_CRON:0 30 6 * * *}
+
+news:
+  personalized:
+    enabled: ${PERSONALIZED_NEWS_ENABLED:false}
+    poll-millis: ${PERSONALIZED_NEWS_POLL_MILLIS:1800000}
+    initial-delay-millis: ${PERSONALIZED_NEWS_INITIAL_DELAY_MILLIS:60000}
+    digest-cron: ${PERSONALIZED_NEWS_DIGEST_CRON:0 0 8 * * *}
+    schedule-zone: ${PERSONALIZED_NEWS_SCHEDULE_ZONE:Asia/Seoul}
+    lookback-hours: ${PERSONALIZED_NEWS_LOOKBACK_HOURS:30}
+    maximum-items: ${PERSONALIZED_NEWS_MAXIMUM_ITEMS:5}
+    topics: ${PERSONALIZED_NEWS_TOPICS:AI,LLM,에이전트,로봇,GitHub,GPU}
+    sources:
+      - id: openai-news
+        name: OpenAI News
+        url: https://openai.com/news/rss.xml
+        official: true
+        trust-tier: 1
+      - id: google-ai
+        name: Google AI
+        url: https://blog.google/innovation-and-ai/technology/ai/rss/
+        official: true
+        trust-tier: 1
+      - id: github-changelog
+        name: GitHub Changelog
+        url: https://github.blog/changelog/feed/
+        official: true
+        trust-tier: 1
+      - id: nvidia-blog
+        name: NVIDIA Blog
+        url: https://blogs.nvidia.com/feed/
+        official: true
+        trust-tier: 1

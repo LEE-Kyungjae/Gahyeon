@@ -7,6 +7,8 @@ package com.gahyeonbot.entity;
 public enum NewsletterTheme {
     GITHUB_TRENDING("github-trending", "GitHub 트렌딩",
             "매일 오전 7시(KST) GitHub 트렌딩 레포 요약을 DM으로 받습니다."),
+    PERSONALIZED_NEWS("personalized-news", "맞춤뉴스",
+            "공식 출처 또는 독립 출처로 검증된 관심 주제 뉴스를 받습니다."),
     AI_PAPERS("ai-papers", "AI 논문 다이제스트",
             "Hugging Face 논문 기반 최신 AI/ML 논문 요약 (준비중).");
 

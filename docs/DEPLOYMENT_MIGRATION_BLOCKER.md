@@ -73,20 +73,20 @@ The script starts only a uniquely named disposable pgvector/PostgreSQL 16 contai
 replace a pre-existing container. It uses a non-superuser migration role after an admin preinstalls
 the V7 `vector` extension, forces `baseline-on-migrate=false`, and exercises two independent paths:
 
-1. An empty PostgreSQL database migrates through V29 and V36, after which the current application
+1. An empty PostgreSQL database migrates through V29, V36, and V37, after which the current application
    starts with Hibernate `ddl-auto=validate`.
 2. The authoritative V24 fixture is extracted byte-for-byte from verified GitOps source commit
    `12ebae244fd3efcdbf241dc5215428327552800f`. Its V1–V24 checksums must still match the checkout.
    The database advances to V28, receives pre-V29 credential rows and pre-V36 agent-run rows, then
    advances to current and starts with application schema validation.
 
-Both paths require exact successful Flyway history `V1–V29,V36`, reject any V30–V35 history,
+Both paths require exact successful Flyway history `V1–V29,V36,V37`, reject any V30–V35 history,
 verify pgvector, the V29 backfill/`NOT NULL`/index, the valid V36
-`agent_runs(user_id,status,created_at)` index, and the V24 physical mappings. Evidence is written
+`agent_runs(user_id,status,created_at)` index, the V37 personalized-news table/indexes, and the V24 physical mappings. Evidence is written
 under `build/reports/postgres-migration-preflight/`; CI uploads it as a short-lived artifact.
 
 This is disposable evidence, **not live-production evidence**. It does not replace the preceding
-read-only `flyway_schema_history` gate. It also proves V29/V36 functional behavior only; it does not
+read-only `flyway_schema_history` gate. It also proves V29/V36/V37 functional behavior only; it does not
 measure lock duration on production-sized tables.
 
 Also verify these operational risks:
