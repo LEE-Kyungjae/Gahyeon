@@ -317,7 +317,7 @@ read-only `flyway_schema_history` 확인과 disposable PostgreSQL upgrade/empty-
 
 이 명령은 pgvector가 포함된 일회성 PostgreSQL 16에서 empty PostgreSQL 이력과
 authoritative V24 fixture→current 이력을 독립적으로 검증합니다. 제한된 migration role,
-V7 pgvector, V29 backfill/`NOT NULL`, V36 `user_id,status,created_at` index, application
+V7 pgvector, V29 backfill/`NOT NULL`, V36 `user_id,status,created_at` index, V37 personalized-news schema, application
 schema validation을 한꺼번에 fail-closed로 확인합니다. 이 결과는 **not live-production
 evidence**이며, 운영 `flyway_schema_history` read-only 확인과 운영 규모 lock 실측을
 대체하지 않습니다.

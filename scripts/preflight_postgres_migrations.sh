@@ -86,6 +86,8 @@ fi
 jar tf "$jar_file" >"$report_dir/bootjar-entries.txt"
 grep -q 'BOOT-INF/classes/db/migration/V36__Index_agent_run_supersession.sql' \
   "$report_dir/bootjar-entries.txt" || fail "bootJar does not contain V36"
+grep -q 'BOOT-INF/classes/db/migration/V37__Add_personalized_news_articles.sql' \
+  "$report_dir/bootjar-entries.txt" || fail "bootJar does not contain V37"
 if grep -Eq 'BOOT-INF/classes/db/migration/V3[0-5]__' "$report_dir/bootjar-entries.txt"; then
   fail "bootJar unexpectedly contains a forbidden V30-V35 migration"
 fi
@@ -377,6 +379,7 @@ upper = int(sys.argv[1])
 versions = [str(value) for value in range(1, upper + 1)]
 if upper >= 29:
     versions.append("36")
+    versions.append("37")
 print(",".join(versions))
 PY
 }
@@ -411,6 +414,14 @@ assert_current_schema() {
     "SELECT i.indisvalid AND i.indisready FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid WHERE c.relname='idx_agent_runs_actor_status_created';"
   assert_query "V36 targets the wrong physical columns" "$database" "t" \
     "SELECT position('(user_id, status, created_at)' in pg_get_indexdef(i.indexrelid)) > 0 FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid WHERE c.relname='idx_agent_runs_actor_status_created';"
+  assert_query "V37 personalized news table is missing" "$database" "news_article" \
+    "SELECT COALESCE(to_regclass('public.news_article')::text, '');"
+  assert_query "V37 canonical URL uniqueness is missing" "$database" "t" \
+    "SELECT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.news_article'::regclass AND contype='u' AND pg_get_constraintdef(oid) LIKE '%(canonical_url)%');"
+  assert_query "V37 publication index is missing or invalid" "$database" "t" \
+    "SELECT i.indisvalid AND i.indisready FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid WHERE c.relname='idx_news_article_published_at';"
+  assert_query "V37 event fingerprint index is missing or invalid" "$database" "t" \
+    "SELECT i.indisvalid AND i.indisready FROM pg_index i JOIN pg_class c ON c.oid=i.indexrelid WHERE c.relname='idx_news_article_event_fingerprint';"
   assert_query "agent_runs no longer uses the V24 physical columns" "$database" \
     "gateway,guild_id,user_id,username" \
     "SELECT string_agg(column_name, ',' ORDER BY column_name) FROM information_schema.columns WHERE table_schema='public' AND table_name='agent_runs' AND column_name IN ('actor_id','user_id','modality','gateway','tool_scope_id','guild_id','actor_display_name','username');"
@@ -481,10 +492,11 @@ vector_version="$(query "$empty_db" "SELECT extversion FROM pg_extension WHERE e
   printf 'postgres_image_requested=%s\n' "$postgres_image"
   printf 'postgres_image_id=%s\n' "$resolved_image_id"
   printf 'pgvector_version=%s\n' "$vector_version"
-  printf 'empty_database=V1-V29,V36; application_validate=passed\n'
-  printf 'upgrade_database=authoritative_V24_to_V28_seed_to_V29,V36; application_validate=passed\n'
+  printf 'empty_database=V1-V29,V36,V37; application_validate=passed\n'
+  printf 'upgrade_database=authoritative_V24_to_V28_seed_to_V29,V36,V37; application_validate=passed\n'
   printf 'v29_backfill_not_null=passed\n'
   printf 'v36_user_id_status_created_index=passed\n'
+  printf 'v37_personalized_news_schema=passed\n'
 } >"$report_dir/summary.txt"
 
 echo "Disposable PostgreSQL migration preflight passed"

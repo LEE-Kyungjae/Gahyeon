@@ -37,6 +37,9 @@ RUNTIME_MARKERS = (
     "idx_desktop_client_credentials_expiry",
     "idx_agent_runs_actor_status_created",
     "(user_id, status, created_at)",
+    "V37__Add_personalized_news_articles.sql",
+    "V37 personalized news table is missing",
+    "v37_personalized_news_schema=passed",
     "V3[0-5]__",
     "live_production_evidence=false",
     'refusing to replace existing container',
@@ -63,6 +66,7 @@ DOC_MARKERS = (
     "empty PostgreSQL",
     "V29",
     "V36",
+    "V37",
     "not live-production",
 )
 

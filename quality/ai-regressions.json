@@ -90,6 +90,16 @@
       "testMethod": "test_transliterates_english_and_preserves_korean",
       "productionSignal": "English-token normalization count and fallback count.",
       "rollbackTrigger": "Supported English tokens bypass normalization or Korean text is altered."
+    },
+    {
+      "id": "agent-personalized-news-source-integrity",
+      "domain": "agent",
+      "incident": "A personalized news digest could present an unverified single-site report or lose its publication/source evidence.",
+      "invariant": "Each selected news event is backed by an official source or at least two independent domains, retains publication time and canonical source URLs, and rejects future-dated items.",
+      "testFile": "src/test/java/com/gahyeonbot/services/news/NewsEventRankerTest.java",
+      "testMethod": "acceptsOfficialOrTwoIndependentDomainsAndRejectsSingleSecondarySource",
+      "productionSignal": "Per digest: selected event count, official-source flag, distinct source-domain count, and publication age without article body content.",
+      "rollbackTrigger": "A single unverified secondary source is delivered, a source URL/publication time is missing, or a future-dated article is accepted."
     }
   ]
 }
