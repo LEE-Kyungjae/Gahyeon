@@ -1,6 +1,5 @@
 package com.gahyeonbot.services.news;
 
-import com.gahyeonbot.adapters.discord.bootstrap.BotInitializerRunner;
 import com.gahyeonbot.entity.NewsArticle;
 import com.gahyeonbot.repository.NewsArticleRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -21,16 +20,13 @@ public class PersonalizedNewsCollector {
     private final PersonalizedNewsProperties properties;
     private final NewsFeedParser parser;
     private final NewsArticleRepository articleRepository;
-    private final BotInitializerRunner botInitializerRunner;
     private final RestTemplate http;
 
     public PersonalizedNewsCollector(PersonalizedNewsProperties properties, NewsFeedParser parser,
-                                     NewsArticleRepository articleRepository,
-                                     BotInitializerRunner botInitializerRunner) {
+                                     NewsArticleRepository articleRepository) {
         this.properties = properties;
         this.parser = parser;
         this.articleRepository = articleRepository;
-        this.botInitializerRunner = botInitializerRunner;
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(5_000);
         requestFactory.setReadTimeout(10_000);
@@ -40,7 +36,7 @@ public class PersonalizedNewsCollector {
     @Scheduled(fixedDelayString = "${news.personalized.poll-millis:1800000}",
             initialDelayString = "${news.personalized.initial-delay-millis:60000}")
     public void collect() {
-        if (!properties.isEnabled() || !botInitializerRunner.hasLeadership()) return;
+        if (!properties.isEnabled()) return;
         for (PersonalizedNewsProperties.Source source : properties.getSources()) {
             if (!valid(source)) {
                 log.warn("맞춤뉴스 출처 설정 건너뜀 - id/url 필수");
