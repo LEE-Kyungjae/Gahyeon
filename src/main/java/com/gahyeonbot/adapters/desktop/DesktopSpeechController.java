@@ -23,19 +23,23 @@ public class DesktopSpeechController {
 
     private final TranscriptionUseCase transcription;
     private final SpeechSynthesisUseCase synthesis;
+    private final ExpressiveSpeechSynthesisUseCase expressiveSynthesis;
 
     public DesktopSpeechController(
             TranscriptionUseCase transcription,
-            SpeechSynthesisUseCase synthesis) {
+            SpeechSynthesisUseCase synthesis,
+            ExpressiveSpeechSynthesisUseCase expressiveSynthesis) {
         this.transcription = transcription;
         this.synthesis = synthesis;
+        this.expressiveSynthesis = expressiveSynthesis;
     }
 
     @GetMapping("/status")
     public SpeechStatus status() {
         return new SpeechStatus(
                 transcription.isReady(),
-                synthesis.isReady(VoiceProfileId.ASSISTANT));
+                synthesis.isReady(VoiceProfileId.ASSISTANT),
+                expressiveSynthesis.isExpressiveReady(VoiceProfileId.ASSISTANT));
     }
 
     @PostMapping(
@@ -60,11 +64,26 @@ public class DesktopSpeechController {
     @PostMapping(value = "/synthesis", produces = "audio/*")
     public ResponseEntity<byte[]> synthesize(@Valid @RequestBody SynthesizeSpeechRequest request) {
         VoiceProfileId voice = new VoiceProfileId(request.voiceProfile());
-        if (!synthesis.isReady(voice)) {
+        if (request.expression() == null && !synthesis.isReady(voice)) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "TTS가 준비되지 않았습니다.");
         }
-        AudioOutput output = synthesis.synthesize(
-                new SpeechSegment(request.index(), request.text()), voice);
+        SpeechSegment segment = new SpeechSegment(request.index(), request.text());
+        AudioOutput output;
+        if (request.expression() == null) {
+            output = synthesis.synthesize(segment, voice);
+        } else {
+            if (!expressiveSynthesis.isExpressiveReady(voice)) {
+                throw new ResponseStatusException(
+                        HttpStatus.SERVICE_UNAVAILABLE, "표현형 TTS가 준비되지 않았습니다.");
+            }
+            output = expressiveSynthesis.synthesizeExpressive(new ExpressiveSpeechRequest(
+                    segment,
+                    voice,
+                    new VoiceExpression(
+                            request.expression().style(),
+                            request.expression().intensity(),
+                            request.expression().communicativeIntent())));
+        }
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(output.mediaType()))
                 .cacheControl(CacheControl.noStore())
@@ -74,12 +93,26 @@ public class DesktopSpeechController {
                 .body(output.data());
     }
 
-    public record SpeechStatus(boolean transcriptionReady, boolean synthesisReady) {}
+    public record SpeechStatus(
+            boolean transcriptionReady,
+            boolean synthesisReady,
+            boolean expressiveSynthesisReady) {}
     public record TranscriptResponse(String transcript) {}
     public record PrepareSpeechRequest(@NotBlank String text) {}
     public record SynthesizeSpeechRequest(
             @PositiveOrZero int index,
             @NotBlank String text,
-            @NotBlank String voiceProfile
+            @NotBlank String voiceProfile,
+            VoiceExpressionRequest expression
+    ) {
+        public SynthesizeSpeechRequest(int index, String text, String voiceProfile) {
+            this(index, text, voiceProfile, null);
+        }
+    }
+
+    public record VoiceExpressionRequest(
+            @NotBlank String style,
+            double intensity,
+            @NotBlank String communicativeIntent
     ) {}
 }

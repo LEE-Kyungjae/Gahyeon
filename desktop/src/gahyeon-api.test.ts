@@ -20,7 +20,7 @@ describe('browser conversation transport', () => {
 
     const pending = browserBridge.sendMessage({
       sessionId: 'session-1', requestId: 'request-1', installationId: 'install-1',
-      displayName: 'Tester', message: '안녕',
+      displayName: 'Tester', characterId: 'gahyeon', message: '안녕',
     })
     const rejected = expect(pending).rejects.toMatchObject({ name: 'AbortError' })
     await browserBridge.cancelConversation('session-1', 'install-1')
@@ -43,6 +43,27 @@ describe('browser conversation transport', () => {
     await expect(browserBridge.unlinkCurrentDesktop('install-1'))
       .rejects.toMatchObject({ code: 'identityLink', detail: 'nativeDesktopRequired' })
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('requests a bounded Core-owned conversation expression plan', async () => {
+    const planned = {
+      style: 'bright', intensity: 0.58, communicativeIntent: 'share_positive_affect',
+    }
+    const fetchMock = vi.fn().mockResolvedValue(new Response(
+      JSON.stringify(planned),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    ))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(browserBridge.planConversationExpression({
+      installationId: 'install-1', displayName: 'Tester',
+      characterId: 'gahyeon', worldId: 'gahyeon-home', message: '좋아ㅋㅋ',
+    })).resolves.toEqual(planned)
+    expect(String(fetchMock.mock.calls[0][0])).toContain('/speech/expression-plans')
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({
+      installationId: 'install-1', displayName: 'Tester',
+      characterId: 'gahyeon', worldId: 'gahyeon-home', message: '좋아ㅋㅋ',
+    })
   })
 
   it('reports an arrived world action with its revision and exact position', async () => {

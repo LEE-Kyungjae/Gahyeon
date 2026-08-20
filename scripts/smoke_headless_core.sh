@@ -130,7 +130,11 @@ assert health["status"] == "STARTING" and health["bot"] == "DISABLED", health
 assert health["botState"] == "DISABLED" and health["botReason"] == "bot.enabled=false", health
 assert health["db"] == "UP", health
 assert health["conversationRequired"] is True and health["conversation"] == "DOWN", health
-assert speech == {"transcriptionReady": False, "synthesisReady": False}, speech
+assert speech == {
+    "transcriptionReady": False,
+    "synthesisReady": False,
+    "expressiveSynthesisReady": False,
+}, speech
 assert world["revision"] == 0 and world["activity"] == "IDLE", world
 print(world["revision"])
 PY

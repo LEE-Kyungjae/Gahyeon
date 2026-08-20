@@ -369,4 +369,50 @@ describe('SpeechPlayer', () => {
     expect(cancelSpeechRequests).toHaveBeenCalledOnce()
     await sequence.finish()
   })
+
+  it('pins the selected character voice profile across a speech sequence', async () => {
+    class FakeSource {
+      onended: null | (() => void) = null
+      buffer?: AudioBuffer
+      connect() {}
+      disconnect() {}
+      stop() {}
+      start() { queueMicrotask(() => this.onended?.()) }
+    }
+    class FakeAnalyser {
+      fftSize = 256
+      smoothingTimeConstant = 0
+      connect() {}
+      disconnect() {}
+      getByteTimeDomainData(values: Uint8Array) { values.fill(128) }
+    }
+    class FakeAudioContext {
+      destination = {}
+      async resume() {}
+      async close() {}
+      async decodeAudioData() { return {} as AudioBuffer }
+      createBufferSource() { return new FakeSource() }
+      createAnalyser() { return new FakeAnalyser() }
+    }
+    vi.stubGlobal('AudioContext', FakeAudioContext)
+    vi.stubGlobal('requestAnimationFrame', () => 1)
+    vi.stubGlobal('cancelAnimationFrame', () => {})
+    const received: Array<string | undefined> = []
+    const bridge = {
+      prepareSpeech: async () => [{ index: 0, text: '첫 문장' }, { index: 1, text: '둘째 문장' }],
+      synthesizeSpeech: async (segment: { voiceProfile?: string }) => {
+        received.push(segment.voiceProfile)
+        return { data: new ArrayBuffer(8), mediaType: 'audio/wav' }
+      },
+    } as unknown as GahyeonDesktopBridge
+    const player = new SpeechPlayer()
+    const sequence = player.beginSequence(
+      bridge, { onStart() {}, onLevel() {}, onStop() {} }, 'diana.assistant',
+    )
+
+    await sequence.enqueue('두 문장')
+    await sequence.finish()
+
+    expect(received).toEqual(['diana.assistant', 'diana.assistant'])
+  })
 })

@@ -22,10 +22,10 @@ export class VrmProceduralAnimator {
     }
   }
 
-  update(rawActivity: string, deltaSeconds: number) {
+  update(rawActivity: string, deltaSeconds: number, gesture = 'none') {
     this.elapsed += deltaSeconds
     const activity = animationActivity(rawActivity)
-    const pose = proceduralPose(activity, this.elapsed)
+    const pose = presentationPose(activity, gesture, this.elapsed)
     const blend = 1 - Math.exp(-deltaSeconds * 7.5)
     const offset = new Quaternion()
 
@@ -36,6 +36,29 @@ export class VrmProceduralAnimator {
       offset.setFromEuler(new Euler(rotation[0], rotation[1], rotation[2], 'XYZ'))
       bone.quaternion.slerp(rest.clone().multiply(offset), blend)
     }
+  }
+}
+
+export function presentationPose(activity: AnimationActivity, gesture: string, elapsed: number): Pose {
+  const base = proceduralPose(activity, elapsed)
+  switch (gesture) {
+    case 'small_wave':
+    case 'wave':
+      return {
+        ...base,
+        rightUpperArm: [-0.75, 0, 0.9],
+        rightLowerArm: [-1.25, Math.sin(elapsed * 8) * 0.28, 0],
+      }
+    case 'nod':
+      return { ...base, head: [Math.sin(elapsed * 5.5) * 0.12, 0, 0] }
+    case 'shrug':
+      return {
+        ...base,
+        leftUpperArm: [-0.15, 0, -0.42],
+        rightUpperArm: [-0.15, 0, 0.42],
+      }
+    default:
+      return base
   }
 }
 

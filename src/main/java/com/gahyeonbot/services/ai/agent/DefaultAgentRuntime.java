@@ -6,6 +6,7 @@ import com.gahyeonbot.core.memory.MemorySnapshot;
 import com.gahyeonbot.core.memory.MemoryUseCase;
 import com.gahyeonbot.core.tool.ToolDecision;
 import com.gahyeonbot.core.tool.ToolPolicy;
+import com.gahyeonbot.application.life.CharacterConversationContext;
 import com.gahyeonbot.entity.AgentRun;
 import com.gahyeonbot.repository.AgentRunRepository;
 import com.gahyeonbot.services.ai.*;
@@ -295,7 +296,9 @@ public class DefaultAgentRuntime implements AgentRuntime {
                     boolean committed = control.commitIfActive(() -> {
                         ensureNotCancelled(streamObserver, control);
                         ledger.succeed(run.getId(), finalContent);
-                        memoryUseCase.remember(request.actorId(), request.message(), finalContent);
+                        if (usesSharedActorMemory(request.sessionKey())) {
+                            memoryUseCase.remember(request.actorId(), request.message(), finalContent);
+                        }
                     });
                     if (!committed) throw new AgentStreamCancelledException();
                     Duration duration = Duration.ofNanos(System.nanoTime() - startedNanos);
@@ -427,11 +430,13 @@ public class DefaultAgentRuntime implements AgentRuntime {
             MemorySnapshot memory,
             String backgroundResult) {
         List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(promptProvider.systemPrompt(memory.summary())));
-        memory.recentMessages().forEach(message -> messages.add(
-                message.role() == MemoryRole.USER
-                        ? new UserMessage(message.content())
-                        : new AssistantMessage(message.content())));
+        messages.add(new SystemMessage(promptProvider.systemPrompt(memory.summary(), request.sessionKey())));
+        if (usesSharedActorMemory(request.sessionKey())) {
+            memory.recentMessages().forEach(message -> messages.add(
+                    message.role() == MemoryRole.USER
+                            ? new UserMessage(message.content())
+                            : new AssistantMessage(message.content())));
+        }
         messages.add(new UserMessage("""
                 [modality]
                 %s
@@ -473,6 +478,10 @@ public class DefaultAgentRuntime implements AgentRuntime {
                     """;
             case SYSTEM -> "업무 목적과 전달 대상에 맞춰 간결성과 완전성을 조절한다.";
         };
+    }
+
+    static boolean usesSharedActorMemory(String sessionKey) {
+        return CharacterConversationContext.fromScopedSessionKey(sessionKey).isEmpty();
     }
 
     private void recordMetrics(AgentModality modality, String status, Duration duration) {

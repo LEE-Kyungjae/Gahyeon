@@ -51,6 +51,22 @@ class AdmissionControlledConversationAdapterTest {
     }
 
     @Test
+    void scopesDesktopAgentSessionToTheSelectedCharacterAndWorld() throws Exception {
+        ConversationAdmissionService admission = mock(ConversationAdmissionService.class);
+        when(admission.chatResult("message:1", "character:diana:gahyeon-home:actor:20|session-1", AgentModality.TEXT,
+                new ActorId(20), "tester", null, "안녕"))
+                .thenReturn(new AgentResult("run-diana", "안녕하세요.", List.of(), Duration.ZERO));
+        var adapter = new AdmissionControlledConversationAdapter(admission);
+
+        var response = adapter.execute(request(ClientSource.DESKTOP, Map.of(
+                "character.id", "diana", "world.id", "gahyeon-home")));
+
+        assertThat(response.runId()).isEqualTo("run-diana");
+        verify(admission).chatResult("message:1", "character:diana:gahyeon-home:actor:20|session-1", AgentModality.TEXT,
+                new ActorId(20), "tester", null, "안녕");
+    }
+
+    @Test
     void forwardsProviderDeltasThroughThePlatformNeutralStreamingPort() throws Exception {
         ConversationAdmissionService admission = mock(ConversationAdmissionService.class);
         when(admission.chatResultStreaming(

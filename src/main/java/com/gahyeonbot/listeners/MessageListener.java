@@ -1,6 +1,7 @@
 package com.gahyeonbot.listeners;
 
 import com.gahyeonbot.adapters.discord.DiscordIdentityMapper;
+import com.gahyeonbot.adapters.discord.voice.VoiceAssistantService;
 import com.gahyeonbot.core.conversation.ConversationRequest;
 import com.gahyeonbot.core.conversation.ConversationRejectedException;
 import com.gahyeonbot.core.conversation.ConversationUseCase;
@@ -33,6 +34,7 @@ public class MessageListener extends ListenerAdapter {
     private final GuildAssistantChannelsService channelsService;
     private final ConversationUseCase conversation;
     private final DiscordIdentityMapper identityMapper;
+    private final VoiceAssistantService voiceAssistant;
     private final ExecutorService workers = Executors.newVirtualThreadPerTaskExecutor();
     private final ScheduledExecutorService progressScheduler =
             Executors.newSingleThreadScheduledExecutor();
@@ -40,10 +42,12 @@ public class MessageListener extends ListenerAdapter {
     public MessageListener(
             GuildAssistantChannelsService channelsService,
             ConversationUseCase conversation,
-            DiscordIdentityMapper identityMapper) {
+            DiscordIdentityMapper identityMapper,
+            VoiceAssistantService voiceAssistant) {
         this.channelsService = channelsService;
         this.conversation = conversation;
         this.identityMapper = identityMapper;
+        this.voiceAssistant = voiceAssistant;
     }
 
     @Override
@@ -86,6 +90,7 @@ public class MessageListener extends ListenerAdapter {
                 return;
             }
             replaceWithResponse(event, progress, response);
+            voiceAssistant.speakTextResponse(event.getGuild().getIdLong(), response);
         } catch (AgentApprovalRequiredException e) {
             replaceOrSend(event, progress,
                     "도구 실행 승인이 필요해요. `/에이전트`에서 확인해 주세요. run: `"

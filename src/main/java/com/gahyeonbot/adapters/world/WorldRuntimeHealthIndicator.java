@@ -3,12 +3,12 @@ package com.gahyeonbot.adapters.world;
 import com.gahyeonbot.application.world.WorldRuntimeReadiness;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.stereotype.Component;
 
 /** Surfaces fail-closed restart reconciliation to deployment readiness. */
 @Component
-@ConditionalOnProperty(name = "gahyeon.behavior.enabled", havingValue = "true")
+@ConditionalOnExpression("${gahyeon.behavior.enabled:false} || ${gahyeon.life.enabled:false}")
 public final class WorldRuntimeHealthIndicator implements HealthIndicator {
     private final WorldRuntimeReadiness readiness;
 

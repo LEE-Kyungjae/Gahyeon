@@ -18,6 +18,7 @@ import {
 import { WavRecorder } from './audio/wav-recorder'
 import { initialStageState, reduceStageEvent } from './stage/stage-state'
 import type { PendingWorldAction } from './stage/stage-state'
+import { stageExpressionForSemantic, stageExpressionPayload } from './stage/voice-expression'
 import { locale, setLocale, t, type Locale, type MessageKey } from './i18n'
 import { GahyeonClientError, localizedError } from './client-error'
 import { LatencyMetrics } from './runtime/latency-metrics'
@@ -30,6 +31,15 @@ import { worldSnapshotEvent } from './runtime/world-snapshot-admission'
 import { terminalActionResultId } from './runtime/world-action-result'
 import { WorldActionAckCoordinator } from './runtime/world-action-ack-coordinator'
 import { PendingWorldActionJournal } from './runtime/pending-world-action-journal'
+import { parseAutonomousCognition } from './runtime/autonomous-cognition'
+import {
+  characterActivityMediaUrl,
+  desktopCharacter,
+  desktopCharacters,
+  DESKTOP_CHARACTER_STORAGE_KEY,
+  restoreDesktopCharacter,
+  type DesktopCharacterId,
+} from './character-catalog'
 
 const StageView = defineAsyncComponent(() => import('./components/StageView.vue'))
 
@@ -48,10 +58,14 @@ const input = ref('')
 const sending = ref(false)
 const activeRequestId = ref<string>()
 const recording = ref(false)
+const microphoneEnabled = ref(false)
 const transcribing = ref(false)
 const transcriptionReady = ref(false)
 const synthesisReady = ref(false)
+const expressiveSynthesisReady = ref(false)
+const autonomousSpeaking = ref(false)
 const voiceOutput = ref(localStorage.getItem('gahyeon.voiceOutput') !== 'false')
+const controlsExpanded = ref(false)
 const identityLinkCode = ref('')
 const identityLinking = ref(false)
 const identityLinked = ref(false)
@@ -89,6 +103,20 @@ const heroManifestUrl = import.meta.env.VITE_GAHYEON_HERO_MANIFEST_URL as string
 const animationManifestUrl = import.meta.env.VITE_GAHYEON_VRMA_MANIFEST as string | undefined
 const worldUrl = import.meta.env.VITE_GAHYEON_WORLD_URL as string | undefined
 const lookingGlassEnabled = import.meta.env.VITE_GAHYEON_LOOKING_GLASS === 'true'
+const characterWindow = new URLSearchParams(window.location.search)
+  .get('gahyeonWindowPreset') === 'character'
+const chatWindow = new URLSearchParams(window.location.search)
+  .get('gahyeonSurface') === 'chat'
+const selectedCharacterId = ref(restoreDesktopCharacter(localStorage))
+const selectedCharacter = computed(() => desktopCharacter(selectedCharacterId.value))
+const characterMediaUrl = computed(() => characterWindow
+  ? characterActivityMediaUrl(
+      selectedCharacter.value,
+      window.location.href,
+      stageState.value.activity,
+      import.meta.env.VITE_GAHYEON_CHARACTER_MEDIA_URL as string | undefined,
+    )
+  : undefined)
 const worldPresence = new WorldPresenceLease(gahyeon, worldId, installationId)
 const worldActionAcks = new WorldActionAckCoordinator(
   new WorldActionAckWorker(new WorldActionAckOutbox(localStorage), gahyeon),
@@ -117,6 +145,12 @@ const identityExpiryWarning = computed(() => {
   return remainingDays <= 7
     ? t('identity.expiryWarning', { date: new Date(expiry).toLocaleDateString(locale.value) })
     : undefined
+})
+const characterVoiceLabel = computed(() => {
+  if (transcribing.value) return 'STT…'
+  if (stageState.value.speaking) return t('role.gahyeon')
+  if (sending.value) return 'THINKING…'
+  return microphoneEnabled.value ? t('voice.microphoneOff') : t('voice.microphoneOn')
 })
 
 function changeLocale(event: Event) {
@@ -157,6 +191,7 @@ async function unlinkIdentity() {
 }
 
 onMounted(() => {
+  window.addEventListener('storage', restoreSelectedCharacter)
   worldActionAcks.start()
   void loadIdentityLinkStatus()
   subscribeToCoreEvents()
@@ -180,10 +215,13 @@ async function loadSpeechStatus() {
     const speech = await gahyeon.getSpeechStatus()
     transcriptionReady.value = speech.transcriptionReady
     synthesisReady.value = speech.synthesisReady
+    expressiveSynthesisReady.value = speech.expressiveSynthesisReady
   }
   catch {
     transcriptionReady.value = false
     synthesisReady.value = false
+    expressiveSynthesisReady.value = false
+    streamState.value = 'error'
   }
 }
 
@@ -279,11 +317,51 @@ function subscribeToCoreEvents() {
       worldStageReady.value = true
     }
     if (event.event === 'stream.connected') streamState.value = 'connected'
-    if (event.event === 'stream.error') streamState.value = 'error'
+    if (event.event === 'stream.error') streamState.value = 'connecting'
     if (event.event === 'conversation.delta') applyConversationDelta(event.data)
+    if (event.event === 'character.cognition.completed') {
+      void playAutonomousCognition(event.data)
+    }
     applyConversationTerminal(event.event, event.data)
     tryPersistDurableEventCursor(cursorAdmission)
   })
+}
+
+async function playAutonomousCognition(data: unknown) {
+  const cognition = parseAutonomousCognition(data)
+  if (!cognition || cognition.characterId !== selectedCharacterId.value) return
+  if (!voiceOutput.value || !expressiveSynthesisReady.value || autonomousSpeaking.value) return
+  if (sending.value || recording.value || transcribing.value || stageState.value.speaking) return
+  autonomousSpeaking.value = true
+  const previousPresentation = {
+    activity: stageState.value.activity,
+    expression: stageState.value.expression,
+    intensity: stageState.value.expressionIntensity,
+    gazeTarget: stageState.value.gazeTarget,
+    gesture: stageState.value.gesture,
+  }
+  appendMessage({ id: crypto.randomUUID(), role: 'gahyeon', text: cognition.utterance })
+  try {
+    applySpeechEvent('avatar.presentation', {
+      expression: stageExpressionForSemantic(cognition.facialExpression, cognition.expression.style),
+      intensity: cognition.expression.intensity,
+      gazeTarget: cognition.gazeTarget,
+      gesture: cognition.gesture,
+    })
+    await speechPlayer.speakExpressive(
+      cognition.utterance,
+      gahyeon,
+      speechListener(performance.now()),
+      cognition.voiceProfile,
+      cognition.expression,
+    )
+  }
+  finally {
+    applySpeechEvent('avatar.presentation', cognition.resumePreviousActivity
+      ? previousPresentation
+      : { expression: 'neutral', intensity: 0, gazeTarget: 'ambient', gesture: 'none' })
+    autonomousSpeaking.value = false
+  }
 }
 
 function tryPersistDurableEventCursor(admission: CursorAdmission) {
@@ -320,6 +398,8 @@ function clearSupersededWorldActions(previous: typeof initialStageState, next: t
 }
 
 onBeforeUnmount(() => {
+  window.removeEventListener('storage', restoreSelectedCharacter)
+  microphoneEnabled.value = false
   unsubscribe?.()
   worldActionAcks.stop()
   gahyeon.cancelSpeechRequests()
@@ -346,10 +426,36 @@ async function send(fromTranscription = false) {
   applyPresentationEvent('conversation.started')
   appendMessage({ id: crypto.randomUUID(), role: 'user', text })
   await scrollToEnd()
+  let conversationExpression
+  if (voiceOutput.value && expressiveSynthesisReady.value) {
+    try {
+      const planned = await gahyeon.planConversationExpression({
+        installationId,
+        displayName: displayName.value,
+        characterId: selectedCharacterId.value,
+        worldId,
+        message: text,
+      })
+      // Natural keeps the low-latency default voice. Only a validated non-neutral
+      // plan opts into the slower expressive worker.
+      if (planned.style !== 'natural') {
+        conversationExpression = planned
+        applySpeechEvent('avatar.expression', stageExpressionPayload(planned))
+      }
+    }
+    catch {
+      conversationExpression = undefined
+    }
+  }
   const pending = {
     sentences: new IncrementalSentenceAccumulator(),
     speech: voiceOutput.value && synthesisReady.value
-      ? speechPlayer.beginSequence(gahyeon, speechListener(admittedAt))
+      ? speechPlayer.beginSequence(
+          gahyeon,
+          speechListener(admittedAt),
+          selectedCharacter.value.voiceProfile,
+          conversationExpression,
+        )
       : undefined,
     receivedText: '',
     admittedAt,
@@ -362,6 +468,7 @@ async function send(fromTranscription = false) {
       requestId,
       installationId,
       displayName: displayName.value,
+      characterId: selectedCharacterId.value,
       message: text,
     })
     if (unsuccessfulRequests.has(requestId)) return
@@ -388,6 +495,9 @@ async function send(fromTranscription = false) {
     ))
     enqueueSpeech(pending, pending.sentences.finish())
     await pending.speech?.finish()
+    if (activeRequestId.value === requestId && conversationExpression) {
+      applySpeechEvent('avatar.expression', { expression: 'neutral', intensity: 0 })
+    }
   }
   catch (error) {
     pending.speech?.cancel()
@@ -518,40 +628,46 @@ function speechListener(admittedAt: number) {
 }
 
 async function toggleRecording() {
-  if (transcribing.value) cancelTranscription()
-  if (!recording.value) {
-    if (!transcriptionReady.value) {
-      addSystemMessage(t('voice.sttUnavailable'))
-      return
-    }
-    try {
-      stopSpeechForBargeIn()
-      applyPresentationEvent('perception.voice.started')
-      try {
-        await cancelActiveConversation()
-      } catch {
-        // Local audio and presentation are already cancelled; a submitted
-        // transcript will also supersede the old server generation.
-      }
-      await recorder.start({
-        onVoiceStarted: () => {
-          const detectedAt = performance.now()
-          applyPresentationEvent('perception.voice.started')
-          latencyMetrics.record('vad_to_listening_state', performance.now() - detectedAt)
-        },
-        onVoiceEnded: () => void finishRecording(),
-      })
-      recording.value = true
-      recordingTimeout = window.setTimeout(() => void finishRecording(), 20_000)
-    }
-    catch (error) {
-      applyPresentationEvent('perception.voice.cancelled')
-      addSystemMessage(localizedError(error))
-    }
+  if (microphoneEnabled.value) {
+    microphoneEnabled.value = false
+    localStorage.setItem('gahyeon.microphoneEnabled', 'false')
+    cancelTranscription()
+    recording.value = false
+    await recorder.cancel()
+    applyPresentationEvent('perception.voice.cancelled')
     return
   }
+  if (!transcriptionReady.value) {
+    localStorage.setItem('gahyeon.microphoneEnabled', 'false')
+    addSystemMessage(t('voice.sttUnavailable'))
+    return
+  }
+  microphoneEnabled.value = true
+  localStorage.setItem('gahyeon.microphoneEnabled', 'true')
+  await startContinuousListening()
+}
 
-  await finishRecording()
+async function startContinuousListening() {
+  if (!microphoneEnabled.value || recording.value || transcribing.value) return
+  try {
+    await recorder.start({
+      onVoiceStarted: () => {
+        const detectedAt = performance.now()
+        stopSpeechForBargeIn()
+        applyPresentationEvent('perception.voice.started')
+        latencyMetrics.record('vad_to_listening_state', performance.now() - detectedAt)
+      },
+      onVoiceEnded: () => void finishRecording(),
+    })
+    recording.value = true
+  }
+  catch (error) {
+    microphoneEnabled.value = false
+    localStorage.setItem('gahyeon.microphoneEnabled', 'false')
+    recording.value = false
+    applyPresentationEvent('perception.voice.cancelled')
+    addSystemMessage(localizedError(error))
+  }
 }
 
 async function finishRecording() {
@@ -580,6 +696,7 @@ async function finishRecording() {
   }
   finally {
     if (generation === transcriptionGeneration) transcribing.value = false
+    if (microphoneEnabled.value) await startContinuousListening()
   }
 }
 
@@ -611,6 +728,37 @@ function toggleVoiceOutput() {
     speechPlayer.stop()
     applySpeechEvent('avatar.speech.stopped', {})
   }
+}
+
+function closeCharacterWindow() {
+  window.close()
+}
+
+function refreshCharacterWindow() {
+  window.location.reload()
+}
+
+function selectCharacter(id: DesktopCharacterId) {
+  selectedCharacterId.value = id
+  localStorage.setItem(DESKTOP_CHARACTER_STORAGE_KEY, id)
+}
+
+function restoreSelectedCharacter(event: StorageEvent) {
+  if (event.key === DESKTOP_CHARACTER_STORAGE_KEY) {
+    selectedCharacterId.value = restoreDesktopCharacter(localStorage)
+  }
+  if (event.key === 'gahyeon.voiceOutput') {
+    const enabled = localStorage.getItem('gahyeon.voiceOutput') !== 'false'
+    if (enabled !== voiceOutput.value) toggleVoiceOutput()
+  }
+  if (event.key === 'gahyeon.microphoneEnabled') {
+    const enabled = localStorage.getItem('gahyeon.microphoneEnabled') === 'true'
+    if (enabled !== microphoneEnabled.value) void toggleRecording()
+  }
+}
+
+function syncControlsGlassSurface(event: Event) {
+  gahyeon.setControlsGlassExpanded((event.currentTarget as HTMLDetailsElement).open)
 }
 
 function stopSpeechForBargeIn() {
@@ -663,7 +811,7 @@ function persistentId(key: string, prefix: string) {
 </script>
 
 <template>
-  <main class="shell">
+  <main class="shell" :class="{ 'character-window': characterWindow, 'chat-window': chatWindow }">
     <section class="stage" :aria-label="t('stage.label')">
       <header class="brand">
         <span class="brand-mark">G</span>
@@ -676,18 +824,23 @@ function persistentId(key: string, prefix: string) {
       <div class="ambient ambient-one" />
       <div class="ambient ambient-two" />
       <StageView
-        v-if="worldStageReady"
+        :key="selectedCharacterId"
+        v-if="worldStageReady || (characterWindow && characterMediaUrl)"
         :state="stageState"
         :model-url="modelUrl"
         :hero-manifest-url="heroManifestUrl"
         :animation-manifest-url="animationManifestUrl"
         :world-url="worldUrl"
         :looking-glass-enabled="lookingGlassEnabled"
+        :character-window="characterWindow"
+        :character-media-url="characterMediaUrl"
+        :character-id="selectedCharacter.id"
+        :character-name="selectedCharacter.displayName"
         @world-action-arrived="completeWorldAction"
         @renderer-presence="setRendererPresence"
       />
 
-      <div class="presence">
+      <div v-if="!characterWindow" class="presence">
         <span class="presence-dot" :class="streamState" />
         <div>
           <strong>{{ statusLabel }}</strong>
@@ -695,6 +848,46 @@ function persistentId(key: string, prefix: string) {
         </div>
       </div>
     </section>
+
+    <nav v-if="characterWindow" class="character-controls-island" :class="{ expanded: controlsExpanded }" aria-label="캐릭터 컨트롤">
+      <Transition name="island-drawer">
+        <div v-if="controlsExpanded" class="character-island-actions">
+          <button type="button" aria-label="캐릭터 선택" @click="gahyeon.openControlsPanel()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M6.5 19c.7-3.2 2.5-5 5.5-5s4.8 1.8 5.5 5"/></svg>
+          </button>
+          <button type="button" aria-label="화면 새로고침" @click="refreshCharacterWindow">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 7v5h-5"/><path d="M18 12a7 7 0 1 0-2 5"/></svg>
+          </button>
+          <button type="button" aria-label="캐릭터 중앙 정렬">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          </button>
+          <button type="button" aria-label="배경 전환">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18V3Z"/><circle cx="12" cy="12" r="9"/></svg>
+          </button>
+          <button type="button" aria-label="항상 위에 표시">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 3 8 8-3 1 5 5-1 1-5-5-1 3-8-8 5-5Z"/><path d="m8 16-4 4"/></svg>
+          </button>
+          <button type="button" class="danger" aria-label="캐릭터 종료" @click="closeCharacterWindow">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8M6.3 6.3a8 8 0 1 0 11.4 0"/></svg>
+          </button>
+        </div>
+      </Transition>
+      <div class="character-island-main">
+        <button class="character-island-toggle" type="button" :aria-label="controlsExpanded ? '캐릭터 컨트롤 접기' : '캐릭터 컨트롤 펼치기'" :title="statusLabel" @click="controlsExpanded = !controlsExpanded">
+          <svg class="character-controls-glyph" :class="{ rotated: controlsExpanded }" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6" /></svg>
+          <span class="presence-dot" :class="streamState" />
+        </button>
+        <button type="button" aria-label="채팅 열기" @click="gahyeon.openChatWindow()">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v11H9l-4 3V5Z"/><path d="M8 9h8M8 12h5"/></svg>
+        </button>
+        <button type="button" :class="{ enabled: microphoneEnabled }" :aria-pressed="microphoneEnabled" aria-label="마이크 켜기 또는 끄기" @click="toggleRecording">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7"/></svg>
+        </button>
+        <button type="button" :class="{ enabled: voiceOutput }" :aria-pressed="voiceOutput" aria-label="스피커 켜기 또는 끄기" @click="toggleVoiceOutput">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10v4h4l5 4V6L9 10H5Z"/><path d="M17 9a4 4 0 0 1 0 6M19 6.5a8 8 0 0 1 0 11"/></svg>
+        </button>
+      </div>
+    </nav>
 
     <section class="conversation">
       <header class="conversation-header">

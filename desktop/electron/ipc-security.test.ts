@@ -4,9 +4,11 @@ import {
   isTrustedRendererLocation,
   isTrustedIpcSender,
   validateAudioInput,
+  validateConversationExpressionPlan,
   validateEventSubscription,
   validateMessageRequest,
   validateRendererId,
+  validateSpeechSegment,
   validateWorldActionCompletion,
 } from './ipc-security.js'
 
@@ -15,7 +17,7 @@ describe('Electron IPC security boundary', () => {
     const source = readFileSync(new URL('./main.ts', import.meta.url), 'utf8')
     const handlers = source.matchAll(/ipcMain\.handle\([^]*?\n}\)/g)
     const blocks = [...handlers].map(match => match[0])
-    expect(blocks.length).toBe(13)
+    expect(blocks.length).toBe(14)
     expect(blocks.every(block => block.includes('requireTrustedIpcEvent(event)'))).toBe(true)
     expect(source).toContain("ipcMain.on('gahyeon:speech:cancel'")
     expect(source).toContain("ipcMain.on('gahyeon:events:subscribe'")
@@ -25,7 +27,8 @@ describe('Electron IPC security boundary', () => {
     expect(source).toContain("ipcMain.handle('gahyeon:world:presence:release'")
     expect(source).toContain("body: JSON.stringify({ installationId, rendererId })")
     expect(source).toContain("url.searchParams.set('rendererId', rendererId)")
-    const preload = readFileSync(new URL('./preload.ts', import.meta.url), 'utf8')
+    expect(source).toContain("if (event.event === 'stream.connected')")
+    const preload = readFileSync(new URL('./preload.cts', import.meta.url), 'utf8')
     expect(preload).toContain('const rendererId = crypto.randomUUID()')
     expect(preload).toMatch(
       /ipcRenderer\.invoke\(\s*'gahyeon:world:presence:heartbeat', worldId, installationId, rendererId/,
@@ -33,7 +36,7 @@ describe('Electron IPC security boundary', () => {
     expect(preload).toMatch(
       /ipcRenderer\.invoke\(\s*'gahyeon:world:presence:release', worldId, installationId, rendererId/,
     )
-    expect(source.match(/if \(!isTrustedIpcEvent\([^)]*\)\) return/g)).toHaveLength(3)
+    expect(source.match(/if \(!isTrustedIpcEvent\([^)]*\)\) return/g)).toHaveLength(7)
     expect(source).toContain("window.webContents.on('will-navigate'")
     expect(source).toContain("window.webContents.on('will-redirect'")
     expect(source).toContain("window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))")
@@ -68,8 +71,16 @@ describe('Electron IPC security boundary', () => {
   it('validates and bounds conversation and event subscription payloads', () => {
     expect(validateMessageRequest({
       sessionId: 'desktop-1', requestId: 'request-1', installationId: 'install-1',
+      displayName: '가현', characterId: 'diana', message: '안녕',
+    })).toMatchObject({ sessionId: 'desktop-1', characterId: 'diana', message: '안녕' })
+    expect(validateMessageRequest({
+      sessionId: 'desktop-1', requestId: 'request-1', installationId: 'install-1',
       displayName: '가현', message: '안녕',
-    })).toMatchObject({ sessionId: 'desktop-1', message: '안녕' })
+    }).characterId).toBe('gahyeon')
+    expect(() => validateMessageRequest({
+      sessionId: 'desktop-1', requestId: 'request-1', installationId: 'install-1',
+      displayName: '가현', characterId: '../diana', message: '안녕',
+    })).toThrow('characterId')
     expect(() => validateMessageRequest({
       sessionId: 'desktop-1', requestId: 'request-1', installationId: 'install-1',
       displayName: '가현', message: 'x'.repeat(16_385),
@@ -108,5 +119,26 @@ describe('Electron IPC security boundary', () => {
       .toThrow('audio')
     expect(() => validateAudioInput(new Uint8Array([1, 2, 3])))
       .toThrow('audio')
+  })
+
+  it('preserves only bounded expressive speech controls', () => {
+    expect(validateConversationExpressionPlan({
+      installationId: 'install-1', displayName: 'Tester',
+      characterId: 'gahyeon', worldId: 'gahyeon-home', message: '안녕',
+    })).toEqual({
+      installationId: 'install-1', displayName: 'Tester',
+      characterId: 'gahyeon', worldId: 'gahyeon-home', message: '안녕',
+    })
+    expect(() => validateConversationExpressionPlan({
+      installationId: 'install-1', displayName: 'Tester',
+      characterId: '../gahyeon', worldId: 'gahyeon-home', message: '안녕',
+    })).toThrow('characterId')
+    expect(validateSpeechSegment({
+      index: 0, text: '정말?', voiceProfile: 'gahyeon.assistant',
+      expression: { style: 'surprised', intensity: 0.8, communicativeIntent: 'reaction' },
+    })).toMatchObject({ expression: { style: 'surprised', intensity: 0.8 } })
+    expect(() => validateSpeechSegment({
+      index: 0, text: '안녕', expression: { style: 'arbitrary', intensity: 0.5, communicativeIntent: 'x' },
+    })).toThrow('expression.style')
   })
 })

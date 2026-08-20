@@ -9,6 +9,12 @@ contextBridge.exposeInMainWorld('gahyeon', {
   unlinkCurrentDesktop: (installationId: string) => ipcRenderer.invoke('gahyeon:identity:unlink', installationId),
   cancelConversation: (sessionId: string, installationId: string) => ipcRenderer.invoke('gahyeon:conversation:cancel', sessionId, installationId),
   cancelSpeechRequests: () => ipcRenderer.send('gahyeon:speech:cancel'),
+  setControlsGlassExpanded: (expanded: boolean) =>
+    ipcRenderer.send('gahyeon:controls-glass', expanded),
+  openControlsPanel: () => ipcRenderer.send('gahyeon:window:controls'),
+  openChatWindow: () => ipcRenderer.send('gahyeon:window:chat'),
+  closeCurrentWindow: () => ipcRenderer.send('gahyeon:window:close-current'),
+  closeCharacterWindow: () => ipcRenderer.send('gahyeon:window:close-character'),
   getWorldState: (worldId: string) => ipcRenderer.invoke('gahyeon:world:get', worldId),
   completeWorldAction: (worldId: string, request: unknown) =>
     ipcRenderer.invoke('gahyeon:world:action:complete', worldId, request),
@@ -21,6 +27,8 @@ contextBridge.exposeInMainWorld('gahyeon', {
       'gahyeon:world:presence:release', worldId, installationId, rendererId,
     ),
   getSpeechStatus: () => ipcRenderer.invoke('gahyeon:speech:status'),
+  planConversationExpression: (request: unknown) =>
+    ipcRenderer.invoke('gahyeon:speech:expression-plan', request),
   transcribeWav: (audio: ArrayBuffer) => ipcRenderer.invoke('gahyeon:speech:transcribe', audio),
   prepareSpeech: (text: string) => ipcRenderer.invoke('gahyeon:speech:prepare', text),
   synthesizeSpeech: (segment: unknown) => ipcRenderer.invoke('gahyeon:speech:synthesize', segment),

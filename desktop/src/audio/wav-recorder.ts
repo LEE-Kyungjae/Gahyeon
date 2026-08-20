@@ -40,18 +40,23 @@ export class WavRecorder {
       releaseMs: 450,
     })
     const preRollFrames = Math.ceil(this.sampleRate * 0.25 / 2048)
+    let heardVoice = false
     this.processor = this.context.createScriptProcessor(2048, 1, 1)
     this.processor.onaudioprocess = (event) => {
       const frame = new Float32Array(event.inputBuffer.getChannelData(0))
       this.samples.push(frame)
       const activity = vad.observe(rmsLevel(frame), this.context!.currentTime * 1_000)
       if (activity === 'started') {
+        heardVoice = true
         if (this.samples.length > preRollFrames) {
           this.samples.splice(0, this.samples.length - preRollFrames)
         }
         listener.onVoiceStarted?.()
       }
       if (activity === 'ended') listener.onVoiceEnded?.()
+      if (!heardVoice && this.samples.length > preRollFrames) {
+        this.samples.splice(0, this.samples.length - preRollFrames)
+      }
       event.outputBuffer.getChannelData(0).fill(0)
     }
     this.source.connect(this.processor)

@@ -4,6 +4,9 @@ import com.gahyeonbot.core.speech.AudioOutput;
 import com.gahyeonbot.core.speech.SpeechSegment;
 import com.gahyeonbot.core.speech.SpeechSynthesisUseCase;
 import com.gahyeonbot.core.speech.VoiceProfileId;
+import com.gahyeonbot.core.speech.VoiceExpression;
+import com.gahyeonbot.core.speech.ExpressiveSpeechRequest;
+import com.gahyeonbot.core.speech.ExpressiveSpeechSynthesisUseCase;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -11,6 +14,7 @@ import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.CountDownLatch;
@@ -24,8 +28,45 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 class DefaultUnrealSpeechPreparationServiceTest {
+    @Test
+    void preservesExpressiveVoiceThroughAudioAndVisemePublication() {
+        var tasks = new ArrayDeque<Runnable>();
+        SpeechSynthesisUseCase synthesis = mock(SpeechSynthesisUseCase.class);
+        var expressive = mock(ExpressiveSpeechSynthesisUseCase.class);
+        var segment = new SpeechSegment(0, "정말 온 거야?");
+        var expression = new VoiceExpression("surprised", 0.8, "reunion");
+        when(synthesis.prepare(segment.text())).thenReturn(List.of(segment));
+        when(expressive.isExpressiveReady(VoiceProfileId.ASSISTANT)).thenReturn(true);
+        when(expressive.synthesizeExpressive(new ExpressiveSpeechRequest(
+                segment, VoiceProfileId.ASSISTANT, expression))).thenReturn(pcmWav());
+        var broker = new UnrealEphemeralBroker(Clock.systemUTC());
+        var messages = new ArrayList<com.gahyeonbot.adapters.unreal.protocol.UnrealEnvelope>();
+        broker.subscribe("connection-1", "session-1", messages::add);
+        var service = new DefaultUnrealSpeechPreparationService(
+                synthesis, expressive,
+                new UnrealAudioCache(Clock.systemUTC(), Duration.ofMinutes(5)),
+                broker, tasks::add,
+                new UnrealRuntimeMetrics(new SimpleMeterRegistry()),
+                (text, audio) -> List.of(new UnrealVisemeCue("aa", 0, 20, 1)));
+
+        service.prepare(new UnrealSpeechPreparationRequest(
+                "session-1", "cognition:g1", 1, 0, segment.text(),
+                VoiceProfileId.ASSISTANT, expression), () -> true);
+        tasks.remove().run();
+
+        assertThat(messages).hasSize(1);
+        assertThat(messages.getFirst().payload()).containsEntry("voiceProfile", "gahyeon.assistant");
+        Map<?, ?> voiceExpression = (Map<?, ?>) messages.getFirst().payload().get("voiceExpression");
+        assertThat(voiceExpression.get("style")).isEqualTo("surprised");
+        assertThat(voiceExpression.get("intensity")).isEqualTo(0.8);
+        assertThat((List<?>) messages.getFirst().payload().get("visemes")).hasSize(1);
+        verify(expressive).synthesizeExpressive(
+                new ExpressiveSpeechRequest(segment, VoiceProfileId.ASSISTANT, expression));
+    }
+
     @Test
     void queuesTtsAndPublishesEachSegmentAsSoonAsItIsReady() {
         var tasks = new ArrayDeque<Runnable>();
