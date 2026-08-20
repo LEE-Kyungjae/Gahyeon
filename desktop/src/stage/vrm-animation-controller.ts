@@ -49,13 +49,13 @@ export class VrmAnimationController {
     return failures
   }
 
-  update(rawActivity: string, deltaSeconds: number) {
+  update(rawActivity: string, deltaSeconds: number, gesture = 'none') {
     const activity = animationActivity(rawActivity)
     if (activity !== this.activeActivity || (!this.activeAction && this.actions.has(activity))) {
       this.transition(activity)
     }
     this.mixer.update(deltaSeconds)
-    if (!this.activeAction) this.procedural.update(activity, deltaSeconds)
+    if (!this.activeAction) this.procedural.update(activity, deltaSeconds, gesture)
   }
 
   dispose() {

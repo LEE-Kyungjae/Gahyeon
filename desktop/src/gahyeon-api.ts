@@ -6,6 +6,7 @@ export interface MessageRequest {
   requestId: string
   installationId: string
   displayName: string
+  characterId: string
   message: string
 }
 
@@ -19,11 +20,28 @@ export interface IdentityLinkResponse { linked: boolean; credentialExpiresAt?: s
 export interface SpeechStatus {
   transcriptionReady: boolean
   synthesisReady: boolean
+  expressiveSynthesisReady: boolean
+}
+
+export interface VoiceExpression {
+  style: string
+  intensity: number
+  communicativeIntent: string
+}
+
+export interface ConversationExpressionPlanRequest {
+  installationId: string
+  displayName: string
+  characterId: string
+  worldId: string
+  message: string
 }
 
 export interface SpeechSegment {
   index: number
   text: string
+  voiceProfile?: string
+  expression?: VoiceExpression
 }
 
 export interface AudioPayload {
@@ -74,6 +92,11 @@ export interface GahyeonDesktopBridge {
   unlinkCurrentDesktop(installationId: string): Promise<void>
   cancelConversation(sessionId: string, installationId: string): Promise<void>
   cancelSpeechRequests(): void
+  setControlsGlassExpanded(expanded: boolean): void
+  openControlsPanel(): void
+  openChatWindow(): void
+  closeCurrentWindow(): void
+  closeCharacterWindow(): void
   getWorldState(worldId: string): Promise<unknown>
   completeWorldAction(
     worldId: string,
@@ -82,6 +105,7 @@ export interface GahyeonDesktopBridge {
   heartbeatWorldPresence(worldId: string, installationId: string): Promise<void>
   releaseWorldPresence(worldId: string, installationId: string): Promise<void>
   getSpeechStatus(): Promise<SpeechStatus>
+  planConversationExpression(request: ConversationExpressionPlanRequest): Promise<VoiceExpression>
   transcribeWav(audio: ArrayBuffer): Promise<string>
   prepareSpeech(text: string): Promise<SpeechSegment[]>
   synthesizeSpeech(segment: SpeechSegment): Promise<AudioPayload>
@@ -142,6 +166,11 @@ export const browserBridge: GahyeonDesktopBridge = {
     browserSpeechController.abort()
     browserSpeechController = new AbortController()
   },
+  setControlsGlassExpanded() {},
+  openControlsPanel() {},
+  openChatWindow() {},
+  closeCurrentWindow() {},
+  closeCharacterWindow() {},
   async getWorldState(worldId) {
     const response = await speechFetch(
       `/api/gahyeon/desktop/worlds/${encodeURIComponent(worldId)}`,
@@ -209,6 +238,15 @@ export const browserBridge: GahyeonDesktopBridge = {
     if (!response.ok) throw new GahyeonClientError('speechStatus', String(response.status))
     return response.json() as Promise<SpeechStatus>
   },
+  async planConversationExpression(request) {
+    const response = await speechFetch('/api/gahyeon/desktop/speech/expression-plans', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(request),
+    }, METADATA_TIMEOUT_MILLIS, 'speechExpressionPlan', AbortSignal.timeout(METADATA_TIMEOUT_MILLIS))
+    if (!response.ok) throw new GahyeonClientError('speechExpressionPlan', String(response.status))
+    return response.json() as Promise<VoiceExpression>
+  },
   async transcribeWav(audio) {
     const response = await speechFetch('/api/gahyeon/desktop/speech/transcriptions', {
       method: 'POST',
@@ -232,7 +270,7 @@ export const browserBridge: GahyeonDesktopBridge = {
     const response = await speechFetch('/api/gahyeon/desktop/speech/synthesis', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...segment, voiceProfile: 'gahyeon.assistant' }),
+      body: JSON.stringify({ ...segment, voiceProfile: segment.voiceProfile ?? 'gahyeon.assistant' }),
     }, 25_000, 'synthesis', browserSpeechController.signal)
     if (!response.ok) throw new GahyeonClientError('synthesis', String(response.status))
     return {

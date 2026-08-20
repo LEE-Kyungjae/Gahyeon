@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { resolve } from 'node:path'
 import test from 'node:test'
 
 import { parseSuite } from './run-streaming-stt-suite.mjs'
@@ -9,7 +10,7 @@ test('suite paths resolve relative to the suite and repeats remain bounded', () 
     JSON.stringify({ id: 'question-01', wav: 'wav/02.wav', expected: '지금 실행할까요?', repeats: 1 }),
   ].join('\n'), '/evaluation')
   assert.equal(cases.length, 2)
-  assert.equal(cases[0].wav, '/evaluation/wav/01.wav')
+  assert.equal(cases[0].wav, resolve('/evaluation', 'wav/01.wav'))
   assert.equal(cases.reduce((sum, item) => sum + item.repeats, 0), 3)
 })
 

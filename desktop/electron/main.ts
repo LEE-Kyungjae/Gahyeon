@@ -13,11 +13,20 @@ import { readBoundedArrayBuffer } from './bounded-response.js'
 import { admitDurableEventId, isDesktopPresentationEvent, parseEventStream } from './sse.js'
 import { abortableDelay, ReconnectBackoff } from './reconnect-backoff.js'
 import { SpeechRequestRegistry } from './speech-request-registry.js'
+import { resolveWindowPreset } from './window-preset.js'
+import { resolveNativeGlass } from './native-glass.js'
+import {
+  CONTROLS_GLASS_HEIGHT,
+  CONTROLS_GLASS_WIDTH,
+  controlsGlassBounds,
+  roundedCapsuleShape,
+} from './controls-glass-surface.js'
 import {
   isTrustedIpcSender,
   isTrustedRendererLocation,
   validateAudioInput,
   validateConversationCancellation,
+  validateConversationExpressionPlan,
   validateEventSubscription,
   validateIdentityLinkRequest,
   validateInstallationId,
@@ -40,6 +49,47 @@ const conversationRequests = new SpeechRequestRegistry()
 const CONVERSATION_TIMEOUT_MILLIS = 10_000
 const METADATA_TIMEOUT_MILLIS = 5_000
 const MAXIMUM_SPEECH_AUDIO_BYTES = 16 * 1024 * 1024
+let characterWindow: BrowserWindow | undefined
+let controlsGlassWindow: BrowserWindow | undefined
+let characterControlsWindow: BrowserWindow | undefined
+let chatWindow: BrowserWindow | undefined
+
+function syncControlsGlassBounds() {
+  if (!characterWindow || characterWindow.isDestroyed() || !controlsGlassWindow || controlsGlassWindow.isDestroyed()) return
+  controlsGlassWindow.setBounds(controlsGlassBounds(characterWindow.getBounds()))
+}
+
+function createControlsGlassWindow(owner: BrowserWindow, nativeGlass: ReturnType<typeof resolveNativeGlass>) {
+  if (!nativeGlass.enabled) return
+  const glass = new BrowserWindow({
+    width: CONTROLS_GLASS_WIDTH,
+    height: CONTROLS_GLASS_HEIGHT,
+    frame: false,
+    transparent: true,
+    backgroundColor: '#00000000',
+    resizable: false,
+    movable: false,
+    focusable: false,
+    skipTaskbar: true,
+    show: false,
+    hasShadow: false,
+    ...nativeGlass.options,
+  })
+  controlsGlassWindow = glass
+  glass.setIgnoreMouseEvents(true)
+  if (process.platform === 'win32') {
+    glass.setShape(roundedCapsuleShape(CONTROLS_GLASS_WIDTH, CONTROLS_GLASS_HEIGHT))
+  }
+  void glass.loadURL('data:text/html,<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:rgba(255,255,255,.01);border-radius:999px}</style>')
+  syncControlsGlassBounds()
+  owner.on('move', syncControlsGlassBounds)
+  owner.on('resize', syncControlsGlassBounds)
+  owner.once('closed', () => {
+    if (!glass.isDestroyed()) glass.destroy()
+    if (controlsGlassWindow === glass) controlsGlassWindow = undefined
+    if (characterWindow === owner) characterWindow = undefined
+  })
+}
 
 function coreHeaders(headers: Record<string, string> = {}) {
   const authenticated = deploymentHeaders(headers)
@@ -80,24 +130,38 @@ function clearAccountCredential() {
 }
 
 function createWindow() {
+  const preset = resolveWindowPreset(process.env)
+  const nativeGlass = resolveNativeGlass(process.platform, process.env, preset.name === 'character')
   const window = new BrowserWindow({
-    width: 1180,
-    height: 760,
-    minWidth: 820,
-    minHeight: 560,
-    backgroundColor: '#101218',
-    title: 'Gahyeon',
+    ...preset.options,
     webPreferences: {
-      preload: join(import.meta.dirname, 'preload.js'),
+      // Sandboxed Electron preload scripts are loaded as CommonJS even when the
+      // application package uses ESM. TypeScript emits preload.cts as preload.cjs.
+      preload: join(import.meta.dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
     },
   })
+  window.setAlwaysOnTop(preset.alwaysOnTop)
+  window.setIgnoreMouseEvents(preset.clickThrough, { forward: true })
+  if (preset.name === 'character') {
+    characterWindow = window
+    createControlsGlassWindow(window, nativeGlass)
+    if (process.env.GAHYEON_DESKTOP_OPEN_CONTROLS === 'true') {
+      window.webContents.once('did-finish-load', openCharacterControlsWindow)
+    }
+  }
 
   const devUrl = process.env.GAHYEON_DESKTOP_DEV_URL
   const productionEntry = join(import.meta.dirname, '../dist/index.html')
-  const entryUrl = devUrl ? new URL(devUrl).href : pathToFileURL(productionEntry).href
+  const entry = devUrl ? new URL(devUrl) : pathToFileURL(productionEntry)
+  entry.searchParams.set('gahyeonWindowPreset', preset.name)
+  const entryUrl = entry.href
+  loadTrustedWindow(window, entryUrl)
+}
+
+function loadTrustedWindow(window: BrowserWindow, entryUrl: string) {
   const identity = { senderId: window.webContents.id, entryUrl }
   trustedRenderers.set(identity.senderId, identity)
   const preventUntrustedNavigation = (event: Electron.Event, destination: string) => {
@@ -114,8 +178,76 @@ function createWindow() {
     speechRequests.cancel(identity.senderId)
     conversationRequests.cancel(identity.senderId)
   })
-  if (devUrl) void window.loadURL(entryUrl)
-  else void window.loadFile(productionEntry)
+  void window.loadURL(entryUrl)
+}
+
+function auxiliaryEntry(surface: 'controls' | 'chat') {
+  const devUrl = process.env.GAHYEON_DESKTOP_DEV_URL
+  const productionEntry = join(import.meta.dirname, '../dist/index.html')
+  const entry = devUrl ? new URL(devUrl) : pathToFileURL(productionEntry)
+  entry.searchParams.set('gahyeonSurface', surface)
+  return entry.href
+}
+
+function openCharacterControlsWindow() {
+  if (characterControlsWindow && !characterControlsWindow.isDestroyed()) {
+    characterControlsWindow.show()
+    characterControlsWindow.focus()
+    return
+  }
+  const ownerBounds = characterWindow?.getBounds()
+  // WSLg/XWayland does not reliably route pointer input into a fully
+  // transparent frameless Electron surface. Use a conventional input surface
+  // on Linux; macOS and native Windows keep the glass presentation.
+  const reliableLinuxInput = process.platform === 'linux'
+  const window = new BrowserWindow({
+    width: 292,
+    height: 224,
+    x: ownerBounds ? ownerBounds.x + ownerBounds.width - 310 : undefined,
+    y: ownerBounds ? ownerBounds.y + ownerBounds.height - 246 : undefined,
+    frame: reliableLinuxInput,
+    transparent: !reliableLinuxInput,
+    backgroundColor: reliableLinuxInput ? '#172131' : '#00000000',
+    resizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: true,
+    webPreferences: {
+      preload: join(import.meta.dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  window.setIgnoreMouseEvents(false)
+  characterControlsWindow = window
+  window.once('closed', () => { if (characterControlsWindow === window) characterControlsWindow = undefined })
+  loadTrustedWindow(window, auxiliaryEntry('controls'))
+}
+
+function openChatWindow() {
+  if (chatWindow && !chatWindow.isDestroyed()) {
+    chatWindow.show()
+    chatWindow.focus()
+    return
+  }
+  const window = new BrowserWindow({
+    width: 440,
+    height: 680,
+    minWidth: 360,
+    minHeight: 520,
+    title: '가현 채팅',
+    backgroundColor: '#15171f',
+    webPreferences: {
+      preload: join(import.meta.dirname, 'preload.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  })
+  chatWindow = window
+  window.once('closed', () => { if (chatWindow === window) chatWindow = undefined })
+  loadTrustedWindow(window, auxiliaryEntry('chat'))
 }
 
 ipcMain.handle('gahyeon:message', async (event, rawRequest: unknown) => {
@@ -304,6 +436,24 @@ ipcMain.handle('gahyeon:speech:status', async (event) => {
   return response.json()
 })
 
+ipcMain.handle('gahyeon:speech:expression-plan', async (event, rawRequest: unknown) => {
+  requireTrustedIpcEvent(event)
+  const request = validatePayload(() => validateConversationExpressionPlan(rawRequest))
+  const response = await fetchWithTimeout(
+    `${apiBaseUrl}/gahyeon/desktop/speech/expression-plans`,
+    {
+      method: 'POST',
+      headers: coreHeaders({ 'content-type': 'application/json' }),
+      body: JSON.stringify(request),
+    },
+    METADATA_TIMEOUT_MILLIS,
+    'speechExpressionPlan',
+    AbortSignal.timeout(METADATA_TIMEOUT_MILLIS),
+  )
+  if (!response.ok) throw clientError('speechExpressionPlan', response.status)
+  return response.json()
+})
+
 ipcMain.handle('gahyeon:speech:transcribe', async (event, rawAudio: unknown) => {
   requireTrustedIpcEvent(event)
   const audio = validatePayload(() => validateAudioInput(rawAudio))
@@ -340,7 +490,7 @@ ipcMain.handle('gahyeon:speech:synthesize', async (event, rawSegment: unknown) =
     const response = await fetchWithTimeout(`${apiBaseUrl}/gahyeon/desktop/speech/synthesis`, {
       method: 'POST',
       headers: coreHeaders({ 'content-type': 'application/json' }),
-      body: JSON.stringify({ ...segment, voiceProfile: 'gahyeon.assistant' }),
+      body: JSON.stringify(segment),
     }, 25_000, 'synthesis', signal)
     if (!response.ok) throw clientError('synthesis', response.status)
     return {
@@ -357,6 +507,42 @@ ipcMain.handle('gahyeon:speech:synthesize', async (event, rawSegment: unknown) =
 ipcMain.on('gahyeon:speech:cancel', (event) => {
   if (!isTrustedIpcEvent(event)) return
   speechRequests.cancel(event.sender.id)
+})
+
+ipcMain.on('gahyeon:controls-glass', (event, expanded: unknown) => {
+  if (!isTrustedIpcEvent(event) || typeof expanded !== 'boolean') return
+  if (!characterWindow || event.sender.id !== characterWindow.webContents.id) return
+  const glass = controlsGlassWindow
+  if (!glass || glass.isDestroyed()) return
+  if (!expanded) {
+    glass.hide()
+    return
+  }
+  syncControlsGlassBounds()
+  glass.showInactive()
+  glass.moveTop()
+  characterWindow.moveTop()
+})
+
+ipcMain.on('gahyeon:window:controls', event => {
+  if (!isTrustedIpcEvent(event)) return
+  openCharacterControlsWindow()
+})
+
+ipcMain.on('gahyeon:window:chat', event => {
+  if (!isTrustedIpcEvent(event)) return
+  openChatWindow()
+})
+
+ipcMain.on('gahyeon:window:close-current', event => {
+  if (!isTrustedIpcEvent(event)) return
+  BrowserWindow.fromWebContents(event.sender)?.close()
+})
+
+ipcMain.on('gahyeon:window:close-character', event => {
+  if (!isTrustedIpcEvent(event)) return
+  characterWindow?.close()
+  characterControlsWindow?.close()
 })
 
 function clientError(code: string, detail: string | number) {
@@ -467,6 +653,13 @@ async function consumeEvents(
       })
       if (!response.ok || !response.body) throw clientError('eventStream', response.status)
       for await (const event of parseEventStream(response.body)) {
+        // A reconnect commonly repeats the current durable cursor. Connection
+        // health is ephemeral and must not be discarded as a duplicate event.
+        if (event.event === 'stream.connected') {
+          sender.send('gahyeon:event', event)
+          delivered = true
+          continue
+        }
         const admission = admitDurableEventId(cursor, event.id)
         if (!admission.accepted) continue
         if (isDesktopPresentationEvent(event.event)) sender.send('gahyeon:event', event)

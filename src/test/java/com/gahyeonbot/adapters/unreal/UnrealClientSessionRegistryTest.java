@@ -10,6 +10,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class UnrealClientSessionRegistryTest {
     @Test
+    void isolatesRendererSessionsByWorldAndCharacter() {
+        var registry = new UnrealClientSessionRegistry();
+        registry.bind("gahyeon-1", new UnrealClientSessionRegistry.Binding(
+                "session-g", "home", "install-g", "User", "gahyeon"));
+        registry.bind("diana-1", new UnrealClientSessionRegistry.Binding(
+                "session-d", "home", "install-d", "User", "diana"));
+        registry.bind("gahyeon-2", new UnrealClientSessionRegistry.Binding(
+                "session-g", "home", "install-g", "User", "gahyeon"));
+
+        assertThat(registry.sessionsFor("home", "gahyeon"))
+                .extracting(UnrealClientSessionRegistry.Binding::sessionId)
+                .containsExactly("session-g");
+        assertThat(registry.sessionsFor("home", "diana"))
+                .extracting(UnrealClientSessionRegistry.Binding::sessionId)
+                .containsExactly("session-d");
+    }
+
+    @Test
     void keepsSessionAvailableUntilItsLastConsistentConnectionLeaves() {
         var registry = new UnrealClientSessionRegistry();
         var binding = new UnrealClientSessionRegistry.Binding(

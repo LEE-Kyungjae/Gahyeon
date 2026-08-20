@@ -116,6 +116,26 @@ public class VoiceAssistantService {
         return sessions.containsKey(guildId);
     }
 
+    /**
+     * Speaks a response that originated in the configured text assistant channel when
+     * this guild already has an active voice-assistant session. Text delivery remains
+     * owned by the caller; this method only mirrors the final answer into voice.
+     */
+    public boolean speakTextResponse(long guildId, String answer) {
+        Session session = sessions.get(guildId);
+        if (session == null
+                || session.closed
+                || !properties.isSpeakResponses()
+                || !speechSynthesis.isReady(VoiceProfileId.ASSISTANT)
+                || !TtsSpeechText.isSafeToSpeak(answer)) {
+            return false;
+        }
+        long revision = session.responseRevision.incrementAndGet();
+        session.musicManager.interruptTtsPlayback();
+        session.queueSpeech(answer, revision);
+        return true;
+    }
+
     public boolean stopWhenOwnerLeaves(Guild guild, long memberId, long voiceChannelId) {
         Session session = sessions.get(guild.getIdLong());
         if (session == null

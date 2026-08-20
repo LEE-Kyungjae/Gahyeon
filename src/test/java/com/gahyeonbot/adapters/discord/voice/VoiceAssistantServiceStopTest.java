@@ -104,4 +104,34 @@ class VoiceAssistantServiceStopTest {
         verify(discordAudioManager, never()).closeAudioConnection();
         assertThat(service.isRunning(101L)).isTrue();
     }
+
+    @Test
+    void textResponseIsSpokenOnlyWhileVoiceSessionIsActive() {
+        when(speechSynthesis.isReady(com.gahyeonbot.core.speech.VoiceProfileId.ASSISTANT))
+                .thenReturn(true);
+        when(speechSynthesis.prepare("채팅으로 받은 답변입니다."))
+                .thenReturn(java.util.List.of());
+
+        assertThat(service.speakTextResponse(101L, "채팅으로 받은 답변입니다.")).isFalse();
+        assertThat(service.start(guild, requester, textChannel).started()).isTrue();
+
+        assertThat(service.speakTextResponse(101L, "채팅으로 받은 답변입니다.")).isTrue();
+        verify(musicManager).interruptTtsPlayback();
+        verify(speechSynthesis, org.mockito.Mockito.timeout(1_000))
+                .prepare("채팅으로 받은 답변입니다.");
+
+        service.stop(guild);
+        assertThat(service.speakTextResponse(101L, "채팅으로 받은 답변입니다.")).isFalse();
+    }
+
+    @Test
+    void unsafeTextResponseIsNeverQueuedForSpeech() {
+        when(speechSynthesis.isReady(com.gahyeonbot.core.speech.VoiceProfileId.ASSISTANT))
+                .thenReturn(true);
+        assertThat(service.start(guild, requester, textChannel).started()).isTrue();
+
+        assertThat(service.speakTextResponse(101L, "error: AI 응답 생성 실패")).isFalse();
+
+        verify(speechSynthesis, never()).prepare(any());
+    }
 }

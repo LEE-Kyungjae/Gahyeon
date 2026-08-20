@@ -23,6 +23,8 @@ export interface StageState {
   activity: string
   expression: string
   expressionIntensity: number
+  gazeTarget: string
+  gesture: string
   speaking: boolean
   speechAmplitude: number
   pendingWorldAction?: PendingWorldAction
@@ -36,6 +38,8 @@ export const initialStageState: StageState = {
   activity: 'idle',
   expression: 'neutral',
   expressionIntensity: 0,
+  gazeTarget: 'ambient',
+  gesture: 'none',
   speaking: false,
   speechAmplitude: 0,
 }
@@ -52,6 +56,17 @@ export function reduceStageEvent(state: StageState, event: GahyeonDesktopEvent):
         revision,
         expression: text(payload.expression, state.expression),
         expressionIntensity: clamp(number(payload.intensity, state.expressionIntensity), 0, 1),
+      }
+    case 'avatar.presentation':
+      return {
+        ...state,
+        ...worldActionRevision(state, revision),
+        revision,
+        expression: text(payload.expression, state.expression),
+        expressionIntensity: clamp(number(payload.intensity, state.expressionIntensity), 0, 1),
+        gazeTarget: lowerText(payload.gazeTarget, state.gazeTarget),
+        gesture: lowerText(payload.gesture, state.gesture),
+        activity: lowerText(payload.activity, state.activity),
       }
     case 'avatar.speech.started':
       return { ...state, revision, activity: 'conversation', speaking: true }
@@ -146,6 +161,7 @@ export function reduceStageEvent(state: StageState, event: GahyeonDesktopEvent):
 
 function isWorldEvent(type: string) {
   return type === 'avatar.expression'
+    || type === 'avatar.presentation'
     || type === 'avatar.speech.started'
     || type === 'avatar.speech.level'
     || type === 'avatar.speech.stopped'

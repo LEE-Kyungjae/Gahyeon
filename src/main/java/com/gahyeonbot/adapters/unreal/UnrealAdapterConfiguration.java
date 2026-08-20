@@ -6,15 +6,18 @@ import com.gahyeonbot.application.event.GahyeonEventQuery;
 import com.gahyeonbot.application.identity.IdentityResolutionUseCase;
 import com.gahyeonbot.application.conversation.ConversationStreamingUseCase;
 import com.gahyeonbot.core.speech.SpeechSynthesisUseCase;
+import com.gahyeonbot.core.speech.ExpressiveSpeechSynthesisUseCase;
 import com.gahyeonbot.core.world.WorldStateUseCase;
 import com.gahyeonbot.application.behavior.WorldActionCoordinator;
 import com.gahyeonbot.application.behavior.WorldActionPresentationPresence;
+import com.gahyeonbot.application.life.CharacterCognitionPresentationPort;
 import io.micrometer.core.instrument.MeterRegistry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
@@ -114,13 +117,16 @@ public class UnrealAdapterConfiguration {
     @Bean
     UnrealSpeechPreparationPort unrealSpeechPreparationPort(
             SpeechSynthesisUseCase synthesis,
+            ObjectProvider<ExpressiveSpeechSynthesisUseCase> expressiveSynthesis,
             UnrealAudioCache audio,
             UnrealEphemeralBroker outbound,
             @Qualifier("unrealTtsExecutor") ThreadPoolTaskExecutor unrealTtsExecutor,
             UnrealRuntimeMetrics metrics,
-            UnrealVisemeTimelinePort visemes) {
+            UnrealVisemeTimelinePort visemes,
+            ObjectProvider<UnrealPcmStreamCache> pcmStreams) {
         return new DefaultUnrealSpeechPreparationService(
-                synthesis, audio, outbound, unrealTtsExecutor, metrics, visemes);
+                synthesis, expressiveSynthesis.getIfAvailable(), audio, outbound,
+                unrealTtsExecutor, metrics, visemes, pcmStreams.getIfAvailable());
     }
 
     @Bean
@@ -182,6 +188,15 @@ public class UnrealAdapterConfiguration {
     WorldActionPresentationPresence unrealWorldActionPresentationPresence(
             UnrealClientSessionRegistry clients) {
         return worldId -> clients.hasRendererForWorld(worldId.value());
+    }
+
+    @Bean
+    CharacterCognitionPresentationPort unrealAutonomousCognitionPresenter(
+            UnrealClientSessionRegistry clients,
+            UnrealCommandDispatcher commands,
+            UnrealSpeechPreparationPort speech,
+            UnrealEphemeralBroker outbound) {
+        return new UnrealAutonomousCognitionPresenter(clients, commands, speech, outbound);
     }
 
     @Bean

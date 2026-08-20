@@ -37,8 +37,14 @@ export class PlaceholderCharacterRenderer implements CharacterRenderer {
     this.elapsed += deltaSeconds
     const idleAmount = state.activity === 'idle' ? 1 : 0.35
     this.object.position.y = Math.sin(this.elapsed * 1.4) * 0.018 * idleAmount
-    const happy = state.expression === 'happy' ? state.expressionIntensity : 0
-    this.materials[0].color.set(happy > 0 ? '#c3a7c9' : '#aaa0ba')
+    const expressionColor = {
+      happy: '#c3a7c9',
+      angry: '#c58f91',
+      sad: '#8fa3c5',
+      surprised: '#d4b58f',
+      relaxed: '#9fbbae',
+    }[state.expression] ?? '#aaa0ba'
+    this.materials[0].color.set(state.expressionIntensity > 0 ? expressionColor : '#aaa0ba')
     this.mouth.scale.y = 1 + state.speechAmplitude * 9
   }
 

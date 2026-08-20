@@ -7,6 +7,7 @@ const MAXIMUM_LINK_CODE_CHARACTERS = 128
 const MAXIMUM_WORLD_ID_CHARACTERS = 120
 const MAXIMUM_RENDERER_ID_CHARACTERS = 120
 const MAXIMUM_ACTION_ID_CHARACTERS = 80
+const MAXIMUM_CHARACTER_ID_CHARACTERS = 64
 const MAXIMUM_AUDIO_BYTES = 20 * 1024 * 1024
 const MAXIMUM_SPEECH_TEXT_CHARACTERS = 16_384
 const MAXIMUM_SEGMENT_INDEX = 1_000_000
@@ -28,6 +29,7 @@ export interface ValidatedMessageRequest {
   requestId: string
   installationId: string
   displayName: string
+  characterId: string
   message: string
 }
 
@@ -91,6 +93,7 @@ export function validateMessageRequest(value: unknown): ValidatedMessageRequest 
     displayName: boundedText(
       request.displayName, 'displayName', MAXIMUM_DISPLAY_NAME_CHARACTERS, true,
     ),
+    characterId: safeSlug(request.characterId ?? 'gahyeon', 'characterId', MAXIMUM_CHARACTER_ID_CHARACTERS),
     message: boundedText(request.message, 'message', MAXIMUM_MESSAGE_CHARACTERS),
   }
 }
@@ -161,11 +164,52 @@ export function validateSpeechText(value: unknown) {
   return boundedText(value, 'text', MAXIMUM_SPEECH_TEXT_CHARACTERS)
 }
 
+export function validateConversationExpressionPlan(value: unknown) {
+  const request = record(value, 'expressionPlan')
+  return {
+    installationId: validateInstallationId(request.installationId),
+    displayName: boundedText(
+      request.displayName, 'displayName', MAXIMUM_DISPLAY_NAME_CHARACTERS, true,
+    ),
+    characterId: safeSlug(request.characterId, 'characterId', MAXIMUM_CHARACTER_ID_CHARACTERS),
+    worldId: validateWorldId(request.worldId),
+    message: boundedText(request.message, 'message', MAXIMUM_MESSAGE_CHARACTERS),
+  }
+}
+
 export function validateSpeechSegment(value: unknown) {
   const segment = record(value, 'segment')
   const index = safeInteger(segment.index, 'index')
   if (index > MAXIMUM_SEGMENT_INDEX) invalid('index')
-  return { index, text: validateSpeechText(segment.text) }
+  const expression = segment.expression === undefined
+    ? undefined
+    : validateVoiceExpression(segment.expression)
+  return {
+    index,
+    text: validateSpeechText(segment.text),
+    voiceProfile: safeSlug(segment.voiceProfile ?? 'gahyeon.assistant', 'voiceProfile', 64),
+    ...(expression ? { expression } : {}),
+  }
+}
+
+function validateVoiceExpression(value: unknown) {
+  const expression = record(value, 'expression')
+  const style = safeSlug(expression.style, 'expression.style', 40)
+  const allowed = new Set([
+    'natural', 'warm', 'gentle', 'bright', 'surprised', 'concerned', 'serious',
+    'playful', 'fake_cute', 'sarcastic', 'sleepy', 'whisper', 'excited',
+    'annoyed', 'sad', 'suppressed_laugh',
+  ])
+  if (!allowed.has(style)) invalid('expression.style')
+  if (typeof expression.intensity !== 'number' || !Number.isFinite(expression.intensity)
+      || expression.intensity < 0 || expression.intensity > 1) invalid('expression.intensity')
+  return {
+    style,
+    intensity: expression.intensity,
+    communicativeIntent: boundedText(
+      expression.communicativeIntent, 'expression.communicativeIntent', 80,
+    ),
+  }
 }
 
 export function validateEventSubscription(value: unknown): ValidatedEventSubscription {
@@ -181,6 +225,12 @@ export function validateEventSubscription(value: unknown): ValidatedEventSubscri
 function record(value: unknown, field: string): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) invalid(field)
   return value as Record<string, unknown>
+}
+
+function safeSlug(value: unknown, field: string, maximumCharacters: number) {
+  const text = boundedText(value, field, maximumCharacters)
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(text)) invalid(field)
+  return text
 }
 
 function boundedText(

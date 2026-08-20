@@ -32,18 +32,21 @@ export class ThreeStage {
   private notifiedWorldActionId?: string
   private readonly worldActionInteraction = new WorldActionInteractionGate()
   private lookingGlassInitialized = false
+  private cameraPreset: CameraPreset = 'full-body'
 
   constructor(
     private readonly host: HTMLElement,
     initialState: StageState,
     private readonly onWorldActionArrived?: (action: PendingWorldAction) => void,
+    options: ThreeStageOptions = {},
   ) {
     this.state = initialState
     this.currentRoom = initialState.room
     this.navigationTargetRoom = initialState.room
-    this.scene.background = new Color('#171924')
-    this.scene.fog = new Fog('#171924', 9, 24)
-    this.renderer = new WebGLRenderer({ antialias: true, alpha: false })
+    this.scene.background = options.transparent ? null : new Color('#171924')
+    this.scene.fog = options.transparent ? null : new Fog('#171924', 9, 24)
+    this.renderer = new WebGLRenderer({ antialias: true, alpha: options.transparent === true })
+    if (options.transparent) this.renderer.setClearColor(0x000000, 0)
     this.renderer.outputColorSpace = SRGBColorSpace
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
     this.renderer.shadowMap.enabled = true
@@ -56,7 +59,8 @@ export class ThreeStage {
     key.castShadow = true
     const grid = new GridHelper(24, 24, '#5d596b', '#302f3c')
     grid.position.y = 0.002
-    this.scene.add(ambient, key, grid, this.environment.object, this.character.object)
+    this.scene.add(ambient, key, this.character.object)
+    if (!options.transparent) this.scene.add(grid, this.environment.object)
     this.character.object.position.set(
       initialState.position.x,
       initialState.position.y,
@@ -109,6 +113,10 @@ export class ThreeStage {
     this.scene.add(environment.object)
   }
 
+  setCameraPreset(preset: CameraPreset) {
+    this.cameraPreset = preset
+  }
+
   async enableLookingGlass(buttonHost: HTMLElement) {
     if (this.lookingGlassInitialized) return
     this.lookingGlassInitialized = true
@@ -154,9 +162,10 @@ export class ThreeStage {
     const reflexOwnsPresentation = isImmediateActivity(this.state.activity)
     if (!reflexOwnsPresentation) this.advanceNavigation(delta)
     const characterPosition = this.character.object.position.clone()
-    const desiredCamera = characterPosition.clone().add(new Vector3(0, 2.15, 6.7))
+    const framing = cameraFraming(this.cameraPreset)
+    const desiredCamera = characterPosition.clone().add(framing.offset)
     this.camera.position.lerp(desiredCamera, Math.min(1, delta * 2.8))
-    this.camera.lookAt(characterPosition.clone().add(new Vector3(0, 1.35, 0)))
+    this.camera.lookAt(characterPosition.clone().add(framing.target))
     this.character.update(
       presentationState(this.state, this.navigationPath.length > 0, reflexOwnsPresentation),
       delta,
@@ -200,6 +209,20 @@ export class ThreeStage {
     this.camera.aspect = width / height
     this.camera.updateProjectionMatrix()
   }
+}
+
+export type CameraPreset = 'face' | 'bust' | 'full-body'
+
+export type ThreeStageOptions = { transparent?: boolean }
+
+export function cameraFraming(preset: CameraPreset) {
+  if (preset === 'face') {
+    return { offset: new Vector3(0, 1.68, 1.55), target: new Vector3(0, 1.62, 0) }
+  }
+  if (preset === 'bust') {
+    return { offset: new Vector3(0, 1.72, 3.15), target: new Vector3(0, 1.42, 0) }
+  }
+  return { offset: new Vector3(0, 2.15, 6.7), target: new Vector3(0, 1.35, 0) }
 }
 
 export function stageDestination(state: StageState) {

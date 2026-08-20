@@ -14,6 +14,7 @@ import jakarta.validation.Valid;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -70,7 +71,10 @@ public class DesktopConversationController {
                 actorId,
                 ClientSource.DESKTOP,
                 ConversationModality.TEXT,
-                Map.of("desktop.installationId", body.installationId()));
+                Map.of(
+                        "desktop.installationId", body.installationId(),
+                        "character.id", body.effectiveCharacterId(),
+                        "world.id", "gahyeon-home"));
         String requestId = body.requestId() == null || body.requestId().isBlank()
                 ? "desktop:" + UUID.randomUUID()
                 : body.requestId();
@@ -113,8 +117,13 @@ public class DesktopConversationController {
             @Size(max = ConversationRequest.MAXIMUM_REQUEST_ID_CHARACTERS) String requestId,
             @NotBlank @Size(max = 200) String installationId,
             @Size(max = ConversationRequest.MAXIMUM_DISPLAY_NAME_CHARACTERS) String displayName,
+            @Size(max = 64) @Pattern(regexp = "[a-z0-9][a-z0-9._-]*") String characterId,
             @NotBlank @Size(max = ConversationRequest.MAXIMUM_MESSAGE_CHARACTERS) String message
-    ) {}
+    ) {
+        String effectiveCharacterId() {
+            return characterId == null || characterId.isBlank() ? "gahyeon" : characterId;
+        }
+    }
 
     public record MessageResponse(String runId, String content) {}
 }
