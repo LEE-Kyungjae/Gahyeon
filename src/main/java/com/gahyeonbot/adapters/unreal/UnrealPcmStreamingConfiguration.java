@@ -14,6 +14,7 @@ import java.util.concurrent.Executor;
 @ConditionalOnBean(StreamingExpressiveSpeechSynthesisPort.class)
 public class UnrealPcmStreamingConfiguration {
     @Bean
+    @ConditionalOnBean(name = "unrealTtsExecutor")
     UnrealPcmStreamCache unrealPcmStreamCache(
             StreamingExpressiveSpeechSynthesisPort synthesis,
             @Qualifier("unrealTtsExecutor") Executor executor) {
