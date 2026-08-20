@@ -58,6 +58,10 @@ Desktop `installationId`와 Headless `externalActorId`는 200자까지 허용한
 | `GET` | `/api/actuator/metrics/{name}` | 개별 metric |
 | `GET` | `/api/actuator/prometheus` | Prometheus scrape |
 
+Actuator health details are hidden by default. Set
+`MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always` only on a trusted internal network or for a
+bounded diagnostic run; the headless smoke scripts enable it explicitly for contract assertions.
+
 `/api/health`의 Weather timestamp/error는 관측 정보이며 readiness를 차단하지 않는다. Headless에서
 Discord가 비활성화된 경우 `bot`은 `DISABLED`가 될 수 있다.
 Headless 또는 Unreal WebSocket이 활성화되면 `conversationRequired=true`이며

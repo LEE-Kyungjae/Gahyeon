@@ -219,7 +219,7 @@ logging:
 management:
   endpoint:
     health:
-      show-details: always
+      show-details: ${MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS:never}
   endpoints:
     web:
       exposure:

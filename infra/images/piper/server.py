@@ -14,7 +14,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import Response
-from piper import PiperVoice
+from piper import PiperVoice, SynthesisConfig
 from pydantic import BaseModel, Field
 
 
@@ -31,6 +31,14 @@ API_KEY = os.getenv("PIPER_API_KEY", "")
 MAX_CHARS = int(os.getenv("PIPER_MAX_CHARS", "500"))
 USE_CUDA = os.getenv("PIPER_USE_CUDA", "false").lower() in {"1", "true", "yes"}
 ADMISSION_TIMEOUT_SECONDS = float(os.getenv("PIPER_ADMISSION_TIMEOUT_SECONDS", "0.05"))
+SENTENCE_SILENCE_SECONDS = float(os.getenv("PIPER_SENTENCE_SILENCE_SECONDS", "0.28"))
+HIGHPASS_HZ = int(os.getenv("PIPER_HIGHPASS_HZ", "80"))
+DENOISE_REDUCTION_DB = float(os.getenv("PIPER_DENOISE_REDUCTION_DB", "10"))
+DENOISE_NOISE_FLOOR_DB = float(os.getenv("PIPER_DENOISE_NOISE_FLOOR_DB", "-32"))
+TARGET_LUFS = float(os.getenv("PIPER_TARGET_LUFS", "-12"))
+LENGTH_SCALE = float(os.getenv("PIPER_LENGTH_SCALE", "1.03"))
+NOISE_SCALE = float(os.getenv("PIPER_NOISE_SCALE", "0.85"))
+NOISE_W_SCALE = float(os.getenv("PIPER_NOISE_W_SCALE", "0.95"))
 MODEL_SHA256 = os.getenv("PIPER_MODEL_SHA256", "")
 CONFIG_SHA256 = os.getenv("PIPER_CONFIG_SHA256", "")
 SYNTHESIS_SLOT = threading.BoundedSemaphore(1)
@@ -45,6 +53,9 @@ TECH_PRONUNCIATIONS = {
     "tts": "티티에스",
     "stt": "에스티티",
     "ai": "에이아이",
+}
+PHONEME_PRONUNCIATIONS = {
+    "깃허브": "[[ɡithʌbɯ]]",
 }
 
 
@@ -75,17 +86,25 @@ def prepare_synthesis_text(text: str) -> tuple[str, str]:
     if not text:
         return "", "markup-stripped"
     if not LATIN_TEXT.search(text):
-        return text, "original"
+        prepared = text
+        for source, pronunciation in PHONEME_PRONUNCIATIONS.items():
+            prepared = prepared.replace(source, pronunciation)
+        return prepared, "phoneme-overridden" if prepared != text else "original"
     prepared = text
     for source, pronunciation in TECH_PRONUNCIATIONS.items():
         prepared = re.sub(rf"(?i)\b{re.escape(source)}\b", pronunciation, prepared)
     try:
         from hunmin import transcribe_auto
         converted = transcribe_auto(prepared, primary_lang="en")
+        text_mode = "english-transliterated"
     except Exception as error:
         log.warning("english_transliteration_failed type=%s", type(error).__name__)
-        return text, "original"
-    return (converted or text), "english-transliterated"
+        converted = prepared
+        text_mode = "pronunciation-dictionary-fallback"
+    converted = converted or text
+    for source, pronunciation in PHONEME_PRONUNCIATIONS.items():
+        converted = converted.replace(source, pronunciation)
+    return converted, text_mode
 
 
 def validate_wav(payload: bytes) -> tuple[int, int, int]:
@@ -103,10 +122,15 @@ def validate_wav(payload: bytes) -> tuple[int, int, int]:
 
 
 def normalize_loudness(payload: bytes, sample_rate: int) -> bytes:
+    audio_filter = (
+        f"highpass=f={HIGHPASS_HZ},"
+        f"afftdn=nr={DENOISE_REDUCTION_DB:g}:nf={DENOISE_NOISE_FLOOR_DB:g}:tn=1,"
+        f"loudnorm=I={TARGET_LUFS:g}:TP=-1:LRA=7"
+    )
     command = [
         "ffmpeg", "-hide_banner", "-loglevel", "error",
         "-i", "pipe:0",
-        "-af", "loudnorm=I=-9:TP=-1:LRA=7",
+        "-af", audio_filter,
         "-ar", str(sample_rate), "-ac", "1",
         "-f", "s16le", "pipe:1",
     ]
@@ -138,7 +162,35 @@ def synthesize_payload(text: str) -> bytes:
     output = io.BytesIO()
     try:
         with wave.open(output, "wb") as wav_file:
-            voice.synthesize_wav(text, wav_file)
+            previous_chunk = None
+            synthesis_config = SynthesisConfig(
+                length_scale=LENGTH_SCALE,
+                noise_scale=NOISE_SCALE,
+                noise_w_scale=NOISE_W_SCALE,
+            )
+            for audio_chunk in voice.synthesize(text, syn_config=synthesis_config):
+                chunk_format = (
+                    audio_chunk.sample_channels,
+                    audio_chunk.sample_width,
+                    audio_chunk.sample_rate,
+                )
+                if previous_chunk is None:
+                    wav_file.setnchannels(audio_chunk.sample_channels)
+                    wav_file.setsampwidth(audio_chunk.sample_width)
+                    wav_file.setframerate(audio_chunk.sample_rate)
+                elif chunk_format != previous_chunk:
+                    raise ValueError("Piper returned inconsistent sentence audio formats")
+                else:
+                    silence_frames = round(
+                        audio_chunk.sample_rate * max(0.0, SENTENCE_SILENCE_SECONDS)
+                    )
+                    wav_file.writeframes(
+                        b"\0" * silence_frames
+                        * audio_chunk.sample_width
+                        * audio_chunk.sample_channels
+                    )
+                wav_file.writeframes(audio_chunk.audio_int16_bytes)
+                previous_chunk = chunk_format
     except (EOFError, wave.Error) as error:
         raise ValueError("Piper could not synthesize a valid WAV") from error
     payload = output.getvalue()
@@ -238,6 +290,8 @@ def synthesize(
             "X-Piper-Model": MODEL_ALIAS,
             "X-Piper-Model-SHA256": MODEL_SHA256,
             "X-Piper-Config-SHA256": CONFIG_SHA256,
+            "X-Sentence-Silence-Seconds": f"{SENTENCE_SILENCE_SECONDS:.3f}",
+            "X-Audio-Denoised": "true",
             "X-Generation-Seconds": f"{elapsed:.4f}",
             "X-Audio-Seconds": f"{duration:.4f}",
             "X-Realtime-Factor": f"{rtf:.4f}",

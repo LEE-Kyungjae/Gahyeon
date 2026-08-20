@@ -85,11 +85,41 @@
       "id": "piper-english-transliteration",
       "domain": "tts",
       "incident": "English terms were pronounced poorly while Korean text was otherwise acceptable.",
-      "invariant": "Supported English tokens are transliterated while Korean text is preserved.",
+      "invariant": "Supported English tokens are transliterated, GitHub uses listener-approved phonemes, and Korean text is preserved.",
       "testFile": "infra/images/piper/test_server.py",
       "testMethod": "test_transliterates_english_and_preserves_korean",
       "productionSignal": "English-token normalization count and fallback count.",
-      "rollbackTrigger": "Supported English tokens bypass normalization or Korean text is altered."
+      "rollbackTrigger": "GitHub is pronounced as 깃서브, supported English tokens bypass normalization, or Korean text is altered."
+    },
+    {
+      "id": "piper-sentence-boundary-silence",
+      "domain": "tts",
+      "incident": "Piper joined sentence chunks without a pause, making speech sound rushed and mechanical.",
+      "invariant": "A configured silence interval is inserted between every pair of synthesized sentence chunks.",
+      "testFile": "scripts/test_piper_runtime_server.py",
+      "testMethod": "test_inserts_silence_between_sentence_chunks",
+      "productionSignal": "Configured sentence-silence response header and synthesized audio duration.",
+      "rollbackTrigger": "Consecutive sentence chunks are delivered without the configured pause."
+    },
+    {
+      "id": "piper-approved-noise-filter",
+      "domain": "tts",
+      "incident": "The selected Piper voice contained distracting low-frequency and stationary background noise.",
+      "invariant": "Runtime audio uses the listener-approved high-pass, denoise, and loudness filter chain.",
+      "testFile": "scripts/test_piper_runtime_server.py",
+      "testMethod": "test_uses_approved_medium_noise_filter",
+      "productionSignal": "Denoise response header and post-processed WAV validity.",
+      "rollbackTrigger": "The approved filter chain is absent or produces invalid audio."
+    },
+    {
+      "id": "piper-listener-selected-prosody",
+      "domain": "tts",
+      "incident": "Default Piper inference sounded flat and mechanical despite a good voice dataset.",
+      "invariant": "Runtime synthesis uses the listener-selected length, generator-noise, and phoneme-duration variation values.",
+      "testFile": "scripts/test_piper_runtime_server.py",
+      "testMethod": "test_uses_listener_selected_prosody",
+      "productionSignal": "Configured inference values and valid synthesized WAV output.",
+      "rollbackTrigger": "Runtime synthesis falls back to flat default inference values or pronunciation becomes unstable."
     },
     {
       "id": "agent-personalized-news-source-integrity",

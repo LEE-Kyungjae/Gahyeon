@@ -1,0 +1,79 @@
+{
+  "summary": {
+    "cases": 5,
+    "hardPasses": 5,
+    "meanCer": 0.0623,
+    "maxCer": 0.2258,
+    "meanSpeakerSimilarity": 0.8777,
+    "minSpeakerSimilarity": 0.8683,
+    "maxClippingRatio": 5.8e-05,
+    "hardPass": true
+  },
+  "results": [
+    {
+      "id": 1,
+      "audio": "/home/ubuntu/piper-voice/voicebox-diverse5000-final-sim090/training-long-80000/step40000/eval-1.wav",
+      "expected": "안녕하세요. 오늘 서버 상태와 프로젝트 진행 상황을 정확하게 알려드리겠습니다.",
+      "transcript": "안녕하세요. 오늘 서구 상태와 프로젝트 진행 상황을 정확하게 알려드리겠습니다.",
+      "cer": 0.0303,
+      "speakerSimilarity": 0.8683,
+      "durationSeconds": 4.261,
+      "activeRatio": 0.9783,
+      "clippingRatio": 4.3e-05,
+      "spectralFlatness": 0.034439,
+      "hardPass": true
+    },
+    {
+      "id": 2,
+      "audio": "/home/ubuntu/piper-voice/voicebox-diverse5000-final-sim090/training-long-80000/step40000/eval-2.wav",
+      "expected": "GPU 사용률은 72퍼센트이고, API 응답 시간은 183밀리초입니다.",
+      "transcript": "GBU 사용률은 72%이고 API 응답 시간은 183mm입니다.",
+      "cer": 0.2258,
+      "speakerSimilarity": 0.8888,
+      "durationSeconds": 5.759,
+      "activeRatio": 0.8916,
+      "clippingRatio": 2.4e-05,
+      "spectralFlatness": 0.046101,
+      "hardPass": true
+    },
+    {
+      "id": 3,
+      "audio": "/home/ubuntu/piper-voice/voicebox-diverse5000-final-sim090/training-long-80000/step40000/eval-3.wav",
+      "expected": "정말 잘됐네요! 생각보다 훨씬 자연스럽게 완성됐어요.",
+      "transcript": "정말 잘 됐네요. 생각보다 훨씬 자연스럽게 완성됐어요.",
+      "cer": 0.0,
+      "speakerSimilarity": 0.8751,
+      "durationSeconds": 3.576,
+      "activeRatio": 0.9419,
+      "clippingRatio": 3.8e-05,
+      "spectralFlatness": 0.046066,
+      "hardPass": true
+    },
+    {
+      "id": 4,
+      "audio": "/home/ubuntu/piper-voice/voicebox-diverse5000-final-sim090/training-long-80000/step40000/eval-4.wav",
+      "expected": "지금 바로 실행할까요, 아니면 설정을 한 번 더 확인할까요?",
+      "transcript": "지금 바로 실행할까요? 아니면 설정을 한 번 더 확인할까요?",
+      "cer": 0.0,
+      "speakerSimilarity": 0.886,
+      "durationSeconds": 3.135,
+      "activeRatio": 0.9706,
+      "clippingRatio": 5.8e-05,
+      "spectralFlatness": 0.029286,
+      "hardPass": true
+    },
+    {
+      "id": 5,
+      "audio": "/home/ubuntu/piper-voice/voicebox-diverse5000-final-sim090/training-long-80000/step40000/eval-5.wav",
+      "expected": "오류가 다시 발생하더라도 당황하지 말고 로그를 확인한 다음 안전하게 복구하면 됩니다.",
+      "transcript": "무료가 다시 발생하더라도 당황하지 말고 로그를 확인한 다음 안전하게 복구하면 됩니다.",
+      "cer": 0.0556,
+      "speakerSimilarity": 0.8702,
+      "durationSeconds": 5.12,
+      "activeRatio": 0.9321,
+      "clippingRatio": 9e-06,
+      "spectralFlatness": 0.016415,
+      "hardPass": true
+    }
+  ]
+}

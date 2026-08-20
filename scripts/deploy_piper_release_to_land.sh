@@ -7,7 +7,8 @@ release=$(cd "$release" && pwd)
 manifest="$release/release.json"
 [[ -f "$manifest" && -f "$release/voice.onnx" && -f "$release/voice.onnx.json" ]]
 
-readarray -t metadata < <(python3 - "$repo/scripts" "$release" <<'PY'
+metadata=()
+while IFS= read -r line; do metadata+=("$line"); done < <(python3 - "$repo/scripts" "$release" <<'PY'
 import sys
 sys.path.insert(0, sys.argv[1])
 from verify_piper_release import verify
@@ -105,7 +106,8 @@ if [[ -n "$previous" && "$previous" == "$root/releases/"* && -f "$previous/relea
     echo "previous Piper release failed immutable bundle verification" >&2
     exit 1
   }
-  readarray -t metadata < <(python3 - "$previous/release.json" <<'PY'
+  metadata=()
+  while IFS= read -r line; do metadata+=("$line"); done < <(python3 - "$previous/release.json" <<'PY'
 import json, sys
 payload=json.load(open(sys.argv[1], encoding="utf-8"))
 print(payload["modelAlias"]); print(payload["modelSha256"]); print(payload["configSha256"])
@@ -187,7 +189,7 @@ then
   exit 1
 fi
 if ! backend_smoke=$(ssh land \
-  "ssh -o BatchMode=yes -o ConnectTimeout=5 ze python3 - \
+  "ssh -o BatchMode=yes -o ConnectTimeout=5 zeze python3 - \
     --endpoint http://127.0.0.1:18767/synthesize --model '$alias' \
     --model-sha256 '$model_sha' --config-sha256 '$config_sha' \
     --max-rtf 1.0 --timeout 30" \

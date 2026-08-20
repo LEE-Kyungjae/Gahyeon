@@ -477,6 +477,10 @@ curl http://localhost:8081/api/health
 curl http://localhost:8080/api/actuator/health
 ```
 
+Actuator health component details are hidden by default. If a bounded internal diagnostic needs
+them, set `MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always` temporarily and do not expose that
+configuration through the public ingress.
+
 ### 메트릭 확인
 ```bash
 # JVM 메모리 사용량

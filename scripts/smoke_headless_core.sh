@@ -78,6 +78,7 @@ env \
   GAHYEON_BEHAVIOR_ENABLED=true \
   GAHYEON_UNREAL_WEBSOCKET_ENABLED=false \
   TTS_ENABLED=false \
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=always \
   SERVER_PORT="$port" \
   "${server_command[@]}" >"$log_file" 2>&1 &
 server_pid=$!
