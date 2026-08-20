@@ -382,8 +382,8 @@ expected_history() {
   python3 - "$upper" <<'PY'
 import sys
 upper = int(sys.argv[1])
-versions = [str(value) for value in range(1, upper + 1)]
-if upper >= 29:
+versions = [str(value) for value in range(1, min(upper, 29) + 1)]
+if upper >= 36:
     versions.extend(str(value) for value in range(36, upper + 1))
 print(",".join(versions))
 PY
