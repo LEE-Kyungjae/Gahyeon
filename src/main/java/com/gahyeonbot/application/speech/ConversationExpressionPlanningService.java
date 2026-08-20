@@ -9,6 +9,7 @@ import com.gahyeonbot.core.speech.VoiceExpression;
 import com.gahyeonbot.core.world.WorldId;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -26,6 +27,7 @@ public final class ConversationExpressionPlanningService {
     private final CharacterRelationshipService relationships;
     private final ConversationExpressionModel model;
 
+    @Autowired
     public ConversationExpressionPlanningService(
             CharacterDefinitionRegistry characters,
             CharacterLifeService life,

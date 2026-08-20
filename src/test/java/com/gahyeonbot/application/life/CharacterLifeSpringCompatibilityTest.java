@@ -1,6 +1,7 @@
 package com.gahyeonbot.application.life;
 
 import com.gahyeonbot.adapters.life.JpaCharacterMemoryStore;
+import com.gahyeonbot.application.speech.ConversationExpressionPlanningService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -30,7 +31,8 @@ class CharacterLifeSpringCompatibilityTest {
                 CharacterRelationshipService.class,
                 CharacterCognitionService.class,
                 CharacterConversationMemoryListener.class,
-                CharacterMemoryConsolidationService.class
+                CharacterMemoryConsolidationService.class,
+                ConversationExpressionPlanningService.class
         ).forEach(type -> assertThat(List.of(type.getDeclaredConstructors()).stream()
                 .anyMatch(constructor -> constructor.isAnnotationPresent(Autowired.class)))
                 .as("%s must identify its Spring runtime constructor", type.getSimpleName())
