@@ -2,6 +2,8 @@ package com.gahyeonbot.adapters.unreal;
 
 import com.gahyeonbot.core.speech.SpeechSynthesisUseCase;
 import com.gahyeonbot.core.speech.VoiceProfileId;
+import com.gahyeonbot.core.speech.ExpressiveSpeechRequest;
+import com.gahyeonbot.core.speech.ExpressiveSpeechSynthesisUseCase;
 
 import java.util.List;
 import java.util.Map;
@@ -19,11 +21,13 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 public final class DefaultUnrealSpeechPreparationService implements UnrealSpeechPreparationPort {
     private static final int MAXIMUM_PENDING_PREPARATIONS_PER_SESSION = 64;
     private final SpeechSynthesisUseCase synthesis;
+    private final ExpressiveSpeechSynthesisUseCase expressiveSynthesis;
     private final UnrealAudioCache audio;
     private final UnrealEphemeralBroker outbound;
     private final Executor ttsExecutor;
     private final UnrealRuntimeMetrics metrics;
     private final UnrealVisemeTimelinePort visemes;
+    private final UnrealPcmStreamCache pcmStreams;
     private final ConcurrentHashMap<String, SessionTasks> sessions = new ConcurrentHashMap<>();
 
     public DefaultUnrealSpeechPreparationService(
@@ -32,8 +36,8 @@ public final class DefaultUnrealSpeechPreparationService implements UnrealSpeech
             UnrealEphemeralBroker outbound,
             Executor ttsExecutor,
             UnrealRuntimeMetrics metrics) {
-        this(synthesis, audio, outbound, ttsExecutor, metrics,
-                UnrealVisemeTimelinePort.unavailable());
+        this(synthesis, null, audio, outbound, ttsExecutor, metrics,
+                UnrealVisemeTimelinePort.unavailable(), null);
     }
 
     public DefaultUnrealSpeechPreparationService(
@@ -43,12 +47,37 @@ public final class DefaultUnrealSpeechPreparationService implements UnrealSpeech
             Executor ttsExecutor,
             UnrealRuntimeMetrics metrics,
             UnrealVisemeTimelinePort visemes) {
+        this(synthesis, null, audio, outbound, ttsExecutor, metrics, visemes, null);
+    }
+
+    public DefaultUnrealSpeechPreparationService(
+            SpeechSynthesisUseCase synthesis,
+            ExpressiveSpeechSynthesisUseCase expressiveSynthesis,
+            UnrealAudioCache audio,
+            UnrealEphemeralBroker outbound,
+            Executor ttsExecutor,
+            UnrealRuntimeMetrics metrics,
+            UnrealVisemeTimelinePort visemes) {
+        this(synthesis, expressiveSynthesis, audio, outbound, ttsExecutor, metrics, visemes, null);
+    }
+
+    public DefaultUnrealSpeechPreparationService(
+            SpeechSynthesisUseCase synthesis,
+            ExpressiveSpeechSynthesisUseCase expressiveSynthesis,
+            UnrealAudioCache audio,
+            UnrealEphemeralBroker outbound,
+            Executor ttsExecutor,
+            UnrealRuntimeMetrics metrics,
+            UnrealVisemeTimelinePort visemes,
+            UnrealPcmStreamCache pcmStreams) {
         this.synthesis = synthesis;
+        this.expressiveSynthesis = expressiveSynthesis;
         this.audio = audio;
         this.outbound = outbound;
         this.ttsExecutor = ttsExecutor;
         this.metrics = metrics;
         this.visemes = visemes;
+        this.pcmStreams = pcmStreams;
     }
 
     @Override
@@ -139,8 +168,13 @@ public final class DefaultUnrealSpeechPreparationService implements UnrealSpeech
             long requestedAt) {
         try {
             if (!healthy(request, currentGeneration)) return;
-            VoiceProfileId voice = VoiceProfileId.ASSISTANT;
-            if (!synthesis.isReady(voice)) {
+            VoiceProfileId voice = request.voiceProfile();
+            boolean expressive = request.expression() != null;
+            boolean streaming = expressive && pcmStreams != null && pcmStreams.isReady(voice);
+            boolean ready = streaming || (expressive
+                    ? expressiveSynthesis != null && expressiveSynthesis.isExpressiveReady(voice)
+                    : synthesis.isReady(voice));
+            if (!ready) {
                 failed(request, "tts_not_ready");
                 return;
             }
@@ -149,11 +183,18 @@ public final class DefaultUnrealSpeechPreparationService implements UnrealSpeech
                 failed(request, "tts_empty");
                 return;
             }
+            if (streaming) {
+                synthesizeStreaming(request, currentGeneration, requestedAt, voice, segments);
+                return;
+            }
             for (int position = 0; position < segments.size(); position++) {
                 if (!healthy(request, currentGeneration)) return;
                 var segment = segments.get(position);
                 long segmentStartedAt = System.nanoTime();
-                var output = synthesis.synthesize(segment, voice);
+                var output = expressive
+                        ? expressiveSynthesis.synthesizeExpressive(
+                                new ExpressiveSpeechRequest(segment, voice, request.expression()))
+                        : synthesis.synthesize(segment, voice);
                 metrics.ttsSegment(System.nanoTime() - segmentStartedAt);
                 if (!healthy(request, currentGeneration)) return;
                 if (!("audio/wav".equals(output.mediaType())
@@ -180,21 +221,29 @@ public final class DefaultUnrealSpeechPreparationService implements UnrealSpeech
                     return;
                 }
                 boolean finalSegment = position == segments.size() - 1;
+                var preparedPayload = new java.util.LinkedHashMap<String, Object>();
+                preparedPayload.put("generation", request.generation());
+                preparedPayload.put("utteranceId", audioId);
+                preparedPayload.put("utteranceIndex", request.utteranceIndex());
+                preparedPayload.put("segmentIndex", segment.index());
+                preparedPayload.put("segmentCount", segments.size());
+                preparedPayload.put("finalSegment", finalSegment);
+                preparedPayload.put("voiceProfile", voice.value());
+                if (request.expression() != null) {
+                    preparedPayload.put("voiceExpression", Map.of(
+                            "style", request.expression().style(),
+                            "intensity", request.expression().intensity(),
+                            "communicativeIntent", request.expression().communicativeIntent()));
+                }
+                preparedPayload.put("audio", Map.of(
+                        "url", "/api/gahyeon/unreal/speech/audio/" + audioId,
+                        "mimeType", output.mediaType()));
+                preparedPayload.put("visemes", timeline);
                 int admittedRenderers = outbound.publishIf(
                         request.sessionId(),
                         "speech.prepared",
                         request.correlationId(),
-                        Map.of(
-                                "generation", request.generation(),
-                                "utteranceId", audioId,
-                                "utteranceIndex", request.utteranceIndex(),
-                                "segmentIndex", segment.index(),
-                                "segmentCount", segments.size(),
-                                "finalSegment", finalSegment,
-                                "audio", Map.of(
-                                        "url", "/api/gahyeon/unreal/speech/audio/" + audioId,
-                                        "mimeType", output.mediaType()),
-                                "visemes", timeline),
+                        Map.copyOf(preparedPayload),
                         boundedAdmission -> state.tryAdmitPublication(
                                 request.generation(), currentGeneration, boundedAdmission));
                 if (admittedRenderers < 0) {
@@ -215,6 +264,67 @@ public final class DefaultUnrealSpeechPreparationService implements UnrealSpeech
                     request.generation(), request.utteranceIndex());
         } catch (RuntimeException failure) {
             if (currentGeneration.getAsBoolean()) failed(request, "tts_failed");
+        }
+    }
+
+    private void synthesizeStreaming(
+            UnrealSpeechPreparationRequest request,
+            BooleanSupplier currentGeneration,
+            long requestedAt,
+            VoiceProfileId voice,
+            List<com.gahyeonbot.core.speech.SpeechSegment> segments) {
+        java.util.concurrent.atomic.AtomicInteger remaining =
+                new java.util.concurrent.atomic.AtomicInteger(segments.size());
+        for (int position = 0; position < segments.size(); position++) {
+            if (!healthy(request, currentGeneration)) return;
+            var segment = segments.get(position);
+            SessionTasks state = sessions.get(request.sessionId());
+            if (state == null) return;
+            String streamId = pcmStreams.start(
+                    new ExpressiveSpeechRequest(segment, voice, request.expression()),
+                    () -> healthy(request, currentGeneration),
+                    () -> {
+                        if (remaining.decrementAndGet() == 0) {
+                            SessionTasks current = sessions.get(request.sessionId());
+                            if (current != null && healthy(request, currentGeneration)) {
+                                current.markSuccessful(request.generation(), request.utteranceIndex());
+                            }
+                        }
+                    },
+                    ignored -> {
+                        if (currentGeneration.getAsBoolean()) failed(request, "tts_stream_failed");
+                    });
+            boolean finalSegment = position == segments.size() - 1;
+            var preparedPayload = new java.util.LinkedHashMap<String, Object>();
+            preparedPayload.put("generation", request.generation());
+            preparedPayload.put("utteranceId", streamId);
+            preparedPayload.put("utteranceIndex", request.utteranceIndex());
+            preparedPayload.put("segmentIndex", segment.index());
+            preparedPayload.put("segmentCount", segments.size());
+            preparedPayload.put("finalSegment", finalSegment);
+            preparedPayload.put("voiceProfile", voice.value());
+            preparedPayload.put("voiceExpression", Map.of(
+                    "style", request.expression().style(),
+                    "intensity", request.expression().intensity(),
+                    "communicativeIntent", request.expression().communicativeIntent()));
+            preparedPayload.put("audio", Map.of(
+                    "url", "/api/gahyeon/unreal/speech/stream/" + streamId,
+                    "mimeType", "audio/pcm"));
+            preparedPayload.put("visemes", List.of());
+            int admittedRenderers = outbound.publishIf(
+                    request.sessionId(), "speech.prepared", request.correlationId(),
+                    Map.copyOf(preparedPayload),
+                    boundedAdmission -> state.tryAdmitPublication(
+                            request.generation(), currentGeneration, boundedAdmission));
+            if (admittedRenderers <= 0) {
+                pcmStreams.discard(streamId);
+                if (admittedRenderers == 0 && healthy(request, currentGeneration)) {
+                    failed(request, "tts_no_renderer");
+                }
+                return;
+            }
+            metrics.visemeTimeline("amplitude");
+            if (position == 0) metrics.ttsFirstSegment(System.nanoTime() - requestedAt);
         }
     }
 

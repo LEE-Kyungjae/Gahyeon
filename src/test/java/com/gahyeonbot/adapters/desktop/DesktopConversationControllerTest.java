@@ -43,7 +43,7 @@ class DesktopConversationControllerTest {
                 conversation, identities, streams, ownership, authorization);
 
         var response = controller.converse("room-1", new DesktopConversationController.MessageRequest(
-                "request-1", "install-1", "Zaeze", "안녕"), httpRequest);
+                "request-1", "install-1", "Zaeze", "diana", "안녕"), httpRequest);
         verify(authorization).requireInstallation(httpRequest, "install-1");
         verify(ownership).claim("room-1", "install-1");
 
@@ -55,7 +55,9 @@ class DesktopConversationControllerTest {
         assertThat(request.getValue().session().id().value()).isEqualTo("desktop:room-1");
         assertThat(request.getValue().session().actorId()).isEqualTo(new ActorId(42));
         assertThat(request.getValue().session().clientContext())
-                .containsEntry("desktop.installationId", "install-1");
+                .containsEntry("desktop.installationId", "install-1")
+                .containsEntry("character.id", "diana")
+                .containsEntry("world.id", "gahyeon-home");
         verify(streams).publishConversationDelta("room-1", "request-1", "반가");
         verify(streams).publishConversationDelta("room-1", "request-1", "워요");
         verify(streams).finishConversation("room-1", "generation-1");

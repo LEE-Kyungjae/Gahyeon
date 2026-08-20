@@ -1,0 +1,77 @@
+{
+  "schemaVersion": 1,
+  "primaryCharacterId": "gahyeon",
+  "defaultCharacterId": "gahyeon",
+  "characters": [
+    {
+      "id": "gahyeon",
+      "displayName": "가현",
+      "personaPrompt": "prompts/characters/gahyeon.txt",
+      "memoryNamespace": "character:gahyeon",
+      "voiceProfile": "gahyeon.assistant",
+      "expressionProfile": "gahyeon.metahuman",
+      "autonomousEnabled": true,
+      "mediaPath": "./poc/gahyeon-metahuman-v363-hq.webm",
+      "unrealAssetPath": "/Game/Gahyeon/TalkingPOC/v275/Maps/L_GahyeonTalkingRuntime_v275",
+      "productionReady": false
+    },
+    {
+      "id": "diana",
+      "displayName": "다이애나",
+      "personaPrompt": "prompts/characters/diana.txt",
+      "memoryNamespace": "character:diana",
+      "voiceProfile": "diana.assistant",
+      "expressionProfile": "diana.metahuman",
+      "autonomousEnabled": false,
+      "mediaPath": "./poc/diana-v317.webm",
+      "unrealAssetPath": "/Game/Gahyeon/Character2/Diana/v024/Source/SK_Diana_CM_v024",
+      "productionReady": false
+    },
+    {
+      "id": "stella-lily",
+      "displayName": "스텔라 릴리",
+      "personaPrompt": "prompts/characters/stella-lily.txt",
+      "memoryNamespace": "character:stella-lily",
+      "voiceProfile": "gahyeon.assistant",
+      "expressionProfile": "stella-lily.unreal",
+      "autonomousEnabled": false,
+      "mediaPath": "./poc/stella-lily-living-idle-v640.webm",
+      "activityMediaPaths": {
+        "walk": "./poc/actions/stella-lily/walk-v644.webm",
+        "run": "./poc/actions/stella-lily/run-v644.webm",
+        "sit": "./poc/actions/stella-lily/standSit-v644.webm",
+        "conversation": "./poc/actions/stella-lily/narration-v644.webm",
+        "attention": "./poc/actions/stella-lily/present-v644.webm",
+        "listening": "./poc/actions/stella-lily/subtleReaction-v644.webm",
+        "thinking": "./poc/actions/stella-lily/subtleReaction-v644.webm",
+        "present": "./poc/actions/stella-lily/present-v644.webm",
+        "explain": "./poc/actions/stella-lily/narration-v644.webm"
+      },
+      "unrealAssetPath": "/Game/LivingCharacterPOC/v634/Sequence/LS_StellaDynamics_v634",
+      "productionReady": false
+    },
+    {
+      "id": "ururu",
+      "displayName": "우루루",
+      "personaPrompt": "prompts/characters/ururu.txt",
+      "memoryNamespace": "character:ururu",
+      "voiceProfile": "gahyeon.assistant",
+      "expressionProfile": "ururu.unreal",
+      "autonomousEnabled": false,
+      "mediaPath": "./poc/ururu-living-idle-v640.webm",
+      "activityMediaPaths": {
+        "walk": "./poc/actions/ururu/walk-v644.webm",
+        "run": "./poc/actions/ururu/run-v644.webm",
+        "sit": "./poc/actions/ururu/standSit-v644.webm",
+        "conversation": "./poc/actions/ururu/narration-v644.webm",
+        "attention": "./poc/actions/ururu/present-v644.webm",
+        "listening": "./poc/actions/ururu/subtleReaction-v644.webm",
+        "thinking": "./poc/actions/ururu/subtleReaction-v644.webm",
+        "present": "./poc/actions/ururu/present-v644.webm",
+        "explain": "./poc/actions/ururu/narration-v644.webm"
+      },
+      "unrealAssetPath": "/Game/LivingCharacterPOC/v637/Sequence/LS_UruruDynamics_v637",
+      "productionReady": false
+    }
+  ]
+}

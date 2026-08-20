@@ -11,6 +11,7 @@ export class VrmCharacterRenderer implements CharacterRenderer {
   readonly object = new Group()
   readonly animationWarnings: string[] = []
   private readonly animations: VrmAnimationController
+  private readonly expressionWeights = new Map<string, number>()
   private elapsed = 1.1
   private constructor(private readonly vrm: VRM) {
     VRMUtils.rotateVRM0(vrm)
@@ -37,11 +38,18 @@ export class VrmCharacterRenderer implements CharacterRenderer {
 
   update(state: StageState, deltaSeconds: number) {
     this.elapsed += deltaSeconds
-    this.animations.update(state.activity, deltaSeconds)
+    this.animations.update(state.activity, deltaSeconds, state.gesture)
+    applyGaze(this.vrm, state.gazeTarget, deltaSeconds)
     const expression = this.vrm.expressionManager
     if (expression) {
-      expression.setValue('happy', state.expression === 'happy' ? state.expressionIntensity : 0)
-      expression.setValue('relaxed', state.expression === 'relaxed' ? state.expressionIntensity : 0)
+      const blend = 1 - Math.exp(-Math.max(0, deltaSeconds) * 8)
+      for (const name of ['happy', 'angry', 'sad', 'surprised', 'relaxed']) {
+        const current = this.expressionWeights.get(name) ?? 0
+        const target = state.expression === name ? state.expressionIntensity : 0
+        const next = current + (target - current) * blend
+        this.expressionWeights.set(name, next)
+        expression.setValue(name, next)
+      }
       expression.setValue('aa', state.speaking ? Math.max(0.08, state.speechAmplitude) : 0)
       expression.setValue('blink', blinkWeight(this.elapsed))
       expression.update()
@@ -54,4 +62,14 @@ export class VrmCharacterRenderer implements CharacterRenderer {
     VRMUtils.deepDispose(this.vrm.scene)
     this.object.remove(this.vrm.scene)
   }
+}
+
+function applyGaze(vrm: VRM, target: string, deltaSeconds: number) {
+  const head = vrm.humanoid.getNormalizedBoneNode('head')
+  if (!head) return
+  const yaw = target === 'window' ? 0.22
+    : target === 'left' ? 0.16
+      : target === 'right' ? -0.16 : 0
+  const blend = 1 - Math.exp(-Math.max(0, deltaSeconds) * 4.5)
+  head.rotation.y += (yaw - head.rotation.y) * blend
 }

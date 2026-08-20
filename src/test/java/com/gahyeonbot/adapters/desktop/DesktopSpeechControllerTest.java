@@ -12,9 +12,10 @@ class DesktopSpeechControllerTest {
     void delegatesWavTranscriptionThroughCoreUseCase() {
         TranscriptionUseCase transcription = mock(TranscriptionUseCase.class);
         SpeechSynthesisUseCase synthesis = mock(SpeechSynthesisUseCase.class);
+        ExpressiveSpeechSynthesisUseCase expressive = mock(ExpressiveSpeechSynthesisUseCase.class);
         when(transcription.isReady()).thenReturn(true);
         when(transcription.transcribe(any())).thenReturn("안녕하세요");
-        var controller = new DesktopSpeechController(transcription, synthesis);
+        var controller = new DesktopSpeechController(transcription, synthesis, expressive);
 
         var result = controller.transcribe(new byte[] { 1, 2, 3 });
 
@@ -27,16 +28,40 @@ class DesktopSpeechControllerTest {
     void returnsProviderAudioWithoutCreatingDesktopFiles() {
         TranscriptionUseCase transcription = mock(TranscriptionUseCase.class);
         SpeechSynthesisUseCase synthesis = mock(SpeechSynthesisUseCase.class);
+        ExpressiveSpeechSynthesisUseCase expressive = mock(ExpressiveSpeechSynthesisUseCase.class);
         when(synthesis.isReady(VoiceProfileId.ASSISTANT)).thenReturn(true);
         when(synthesis.synthesize(
                 new SpeechSegment(0, "반가워요"), VoiceProfileId.ASSISTANT))
                 .thenReturn(new AudioOutput(new byte[] { 4, 5, 6 }, "audio/wav", "wav"));
-        var controller = new DesktopSpeechController(transcription, synthesis);
+        var controller = new DesktopSpeechController(transcription, synthesis, expressive);
 
         var response = controller.synthesize(new DesktopSpeechController.SynthesizeSpeechRequest(
                 0, "반가워요", VoiceProfileId.ASSISTANT.value()));
 
         assertThat(response.getHeaders().getContentType()).isEqualTo(MediaType.parseMediaType("audio/wav"));
         assertThat(response.getBody()).containsExactly(4, 5, 6);
+    }
+
+    @Test
+    void preservesExpressionControlsForAnExpressiveProvider() {
+        TranscriptionUseCase transcription = mock(TranscriptionUseCase.class);
+        SpeechSynthesisUseCase synthesis = mock(SpeechSynthesisUseCase.class);
+        ExpressiveSpeechSynthesisUseCase expressive = mock(ExpressiveSpeechSynthesisUseCase.class);
+        when(expressive.isExpressiveReady(VoiceProfileId.ASSISTANT)).thenReturn(true);
+        when(expressive.synthesizeExpressive(any())).thenReturn(
+                new AudioOutput(new byte[] { 7, 8 }, "audio/wav", "wav"));
+        var controller = new DesktopSpeechController(transcription, synthesis, expressive);
+
+        var response = controller.synthesize(new DesktopSpeechController.SynthesizeSpeechRequest(
+                0, "정말 온 거야?", VoiceProfileId.ASSISTANT.value(),
+                new DesktopSpeechController.VoiceExpressionRequest(
+                        "surprised", 0.8, "reunion")));
+
+        assertThat(response.getBody()).containsExactly(7, 8);
+        verify(expressive).synthesizeExpressive(argThat(request ->
+                request.expression().style().equals("surprised")
+                        && request.expression().intensity() == 0.8
+                        && request.expression().communicativeIntent().equals("reunion")));
+        verify(synthesis, never()).synthesize(any(), any());
     }
 }

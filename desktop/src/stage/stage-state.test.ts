@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest'
 import { initialStageState, reduceStageEvent } from './stage-state'
 
 describe('stage state reducer', () => {
+  it('applies one autonomous presentation plan atomically', () => {
+    const state = reduceStageEvent(initialStageState, {
+      event: 'avatar.presentation',
+      data: { payload: { expression: 'concerned', intensity: 0.62, gazeTarget: 'user', gesture: 'small_wave' } },
+    })
+    expect(state).toMatchObject({
+      expression: 'concerned', expressionIntensity: 0.62,
+      gazeTarget: 'user', gesture: 'small_wave',
+    })
+  })
   it('reduces semantic movement and expression events', () => {
     const moved = reduceStageEvent(initialStageState, {
       event: 'character.moved',

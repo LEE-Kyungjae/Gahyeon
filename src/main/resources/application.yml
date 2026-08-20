@@ -82,6 +82,24 @@ gahyeon:
     maximum-event-subscriptions-per-session: ${GAHYEON_DESKTOP_MAXIMUM_EVENT_SUBSCRIPTIONS_PER_SESSION:4}
   identity-link:
     cleanup-millis: ${GAHYEON_IDENTITY_LINK_CLEANUP_MILLIS:3600000}
+  speech:
+    expression-planner:
+      small-model:
+        enabled: ${GAHYEON_EXPRESSION_SMALL_MODEL_ENABLED:false}
+        endpoint: ${GAHYEON_EXPRESSION_SMALL_MODEL_ENDPOINT:}
+        api-key: ${GAHYEON_EXPRESSION_SMALL_MODEL_API_KEY:}
+        model-id: ${GAHYEON_EXPRESSION_SMALL_MODEL_ID:Qwen/Qwen3-0.6B}
+        timeout-millis: ${GAHYEON_EXPRESSION_SMALL_MODEL_TIMEOUT_MILLIS:180}
+        max-response-bytes: ${GAHYEON_EXPRESSION_SMALL_MODEL_MAX_RESPONSE_BYTES:4096}
+    expressive:
+      qwen:
+        enabled: ${GAHYEON_QWEN_EXPRESSIVE_TTS_ENABLED:false}
+        endpoint: ${GAHYEON_QWEN_EXPRESSIVE_TTS_ENDPOINT:}
+        api-key: ${GAHYEON_QWEN_EXPRESSIVE_TTS_API_KEY:}
+        model-id: ${GAHYEON_QWEN_EXPRESSIVE_TTS_MODEL_ID:}
+        quantization: ${GAHYEON_QWEN_EXPRESSIVE_TTS_QUANTIZATION:}
+        timeout-millis: ${GAHYEON_QWEN_EXPRESSIVE_TTS_TIMEOUT_MILLIS:30000}
+        max-audio-bytes: ${GAHYEON_QWEN_EXPRESSIVE_TTS_MAX_AUDIO_BYTES:16777216}
   unreal:
     runtime:
       # Bounded pools keep slow cognition/TTS work away from the WebSocket and Game threads.
@@ -131,6 +149,56 @@ gahyeon:
   behavior:
     enabled: ${GAHYEON_BEHAVIOR_ENABLED:false}
     tick-millis: ${GAHYEON_BEHAVIOR_TICK_MILLIS:10000}
+  life:
+    enabled: ${GAHYEON_LIFE_ENABLED:false}
+    tick-millis: ${GAHYEON_LIFE_TICK_MILLIS:60000}
+  characters:
+    primary-id: gahyeon
+    catalog:
+      - id: gahyeon
+        display-name: 가현
+        persona-prompt: prompts/characters/gahyeon.txt
+        voice-profile: gahyeon.assistant
+        expression-profile: gahyeon.metahuman
+        autonomous-enabled: true
+        initiative-threshold: 0.65
+        initiative-cooldown: 12m
+        social-drift-per-hour: 0.055
+        curiosity-drift-per-hour: 0.040
+        rest-drift-per-hour: 0.030
+      - id: diana
+        display-name: 다이애나
+        persona-prompt: prompts/characters/diana.txt
+        voice-profile: diana.assistant
+        expression-profile: diana.metahuman
+        autonomous-enabled: false
+        initiative-threshold: 0.80
+        initiative-cooldown: 18m
+        social-drift-per-hour: 0.040
+        curiosity-drift-per-hour: 0.060
+        rest-drift-per-hour: 0.025
+      - id: stella-lily
+        display-name: 스텔라 릴리
+        persona-prompt: prompts/characters/stella-lily.txt
+        voice-profile: gahyeon.assistant
+        expression-profile: stella-lily.unreal
+        autonomous-enabled: false
+        initiative-threshold: 0.78
+        initiative-cooldown: 16m
+        social-drift-per-hour: 0.045
+        curiosity-drift-per-hour: 0.055
+        rest-drift-per-hour: 0.030
+      - id: ururu
+        display-name: 우루루
+        persona-prompt: prompts/characters/ururu.txt
+        voice-profile: gahyeon.assistant
+        expression-profile: ururu.unreal
+        autonomous-enabled: false
+        initiative-threshold: 0.76
+        initiative-cooldown: 15m
+        social-drift-per-hour: 0.050
+        curiosity-drift-per-hour: 0.050
+        rest-drift-per-hour: 0.032
   world-action:
     execution-tick-millis: ${GAHYEON_WORLD_ACTION_EXECUTION_TICK_MILLIS:250}
     timeout-scan-millis: ${GAHYEON_WORLD_ACTION_TIMEOUT_SCAN_MILLIS:5000}

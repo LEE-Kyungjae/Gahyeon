@@ -105,6 +105,18 @@ public final class DefaultUnrealCommandDispatcher implements UnrealCommandDispat
         speech.releaseSession(sessionId);
     }
 
+    @Override
+    public long currentGeneration(String sessionId) {
+        SessionAdmission admission = admissions.get(sessionId);
+        return admission == null ? -1 : admission.currentGeneration();
+    }
+
+    @Override
+    public boolean acceptsAutonomousSpeech(String sessionId) {
+        SessionAdmission admission = admissions.get(sessionId);
+        return admission == null || admission.acceptsAutonomousSpeech();
+    }
+
     private Future<?> submit(Runnable task) {
         if (cognitionExecutor instanceof AsyncTaskExecutor async) return async.submit(task);
         if (cognitionExecutor instanceof ExecutorService service) return service.submit(task);
@@ -177,6 +189,14 @@ public final class DefaultUnrealCommandDispatcher implements UnrealCommandDispat
 
         synchronized boolean isCurrent(long candidateGeneration) {
             return !released && candidateGeneration == generation;
+        }
+
+        synchronized long currentGeneration() {
+            return released ? -1 : generation;
+        }
+
+        synchronized boolean acceptsAutonomousSpeech() {
+            return !released && active.isEmpty();
         }
 
         synchronized void attach(long candidateGeneration, TrackedTask task) {

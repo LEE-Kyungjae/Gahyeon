@@ -8,6 +8,7 @@ import com.gahyeonbot.core.conversation.ConversationResponse;
 import com.gahyeonbot.services.ai.ConversationAdmissionService;
 import com.gahyeonbot.services.ai.agent.AgentModality;
 import com.gahyeonbot.services.ai.agent.AgentResult;
+import com.gahyeonbot.application.life.CharacterConversationContext;
 import org.springframework.stereotype.Component;
 
 /**
@@ -38,17 +39,20 @@ public class AdmissionControlledConversationAdapter implements StreamingConversa
             ConversationRequest request,
             ConversationStreamObserver observer) {
         Long toolScopeId = toolScopeId(request);
+        String sessionKey = CharacterConversationContext.from(request.session())
+                .map(context -> context.scopedSessionKey(request.session().id().value()))
+                .orElse(request.session().id().value());
         AgentResult result;
         try {
             if (observer == null) {
                 result = admission.chatResult(
-                        request.requestId(), request.session().id().value(),
+                        request.requestId(), sessionKey,
                         AgentModality.valueOf(request.session().modality().name()),
                         request.session().actorId(), request.displayName(),
                         toolScopeId, request.message());
             } else {
                 result = admission.chatResultStreaming(
-                        request.requestId(), request.session().id().value(),
+                        request.requestId(), sessionKey,
                         AgentModality.valueOf(request.session().modality().name()),
                         request.session().actorId(), request.displayName(),
                         toolScopeId, request.message(), new com.gahyeonbot.services.ai.agent.AgentStreamObserver() {

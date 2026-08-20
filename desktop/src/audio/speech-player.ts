@@ -1,4 +1,4 @@
-import type { GahyeonDesktopBridge, SpeechSegment } from '../gahyeon-api'
+import type { GahyeonDesktopBridge, SpeechSegment, VoiceExpression } from '../gahyeon-api'
 
 export interface SpeechPlaybackListener {
   onStart(): void
@@ -29,9 +29,23 @@ export class SpeechPlayer {
     await sequence.finish()
   }
 
+  async speakExpressive(
+    text: string,
+    bridge: GahyeonDesktopBridge,
+    listener: SpeechPlaybackListener,
+    voiceProfile: string,
+    expression: VoiceExpression,
+  ) {
+    const sequence = this.beginSequence(bridge, listener, voiceProfile, expression)
+    await sequence.enqueue(text)
+    await sequence.finish()
+  }
+
   beginSequence(
     bridge: GahyeonDesktopBridge,
     listener: SpeechPlaybackListener,
+    voiceProfile = 'gahyeon.assistant',
+    expression?: VoiceExpression,
   ): SpeechSequence {
     this.stop()
     const generation = this.generation
@@ -52,7 +66,7 @@ export class SpeechPlayer {
 
     const prepareAudio = async (segment: SpeechSegment): Promise<PreparedAudio> => {
       try {
-        const audio = await bridge.synthesizeSpeech(segment)
+        const audio = await bridge.synthesizeSpeech({ ...segment, voiceProfile, expression })
         if (generation !== this.generation) return {}
         return { buffer: await context.decodeAudioData(audio.data.slice(0)) }
       }

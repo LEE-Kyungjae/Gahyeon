@@ -85,6 +85,19 @@ public final class UnrealClientSessionRegistry {
                 .anyMatch(binding -> binding.worldId().equals(worldId));
     }
 
+    /** One binding per logical session rendering this exact character in the world. */
+    public synchronized java.util.List<Binding> sessionsFor(String worldId, String characterId) {
+        if (worldId == null || worldId.isBlank() || characterId == null || characterId.isBlank()) {
+            return java.util.List.of();
+        }
+        return byConnection.values().stream()
+                .filter(binding -> binding.worldId().equals(worldId)
+                        && binding.characterId().equals(characterId))
+                .collect(java.util.stream.Collectors.toMap(
+                        Binding::sessionId, binding -> binding, (left, right) -> left))
+                .values().stream().toList();
+    }
+
     int connectionCount() {
         return byConnection.size();
     }
@@ -112,19 +125,26 @@ public final class UnrealClientSessionRegistry {
             String sessionId,
             String worldId,
             String installationId,
-            String displayName) {
+            String displayName,
+            String characterId) {
+        public Binding(String sessionId, String worldId, String installationId, String displayName) {
+            this(sessionId, worldId, installationId, displayName, "gahyeon");
+        }
+
         public Binding {
             requireText(sessionId, "sessionId");
             requireText(worldId, "worldId");
             requireText(installationId, "installationId");
             displayName = displayName == null || displayName.isBlank()
                     ? "Gahyeon user" : displayName.trim();
+            characterId = new com.gahyeonbot.core.life.CharacterId(characterId).value();
         }
 
         private boolean sameIdentity(Binding other) {
             return sessionId.equals(other.sessionId)
                     && worldId.equals(other.worldId)
-                    && installationId.equals(other.installationId);
+                    && installationId.equals(other.installationId)
+                    && characterId.equals(other.characterId);
         }
     }
 
